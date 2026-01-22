@@ -1,3 +1,5 @@
+from typing import Any
+
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
@@ -60,13 +62,13 @@ class SettingsDaoImpl(SettingsDao):
         values_to_update = {}
 
         for key, value in settings.changed_data.items():
-            dumped = {k: self.retort.dump(v) for k, v in value.items()}
+            column = getattr(Settings, key)
 
-            if isinstance(dumped, dict):
-                column = getattr(Settings, key)
+            if isinstance(value, dict):
+                dumped = {k: self.retort.dump(v, Any) for k, v in value.items()}
                 values_to_update[key] = column.concat(dumped)
             else:
-                values_to_update[key] = dumped
+                values_to_update[key] = self.retort.dump(value)
 
         stmt = (
             update(Settings)

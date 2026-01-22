@@ -19,6 +19,12 @@ def setup_routers(router: Router) -> None:
         dashboard.dialog.router,
         dashboard.access.dialog.router,
         dashboard.remnawave.dialog.router,
+        #
+        dashboard.remnashop.dialog.router,
+        # dashboard.remnashop.gateways.dialog.router,
+        dashboard.remnashop.referral.dialog.router,
+        dashboard.remnashop.notifications.dialog.router,
+        dashboard.remnashop.plans.dialog.router,
     ]
 
     router.include_routers(*routers)

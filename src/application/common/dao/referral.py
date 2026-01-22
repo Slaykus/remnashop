@@ -1,4 +1,4 @@
-from typing import Optional, Protocol, Sequence, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 from src.application.dto import ReferralDto, ReferralRewardDto
 from src.core.enums import ReferralRewardType
@@ -17,7 +17,7 @@ class ReferralDao(Protocol):
         referrer_id: int,
         limit: int = 100,
         offset: int = 0,
-    ) -> Sequence[ReferralDto]: ...
+    ) -> list[ReferralDto]: ...
 
     async def create_reward(
         self,
@@ -25,7 +25,7 @@ class ReferralDao(Protocol):
         referral_id: int,
     ) -> ReferralRewardDto: ...
 
-    async def get_pending_rewards(self) -> Sequence[ReferralRewardDto]: ...
+    async def get_pending_rewards(self) -> list[ReferralRewardDto]: ...
 
     async def mark_reward_as_issued(self, reward_id: int) -> None: ...
 

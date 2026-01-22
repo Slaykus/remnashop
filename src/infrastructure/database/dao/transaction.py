@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Optional, Sequence, cast
+from typing import Optional, cast
 from uuid import UUID
 
 from adaptix import Retort
@@ -56,7 +56,7 @@ class TransactionDaoImpl(TransactionDao):
         logger.debug(f"Transaction '{payment_id}' not found")
         return None
 
-    async def get_by_user(self, telegram_id: int) -> Sequence[TransactionDto]:
+    async def get_by_user(self, telegram_id: int) -> list[TransactionDto]:
         stmt = select(Transaction).where(Transaction.user_telegram_id == telegram_id)
         result = await self.session.scalars(stmt)
         db_transactions = list(result.all())
@@ -64,7 +64,7 @@ class TransactionDaoImpl(TransactionDao):
         logger.debug(f"Retrieved '{len(db_transactions)}' transactions for user '{telegram_id}'")
         return self._convert_to_dto_list(db_transactions)
 
-    async def get_all(self, limit: int = 100, offset: int = 0) -> Sequence[TransactionDto]:
+    async def get_all(self, limit: int = 100, offset: int = 0) -> list[TransactionDto]:
         stmt = (
             select(Transaction).limit(limit).offset(offset).order_by(Transaction.created_at.desc())
         )
@@ -77,7 +77,7 @@ class TransactionDaoImpl(TransactionDao):
         )
         return self._convert_to_dto_list(db_transactions)
 
-    async def get_by_status(self, status: TransactionStatus) -> Sequence[TransactionDto]:
+    async def get_by_status(self, status: TransactionStatus) -> list[TransactionDto]:
         stmt = select(Transaction).where(Transaction.status == status)
         result = await self.session.scalars(stmt)
         db_transactions = list(result.all())

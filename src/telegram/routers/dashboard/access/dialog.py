@@ -52,7 +52,7 @@ access = Window(
     ),
     Row(
         Start(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=Dashboard.MAIN,
             mode=StartMode.RESET_STACK,
@@ -92,7 +92,7 @@ conditions = Window(
     ),
     Row(
         SwitchTo(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=DashboardAccess.MAIN,
         ),
@@ -107,7 +107,7 @@ rules = Window(
     I18nFormat("msg-access-rules"),
     Row(
         SwitchTo(
-            I18nFormat("btn-back.default"),
+            I18nFormat("btn-back.general"),
             id="back",
             state=DashboardAccess.CONDITIONS,
         ),
@@ -122,7 +122,7 @@ channel = Window(
     I18nFormat("msg-access-channel"),
     Row(
         SwitchTo(
-            I18nFormat("btn-back.default"),
+            I18nFormat("btn-back.general"),
             id="back",
             state=DashboardAccess.CONDITIONS,
         ),

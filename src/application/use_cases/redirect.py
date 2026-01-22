@@ -1,13 +1,12 @@
 from dataclasses import dataclass
+from typing import Optional
 
-from aiogram import Bot
-from aiogram_dialog import BgManagerFactory, ShowMode, StartMode
 from loguru import logger
 
-from src.application.common import Interactor, Notifier
+from src.application.common import Interactor, Notifier, Redirect
 from src.application.common.dao import UserDao
+from src.application.common.policy import Permission
 from src.application.dto import UserDto
-from src.telegram.states import MainMenu
 
 
 @dataclass(frozen=True)
@@ -16,16 +15,16 @@ class RedirectMenuDto:
 
 
 class RedirectMenu(Interactor[RedirectMenuDto, None]):
+    required_permission: Optional[Permission] = None
+
     def __init__(
         self,
         user_dao: UserDao,
-        bot: Bot,
-        bg_manager_factory: BgManagerFactory,
+        redirect: Redirect,
         notifier: Notifier,
     ) -> None:
         self.user_dao = user_dao
-        self.bot = bot
-        self.bg_manager_factory = bg_manager_factory
+        self.redirect = redirect
         self.notifier = notifier
 
     async def _execute(self, actor: UserDto, data: RedirectMenuDto) -> None:
@@ -41,15 +40,4 @@ class RedirectMenu(Interactor[RedirectMenuDto, None]):
             return
 
         await self.notifier.notify_user(user, i18n_key="ntf-error.lost-context-restart")
-
-        bg_manager = self.bg_manager_factory.bg(
-            bot=self.bot,
-            user_id=data.telegram_id,
-            chat_id=data.telegram_id,
-        )
-        await bg_manager.start(
-            state=MainMenu.MAIN,
-            mode=StartMode.RESET_STACK,
-            show_mode=ShowMode.DELETE_AND_SEND,
-        )
-        logger.info(f"Redirected user '{data.telegram_id}' to main menu")
+        await self.redirect.to_main_menu(data.telegram_id)

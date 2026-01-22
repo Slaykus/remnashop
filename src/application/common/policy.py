@@ -21,22 +21,37 @@ class PermissionPolicy:
 class Permission(UpperStrEnum):
     PUBLIC = auto()
     COMMAND_TEST = auto()
+    USER_SEARCH = auto()
     #
     VIEW_DASHBOARD = auto()
-    VIEW_REMNA = auto()
-    VIEW_IMPORTER = auto()
+    VIEW_STATISTICS = auto()
+    VIEW_USERS = auto()
+    VIEW_BROADCAST = auto()
+    VIEW_PROMOCODE = auto()
     VIEW_ACCESS = auto()
+    VIEW_REMNAWAVE = auto()
+    VIEW_REMNASHOP = auto()
+    VIEW_IMPORTER = auto()
+    VIEW_ADMINS = auto()
+    VIEW_GATEWAYS = auto()
+    VIEW_REFERRAL = auto()
+    VIEW_ADVERTISING = auto()
+    VIEW_PLANS = auto()
+    VIEW_NOTIFICATIONS = auto()
+    VIEW_LOGS = auto()
+    VIEW_AUDIT = auto()
     #
-    CHANGE_ACCESS_MODE = auto()
-    TOGGLE_NOTIFICATION = auto()
-    TOGGLE_PAYMENTS = auto()
-    TOGGLE_REGISTRATION = auto()
-    TOGGLE_CONDITION_REQUIREMENT = auto()
-    UPDATE_RULES_REQUIREMENT = auto()
-    UPDATE_CHANNEL_REQUIREMENT = auto()
+    SETTINGS_REFERRAL = auto()
+    SETTINGS_NOTIFICATIONS = auto()
+    SETTINGS_REQUIREMENT = auto()
+    SETTINGS_ACCESS = auto()
+    #
+    REMNASHOP_PLANS = auto()
+    REMNASHOP_LOGS = auto()
     #
     USER_SYNC = auto()
     MANAGE_SUBSCRIPTIONS = auto()
+    REVOKE_ROLE = auto()
 
 
 ROLE_PERMISSIONS: Final[dict[Role, set[Permission]]] = {

@@ -48,15 +48,16 @@ def setup_logger(config: AppConfig) -> None:
         colorize=True,
     )
 
-    logger.add(
-        sink=LOG_DIR / LOG_FILENAME,
-        level=config.log.level,
-        format=LOG_FORMAT,
-        rotation=config.log.rotation,
-        retention=config.log.retention,
-        compression="zip",
-        encoding=LOG_ENCODING,
-    )
+    if config.log.to_file:
+        logger.add(
+            sink=LOG_DIR / LOG_FILENAME,
+            level=config.log.level,
+            format=LOG_FORMAT,
+            rotation=config.log.rotation,
+            retention=config.log.retention,
+            compression="zip",
+            encoding=LOG_ENCODING,
+        )
 
     intercept_handler = InterceptHandler()
     logging.basicConfig(handlers=[intercept_handler], level=logging.INFO, force=True)

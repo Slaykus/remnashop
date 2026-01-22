@@ -43,7 +43,7 @@ remnawave = Window(
     ),
     Row(
         Start(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=Dashboard.MAIN,
             mode=StartMode.RESET_STACK,
@@ -60,7 +60,7 @@ users = Window(
     I18nFormat("msg-remnawave-users"),
     Row(
         SwitchTo(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=DashboardRemnawave.MAIN,
         ),
@@ -77,7 +77,7 @@ hosts = Window(
     NumberedPager(scroll="scroll_hosts"),
     Row(
         SwitchTo(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=DashboardRemnawave.MAIN,
         ),
@@ -95,7 +95,7 @@ nodes = Window(
     NumberedPager(scroll="scroll_nodes"),
     Row(
         SwitchTo(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=DashboardRemnawave.MAIN,
         ),
@@ -113,7 +113,7 @@ inbounds = Window(
     NumberedPager(scroll="scroll_inbounds"),
     Row(
         SwitchTo(
-            text=I18nFormat("btn-back.default"),
+            text=I18nFormat("btn-back.general"),
             id="back",
             state=DashboardRemnawave.MAIN,
         ),

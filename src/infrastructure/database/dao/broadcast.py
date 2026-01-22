@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
 from adaptix import Retort
@@ -104,7 +104,7 @@ class BroadcastDaoImpl(BroadcastDao):
         await self.session.execute(stmt)
         logger.debug(f"Incremented stats for task '{task_id}': success='{success}'")
 
-    async def get_active(self) -> Sequence[BroadcastDto]:
+    async def get_active(self) -> list[BroadcastDto]:
         stmt = select(Broadcast).where(Broadcast.status == BroadcastStatus.PROCESSING)
         result = await self.session.scalars(stmt)
         db_broadcasts = list(result.all())

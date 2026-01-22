@@ -19,7 +19,9 @@ class I18nProvider(Provider):
 
     @provide
     def get_translator_hub(
-        self, config: AppConfig, retort: Retort
+        self,
+        config: AppConfig,
+        retort: Retort,
     ) -> AnyOf[TranslatorHubProtocol, TranslatorHubImpl]:
         storage = FileStorage(path=config.translations_dir / "{locale}")
         locales_map: dict[str, tuple[str, ...]] = {}

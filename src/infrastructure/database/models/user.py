@@ -29,6 +29,7 @@ class User(BaseSql, TimestampMixin):
     is_blocked: Mapped[bool]
     is_bot_blocked: Mapped[bool]
     is_rules_accepted: Mapped[bool]
+    is_trial_available: Mapped[bool]
 
     current_subscription_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey(

@@ -14,6 +14,7 @@ def upgrade() -> None:
     op.create_table(
         "plans",
         sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("public_code", sa.String(), unique=True, index=True, nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("tag", sa.String(), nullable=True),
@@ -135,6 +136,7 @@ def upgrade() -> None:
         sa.Column("is_blocked", sa.Boolean(), nullable=False),
         sa.Column("is_bot_blocked", sa.Boolean(), nullable=False),
         sa.Column("is_rules_accepted", sa.Boolean(), nullable=False),
+        sa.Column("is_trial_available", sa.Boolean(), nullable=False),
         sa.Column("current_subscription_id", sa.Integer(), nullable=True),
         sa.Column(
             "created_at",

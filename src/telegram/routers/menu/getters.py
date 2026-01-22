@@ -43,7 +43,7 @@ async def menu_getter(
             "support_url": support_url,
             # referral
             "referral_enabled": menu_data.is_referral_enabled,
-            "invite_url": i18n.get("message.referral-invite", url=menu_data.referral_link),
+            "invite_url": i18n.get("message.referral-invite", url=menu_data.referral_url),
             # defaults
             "has_subscription": False,
             "connectable": False,
@@ -61,7 +61,7 @@ async def menu_getter(
         }
 
         if not menu_data.current_subscription:
-            data["trial_available"] = not menu_data.has_used_trial and menu_data.available_trial
+            data["trial_available"] = menu_data.is_trial_available and menu_data.available_trial
             return data
 
         subscription = menu_data.current_subscription

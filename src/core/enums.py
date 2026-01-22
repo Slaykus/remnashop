@@ -167,9 +167,13 @@ class Role(IntEnum):
     def includes(self, other: "Role") -> bool:
         return self >= other
 
+    def get_subordinates(self) -> list["Role"]:
+        return [r for r in Role if self > r]
+
 
 class SystemNotificationType(UpperStrEnum):
     ERROR = auto()
+    #
     BOT_LIFECYCLE = auto()
     BOT_UPDATE = auto()
     #

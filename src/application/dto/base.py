@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Self
 
 from loguru import logger
 
@@ -56,3 +56,16 @@ class TrackableMixin:
                     result[key] = list_changes
 
         return result
+
+    def as_fully_changed(self) -> Self:
+        cls = self.__class__
+
+        data = {f.name: getattr(self, f.name) for f in fields(self) if not f.name.startswith("_")}
+
+        obj = cls(**data)
+        obj._initialized = True
+
+        for key, value in data.items():
+            obj._changed_data[key] = value
+
+        return obj

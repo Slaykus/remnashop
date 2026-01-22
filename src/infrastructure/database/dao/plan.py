@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from typing import Optional, Sequence, cast
+from typing import Optional, cast
 
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
@@ -13,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from src.application.common.dao import PlanDao
 from src.application.dto import PlanDto
 from src.core.enums import PlanAvailability
-from src.infrastructure.database.models import Plan, PlanDuration
+from src.infrastructure.database.models import Plan, PlanDuration, PlanPrice
 
 
 class PlanDaoImpl(PlanDao):
@@ -34,7 +32,18 @@ class PlanDaoImpl(PlanDao):
 
     async def create(self, plan: PlanDto) -> PlanDto:
         plan_data = self.retort.dump(plan)
+        durations_data = plan_data.pop("durations", [])
+
         db_plan = Plan(**plan_data)
+
+        for duration_data in durations_data:
+            prices_data = duration_data.pop("prices", [])
+            db_duration = PlanDuration(**duration_data)
+
+            for price_data in prices_data:
+                db_duration.prices.append(PlanPrice(**price_data))
+
+            db_plan.durations.append(db_duration)
 
         self.session.add(db_plan)
         await self.session.flush()
@@ -76,7 +85,7 @@ class PlanDaoImpl(PlanDao):
         self,
         telegram_id: int,
         availability: PlanAvailability = PlanAvailability.ALL,
-    ) -> Sequence[PlanDto]:
+    ) -> list[PlanDto]:
         stmt = (
             select(Plan)
             .where(Plan.is_active == True)  # noqa: E712
@@ -145,10 +154,10 @@ class PlanDaoImpl(PlanDao):
         logger.debug(f"No trial plan available for user '{telegram_id}'")
         return None
 
-    async def get_all_active(self) -> Sequence[PlanDto]:
+    async def get_all(self) -> list[PlanDto]:
         stmt = (
             select(Plan)
-            .where(Plan.is_active == True)  # noqa: E712
+            # .where(Plan.is_active == True)  # noqa: E712
             .options(selectinload(Plan.durations).selectinload(PlanDuration.prices))
             .order_by(Plan.order_index.asc())
         )
@@ -157,6 +166,51 @@ class PlanDaoImpl(PlanDao):
 
         logger.debug(f"Retrieved '{len(db_plans)}' active plans")
         return self._convert_to_dto_list(db_plans)
+
+    async def update(self, plan: PlanDto) -> Optional[PlanDto]:
+        stmt = (
+            select(Plan)
+            .where(Plan.id == plan.id)
+            .options(selectinload(Plan.durations).selectinload(PlanDuration.prices))
+        )
+
+        db_plan = await self.session.scalar(stmt)
+
+        if not db_plan:
+            raise ValueError(f"Plan with id {plan.id} not found")
+
+        exclude_fields = {"id", "durations", "created_at", "updated_at"}
+        for key, value in plan.__dict__.items():
+            if key not in exclude_fields and hasattr(db_plan, key):
+                setattr(db_plan, key, value)
+
+        new_durations = []
+        for d_dto in plan.durations:
+            new_prices = [
+                PlanPrice(currency=p_dto.currency, price=p_dto.price) for p_dto in d_dto.prices
+            ]
+
+            new_durations.append(
+                PlanDuration(days=d_dto.days, order_index=d_dto.order_index, prices=new_prices)
+            )
+
+        db_plan.durations = new_durations
+
+        await self.session.flush()
+
+        refresh_stmt = (
+            select(Plan)
+            .where(Plan.id == db_plan.id)
+            .options(selectinload(Plan.durations).selectinload(PlanDuration.prices))
+            .execution_options(populate_existing=True)
+        )
+        refreshed_plan = await self.session.scalar(refresh_stmt)
+
+        if refreshed_plan:
+            logger.info(f"Plan '{refreshed_plan.id}' fully updated with all nested entities")
+            return self._convert_to_dto(refreshed_plan)
+
+        return None
 
     async def update_status(self, plan_id: int, is_active: bool) -> Optional[PlanDto]:
         stmt = update(Plan).where(Plan.id == plan_id).values(is_active=is_active).returning(Plan)

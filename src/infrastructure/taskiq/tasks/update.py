@@ -31,47 +31,35 @@ async def check_bot_update(
         logger.warning("Local version tag is missing in config, skipping update check")
         return
 
-    try:
-        async with httpx.AsyncClient() as client:
-            headers = {"Accept": "application/vnd.github.v3+json"}
-            response = await client.get(GITHUB_RELEASE_URL, headers=headers)
-            response.raise_for_status()
+    async with httpx.AsyncClient() as client:
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        response = await client.get(GITHUB_RELEASE_URL, headers=headers)
+        response.raise_for_status()
 
-            data = orjson.loads(response.content)
-            remote_version = data.get("tag_name", "").replace("v", "")
+        data = orjson.loads(response.content)
+        remote_version = data.get("tag_name", "").replace("v", "")
 
-            if not remote_version:
-                logger.error("Remote version tag not found in GitHub API response")
-                return
+        if not remote_version:
+            logger.error("Remote version tag not found in GitHub API response")
+            return
 
-    except Exception as e:
-        logger.error(f"Failed to get version from GitHub releases: '{e}'")
+    lv = Version(local_version)
+    rv = Version(remote_version)
+
+    if rv <= lv:
+        status = "up to date" if rv == lv else "ahead of remote"
+        logger.debug(f"Project is '{status}': '{local_version}'")
         return
 
-    try:
-        lv = Version(local_version)
-        rv = Version(remote_version)
+    key = retort.dump(LatestNotifiedVersionKey(version="*"))
+    last_cached_version = await redis.get(key)
 
-        if rv <= lv:
-            status = "up to date" if rv == lv else "ahead of remote"
-            logger.debug(f"Project is '{status}': '{local_version}'")
-            return
+    if last_cached_version == remote_version:
+        logger.debug(f"Version '{remote_version}' already notified")
+        return
 
-        key = retort.dump(LatestNotifiedVersionKey(version="*"))
-        last_cached_version = await redis.get(key)
+    await redis.set(key, value=remote_version)
+    logger.info(f"New version available: '{remote_version}' (local: '{local_version}')")
 
-        if last_cached_version == remote_version:
-            logger.debug(f"Version '{remote_version}' already notified")
-            return
-
-        await redis.set(key, value=remote_version)
-        logger.info(f"New version available: '{remote_version}' (local: '{local_version}')")
-
-        event = BotUpdateEvent(
-            local_version=local_version,
-            remote_version=remote_version,
-        )
-        await event_publisher.publish(event)
-
-    except Exception as e:
-        logger.error(f"Failed to compare versions: '{e}'")
+    event = BotUpdateEvent(local_version=local_version, remote_version=remote_version)
+    await event_publisher.publish(event)

@@ -128,7 +128,10 @@ frg-plan-snapshot-comparison =
 frg-node-info =
     <blockquote>
     • <b>Название</b>: { $country } { $name }
-    • <b>Адрес</b>: <code>{ $address }:{ $port }</code>
+    • <b>Адрес</b>: <code>{ $address }{ $port ->
+    [0] { space }
+    *[HAS] :{ $port }</code>
+    }
     • <b>Трафик</b>: { $traffic_used } / { $traffic_limit }
     { $last_status_message -> 
     [0] { empty }
@@ -143,11 +146,22 @@ frg-node-info =
 frg-user-hwid =
     <blockquote>
     • <b>HWID</b>: <code>{ $hwid }</code>
-
-    • <b>Платформа</b>: { $platform }
-    • <b>Модель</b>: { $device_model }
-    • <b>Версия ОС</b>: { $os_version }
-    • <b>Агент</b>: { $user_agent }
+    { $platform ->
+    [0] { space }
+    *[HAS] • <b>Платформа</b>: { $platform }
+    }
+    { $device_model ->
+    [0] { space }
+    *[HAS] • <b>Модель</b>: { $device_model }
+    }
+    { $os_version ->
+    [0] { space }
+    *[HAS] • <b>Версия</b>: { $os_version }
+    }
+    { $user_agent ->
+    [0] { space }
+    *[HAS] • <b>Агент</b>: { $user_agent }
+    }
     </blockquote>
 
 frg-build-info =
@@ -258,7 +272,7 @@ availability-type = { $availability_type ->
     [EXISTING] Для существующих
     [INVITED] Для приглашенных
     [ALLOWED] Для разрешенных
-    [TRIAL] Для пробника
+    [LINK] По ссылке
     *[OTHER] { $availability_type }
 }
 

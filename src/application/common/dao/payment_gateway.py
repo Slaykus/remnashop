@@ -1,4 +1,4 @@
-from typing import Optional, Protocol, Sequence, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 from src.application.dto import AnyGatewaySettingsDto, PaymentGatewayDto
 from src.core.enums import Currency, PaymentGatewayType
@@ -13,9 +13,9 @@ class PaymentGatewayDao(Protocol):
         gateway_type: PaymentGatewayType,
     ) -> Optional[PaymentGatewayDto]: ...
 
-    async def get_active_by_currency(self, currency: Currency) -> Sequence[PaymentGatewayDto]: ...
+    async def get_active_by_currency(self, currency: Currency) -> list[PaymentGatewayDto]: ...
 
-    async def get_all(self, only_active: bool = False) -> Sequence[PaymentGatewayDto]: ...
+    async def get_all(self, only_active: bool = False) -> list[PaymentGatewayDto]: ...
 
     async def update_settings(
         self,
@@ -24,7 +24,9 @@ class PaymentGatewayDao(Protocol):
     ) -> Optional[PaymentGatewayDto]: ...
 
     async def set_active_status(
-        self, gateway_type: PaymentGatewayType, is_active: bool
+        self,
+        gateway_type: PaymentGatewayType,
+        is_active: bool,
     ) -> None: ...
 
     async def count_active(self) -> int: ...

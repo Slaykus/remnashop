@@ -145,18 +145,18 @@ def get_remnashop_keyboard() -> InlineKeyboardMarkup:
 
     builder.row(
         InlineKeyboardButton(
-            text="btn-remnashop.github",
+            text="btn-remnashop-info.github",
             url=REPOSITORY,
         ),
         InlineKeyboardButton(
-            text="btn-remnashop.telegram",
+            text="btn-remnashop-info.telegram",
             url=f"{T_ME}remna_shop",
         ),
     )
 
     builder.row(
         InlineKeyboardButton(
-            text="btn-remnashop.donate",
+            text="btn-remnashop-info.donate",
             url="https://yookassa.ru/my/i/Z8AkHJ_F9sO_/l",
         )
     )
@@ -169,11 +169,11 @@ def get_remnashop_update_keyboard() -> InlineKeyboardMarkup:
 
     builder.row(
         InlineKeyboardButton(
-            text="btn-remnashop.release-latest",
+            text="btn-remnashop-info.release-latest",
             url=f"{REPOSITORY}/releases/latest",
         ),
         InlineKeyboardButton(
-            text="btn-remnashop.how-upgrade",
+            text="btn-remnashop-info.how-upgrade",
             url=f"{REPOSITORY}?tab=readme-ov-file#step-5--how-to-upgrade",
         ),
     )

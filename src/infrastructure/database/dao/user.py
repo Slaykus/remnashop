@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.infrastructure.database.models import Subscription, Transaction
@@ -170,7 +170,7 @@ class UserDaoImpl(UserDao):
         return total
 
     @provide_cache(ttl=TTL_1H, key_builder=RoleKey)
-    async def filter_by_role(self, role: Sequence[Role]) -> list[UserDto]:
+    async def filter_by_role(self, role: list[Role]) -> list[UserDto]:
         stmt = select(User)
 
         if isinstance(role, list):

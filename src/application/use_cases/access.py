@@ -9,7 +9,7 @@ from src.application.common import EventPublisher, Interactor, Notifier
 from src.application.common.dao import SettingsDao, UserDao, WaitlistDao
 from src.application.common.policy import Permission
 from src.application.common.uow import UnitOfWork
-from src.application.dto import MessagePayloadDto, SettingsDto, TempUserDto, UserDto
+from src.application.dto import SettingsDto, TempUserDto, UserDto
 from src.application.events import ErrorEvent
 from src.core.config import AppConfig
 from src.core.enums import AccessMode
@@ -57,6 +57,8 @@ class ChannelSubscriptionResultDto:
 
 
 class CheckAccess(Interactor[CheckAccessDto, bool]):
+    required_permission: Optional[Permission] = None
+
     def __init__(
         self,
         user_dao: UserDao,
@@ -83,18 +85,14 @@ class CheckAccess(Interactor[CheckAccessDto, bool]):
                 return True
 
         if settings.access.mode == AccessMode.RESTRICTED:
-            await self.notifier.notify_user(
-                user=data.temp_user,
-                payload=MessagePayloadDto(i18n_key="ntf-access.maintenance"),
-            )
+            await self.notifier.notify_user(user=data.temp_user, i18n_key="ntf-access.maintenance")
             logger.info(f"Access denied for user '{data.telegram_id}' due to restricted mode")
             return False
 
         if user:
             if data.is_payment_event and not settings.access.payments_allowed:
                 await self.notifier.notify_user(
-                    user=data.temp_user,
-                    payload=MessagePayloadDto(i18n_key="ntf-access.payments-disabled"),
+                    user=data.temp_user, i18n_key="ntf-access.payments-disabled"
                 )
                 logger.info(
                     f"Access denied for payment event for user '{data.telegram_id}' "
@@ -109,7 +107,7 @@ class CheckAccess(Interactor[CheckAccessDto, bool]):
         if not settings.access.registration_allowed:
             await self.notifier.notify_user(
                 user=data.temp_user,
-                payload=MessagePayloadDto(i18n_key="ntf-access.registration-disabled"),
+                i18n_key="ntf-access.registration-disabled",
             )
             logger.info(f"Registration is globally disabled for user '{data.telegram_id}'")
             return False
@@ -121,7 +119,7 @@ class CheckAccess(Interactor[CheckAccessDto, bool]):
 
             await self.notifier.notify_user(
                 user=data.temp_user,
-                payload=MessagePayloadDto(i18n_key="ntf-access.registration-invite-only"),
+                i18n_key="ntf-access.registration-invite-only",
             )
             logger.info(f"Access denied for user '{data.telegram_id}' because not a referral")
             return False
@@ -255,3 +253,11 @@ class CheckChannelSubscription(Interactor[None, ChannelSubscriptionResultDto]):
 
             await self.event_publisher.publish(error_event)
             return ChannelSubscriptionResultDto(is_subscribed=True, error_occurred=True)
+
+
+ACCESS_USE_CASES: Final[tuple[type[Interactor], ...]] = (
+    CheckAccess,
+    AcceptRules,
+    CheckRules,
+    CheckChannelSubscription,
+)

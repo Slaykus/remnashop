@@ -66,7 +66,23 @@ class NotificationsSettingsDto(TrackableMixin):
         return self.settings.get(ntf_type, True)
 
     def toggle(self, ntf_type: NotificationType) -> None:
-        self.settings[ntf_type] = not self.is_enabled(ntf_type)
+        new_settings = self.settings.copy()
+        new_settings[ntf_type] = not self.is_enabled(ntf_type)
+        self.settings = new_settings
+
+    @property
+    def system(self) -> list[tuple[str, bool]]:
+        return [
+            (ntf.value, self.is_enabled(SystemNotificationType(ntf.value)))
+            for ntf in SystemNotificationType
+        ]
+
+    @property
+    def user(self) -> list[tuple[str, bool]]:
+        return [
+            (ntf.value, self.is_enabled(UserNotificationType(ntf.value)))
+            for ntf in UserNotificationType
+        ]
 
 
 @dataclass(kw_only=True)

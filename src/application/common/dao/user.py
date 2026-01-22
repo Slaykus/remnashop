@@ -1,4 +1,4 @@
-from typing import Optional, Protocol, Sequence, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 from src.application.dto import UserDto
 from src.core.enums import Role
@@ -26,7 +26,7 @@ class UserDao(Protocol):
 
     async def exists(self, telegram_id: int) -> bool: ...
 
-    async def filter_by_role(self, role: Sequence[Role]) -> list[UserDto]: ...
+    async def filter_by_role(self, role: list[Role]) -> list[UserDto]: ...
 
     async def set_bot_blocked_status(self, telegram_id: int, is_bot_blocked: bool) -> None: ...
 

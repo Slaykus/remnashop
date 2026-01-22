@@ -1,3 +1,6 @@
+from decimal import Decimal
+from typing import Any
+
 from adaptix import ExtraSkip, Retort, dumper, loader, name_mapping
 from adaptix._internal.provider.loc_stack_filtering import OriginSubclassLSC
 from adaptix.conversion import ConversionRetort, coercer
@@ -20,6 +23,11 @@ class RetortProvider(Provider):
 
     @provide
     def get_retort(self) -> Retort:
+        def secret_dumper(value: Any) -> Any:
+            if isinstance(value, SecretStr):
+                return value.get_secret_value()
+            return value
+
         retort = Retort(
             recipe=[
                 name_mapping(extra_in=ExtraSkip()),
@@ -32,6 +40,7 @@ class RetortProvider(Provider):
                 #
                 loader(SecretStr, SecretStr),
                 dumper(SecretStr, lambda v: v.get_secret_value()),
+                dumper(Any, secret_dumper),
             ]
         )
 

@@ -647,7 +647,10 @@ msg-remnawave-inbound-details =
     <b>🔗 { $tag }</b>
     <blockquote>
     • <b>ID</b>: <code>{ $inbound_id }</code>
-    • <b>Протокол</b>: { $type } ({ $network })
+    • <b>Протокол</b>: { $type } { $network -> 
+    [0] { space }
+    *[HAS] ({ $network })
+    }
     { $port ->
     [0] { empty }
     *[HAS] • <b>Порт</b>: { $port }
@@ -675,7 +678,11 @@ msg-remnawave-inbounds =
 
 
 # RemnaShop
-msg-remnashop-main = <b>🛍 RemnaShop v{ $version }</b>
+msg-remnashop-main = <b>🛍 RemnaShop { $version ->
+[0] { space }
+*[HAS] v{ $version }
+}</b>
+
 msg-admins-main = <b>👮‍♂️ Администраторы</b>
 
 
@@ -776,12 +783,25 @@ msg-referral-reward =
 # Plans
 msg-plans-main = <b>📦 Планы</b>
 
+msg-plans-import = 
+    <b>📦 Импортировать планы</b>
+
+    Отправьте json файл для импорта.
+
+msg-plans-export = 
+    <b>📦 Экспортировать планы</b>
+
+    Выберите планы для экспорта.
+
 msg-plan-configurator =
     <b>📦 Конфигуратор плана</b>
 
     <blockquote>
     • <b>Название</b>: { $name }
-    • <b>Тип</b>: { plan-type }
+    • <b>Тип</b>: { plan-type } { $is_trial ->
+    [1] (Пробник)
+    *[0] { space }
+    }
     • <b>Доступ</b>: { availability-type }
     • <b>Статус</b>: { $is_active -> 
         [1] 🟢 Включен
@@ -844,7 +864,7 @@ msg-plan-tag =
 msg-plan-type =
     <b>🔖 Изменить тип</b>
 
-    Выберите новый тип плана.
+    Выберите новый тип плана. Отметьте кнопкой «Пробник», чтобы предоставить данный план как пробный.
 
 msg-plan-availability =
     <b>✴️ Изменить доступность</b>
@@ -873,7 +893,7 @@ msg-plan-duration =
 
 msg-plan-prices =
     <b>💰 Изменить цены длительности ({ $value ->
-            [-1] { unlimited }
+            [0] { unlimited }
             *[other] { unit-day }
         })</b>
 
@@ -881,7 +901,7 @@ msg-plan-prices =
 
 msg-plan-price =
     <b>💰 Изменить цену для длительности ({ $value ->
-            [-1] { unlimited }
+            [0] { unlimited }
             *[other] { unit-day }
         })</b>
 

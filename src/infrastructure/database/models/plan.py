@@ -17,6 +17,7 @@ class Plan(BaseSql, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
+    public_code: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(unique=True, index=True)
     description: Mapped[Optional[str]]
     tag: Mapped[Optional[str]]

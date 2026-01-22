@@ -95,7 +95,7 @@ class SyncRemnaUser(Interactor[SyncRemnaUserDto, None]):
             ),
             traffic_limit=remna_subscription.traffic_limit,
             device_limit=remna_subscription.device_limit,
-            duration=-1,
+            duration=0,
             traffic_limit_strategy=remna_subscription.traffic_limit_strategy,
             internal_squads=remna_subscription.internal_squads,
             external_squad=remna_subscription.external_squad,

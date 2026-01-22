@@ -26,12 +26,14 @@ dashboard = Window(
             text=I18nFormat("btn-dashboard.statistics"),
             id="statistics",
             state=DashboardStatistics.MAIN,
+            when=require_permission(Permission.VIEW_STATISTICS),
         ),
         Start(
             text=I18nFormat("btn-dashboard.users"),
             id="users",
             state=DashboardUsers.MAIN,
             mode=StartMode.RESET_STACK,
+            when=require_permission(Permission.VIEW_USERS),
         ),
     ),
     Row(
@@ -40,6 +42,7 @@ dashboard = Window(
             id="broadcast",
             state=DashboardBroadcast.MAIN,
             mode=StartMode.RESET_STACK,
+            when=require_permission(Permission.VIEW_BROADCAST),
         ),
         Button(
             text=I18nFormat("btn-dashboard.promocodes"),
@@ -47,6 +50,7 @@ dashboard = Window(
             on_click=show_dev_popup,
             # state=DashboardPromocodes.MAIN,
             # mode=StartMode.RESET_STACK,
+            when=require_permission(Permission.VIEW_PROMOCODE),
         ),
     ),
     Row(
@@ -55,6 +59,7 @@ dashboard = Window(
             id="access",
             state=DashboardAccess.MAIN,
             mode=StartMode.RESET_STACK,
+            when=require_permission(Permission.VIEW_ACCESS),
         ),
     ),
     Row(
@@ -63,14 +68,15 @@ dashboard = Window(
             id="remnawave",
             state=DashboardRemnawave.MAIN,
             mode=StartMode.RESET_STACK,
+            when=require_permission(Permission.VIEW_REMNAWAVE),
         ),
         Start(
             text=I18nFormat("btn-dashboard.remnashop"),
             id="remnashop",
             state=DashboardRemnashop.MAIN,
             mode=StartMode.RESET_STACK,
+            when=require_permission(Permission.VIEW_REMNASHOP),
         ),
-        when=require_permission(Permission.VIEW_REMNA),
     ),
     Row(
         Start(

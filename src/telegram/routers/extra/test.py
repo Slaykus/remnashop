@@ -13,7 +13,6 @@ from src.application.common.policy import Permission, PermissionPolicy
 from src.application.dto import UserDto
 from src.core.config import AppConfig
 from src.core.exceptions import PermissionDeniedError
-from src.infrastructure.taskiq.tasks.test import send_error_task
 from src.infrastructure.taskiq.tasks.update import check_bot_update
 
 router = Router(name=__name__)

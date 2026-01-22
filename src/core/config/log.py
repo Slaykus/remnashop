@@ -4,6 +4,7 @@ from .base import BaseConfig
 
 
 class LogConfig(BaseConfig, env_prefix="LOG_"):
+    to_file: bool = True
     level: LogLevel = LogLevel.DEBUG
     rotation: str = "1GB"  # "00:00"
     compression: str = "zip"

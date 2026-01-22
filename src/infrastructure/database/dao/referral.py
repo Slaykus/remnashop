@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Optional
 
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
@@ -85,7 +85,7 @@ class ReferralDaoImpl(ReferralDao):
         referrer_id: int,
         limit: int = 100,
         offset: int = 0,
-    ) -> Sequence[ReferralDto]:
+    ) -> list[ReferralDto]:
         stmt = (
             select(Referral)
             .where(Referral.referrer_telegram_id == referrer_id)
@@ -117,7 +117,7 @@ class ReferralDaoImpl(ReferralDao):
         logger.debug(f"Reward amount '{reward.amount}' created for referral ID '{referral_id}'")
         return self._convert_to_reward_dto(db_reward)
 
-    async def get_pending_rewards(self) -> Sequence[ReferralRewardDto]:
+    async def get_pending_rewards(self) -> list[ReferralRewardDto]:
         stmt = select(ReferralReward).where(ReferralReward.is_issued == False)  # noqa: E712
         result = await self.session.scalars(stmt)
         db_rewards = list(result.all())

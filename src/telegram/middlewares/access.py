@@ -7,9 +7,9 @@ from dishka import AsyncContainer
 from loguru import logger
 
 from src.application.dto import TempUserDto
-from src.application.services import ReferralService
 from src.application.use_cases.access import CheckAccess, CheckAccessDto
-from src.core.constants import CONTAINER_KEY, PAYMENT_PREFIX
+from src.application.use_cases.referral import ValidateReferralCode
+from src.core.constants import CONTAINER_KEY, PAYMENT_PREFIX, REFERRAL_PREFIX
 from src.core.enums import MiddlewareEventType
 
 from .base import EventTypedMiddleware
@@ -32,17 +32,13 @@ class AccessMiddleware(EventTypedMiddleware):
 
         container: AsyncContainer = data[CONTAINER_KEY]
         check_access = await container.get(CheckAccess)
-        referral_service = await container.get(ReferralService)
+        validate_referral_code = await container.get(ValidateReferralCode)
 
         if await check_access.system(
             CheckAccessDto(
                 temp_user=TempUserDto.from_aiogram(aiogram_user),
                 is_payment_event=self._is_payment_event(event),
-                is_referral_event=await self.is_referral_event(
-                    referral_service,
-                    event,
-                    aiogram_user.id,
-                ),
+                is_referral_event=await self.is_referral_event(event, validate_referral_code),
             )
         ):
             return await handler(event, data)
@@ -61,16 +57,21 @@ class AccessMiddleware(EventTypedMiddleware):
 
     async def is_referral_event(
         self,
-        referral_service: ReferralService,
         event: TelegramObject,
-        telegram_id: int,
+        validate_referral_code: ValidateReferralCode,
     ) -> bool:
         if not isinstance(event, Message) or not event.text:
             return False
 
-        code = referral_service.parse_referral_code(event.text)
-
-        if not code:
+        parts = event.text.split()
+        if len(parts) <= 1:
             return False
 
-        return bool(await referral_service.get_valid_referrer(code, telegram_id))
+        code = parts[1]
+        if code.startswith(REFERRAL_PREFIX):
+            logger.debug(f"Detected referral event '{code}'")
+
+            await validate_referral_code.system(code)
+            return True
+
+        return False

@@ -21,11 +21,13 @@ PAYMENTS_WEBHOOK_PATH: Final[str] = "/payments"
 REMNAWAVE_WEBHOOK_PATH: Final[str] = "/remnawave"
 
 IMPORTED_TAG: Final[str] = "IMPORTED"
+DEEPLINK_PREFIX: Final[str] = "?start="
 REMNASHOP_PREFIX: Final[str] = "rs_"
 PAYMENT_PREFIX: Final[str] = "payment_"
 GOTO_PREFIX: Final[str] = "gt_"
 ENCRYPTED_PREFIX: Final[str] = "enc_"
 REFERRAL_PREFIX: Final[str] = "ref_"
+PLAN_PREFIX: Final[str] = "plan_"
 
 MIDDLEWARE_DATA_KEY: Final[str] = "middleware_data"
 CONTAINER_KEY: Final[str] = "dishka_container"

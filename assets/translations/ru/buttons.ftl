@@ -1,5 +1,5 @@
 btn-back = 
-    .default = ⬅️ Назад
+    .general = ⬅️ Назад
     .menu = ↩️ Главное меню
     .menu-return = ↩️ Вернуться в главное меню
     .dashboard = ↩️ Вернуться в панель управления
@@ -12,7 +12,7 @@ btn-common =
     *[0] ⚪
     } { $name }
 
-btn-remnashop =
+btn-remnashop-info =
     .release-latest = 👀 Посмотреть
     .how-upgrade = ❓ Как обновить
     .github = ⭐ GitHub
@@ -43,7 +43,7 @@ btn-menu =
 
 btn-invite =
     .about = ❓ Подробнее о награде
-    .copy = 🔗 Скопировать ссылку
+    .copy = 📋 Скопировать ссылку
     .send = 📩 Пригласить
     .qr = 🧾 QR-код
     .withdraw-points = 💎 Обменять баллы
@@ -258,12 +258,12 @@ btn-notifications =
     } { $type ->
     [EXPIRES_IN_3_DAYS] Подписка истекает (3 дня)
     [EXPIRES_IN_2_DAYS] Подписка истекает (2 дня)
-    [EXPIRES_IN_1_DAYS] Подписка истекает (1 день)
+    [EXPIRES_IN_1_DAY] Подписка истекает (1 день)
     [EXPIRED] Подписка истекла
-    [LIMITED] Трафик исчерпан
     [EXPIRED_1_DAY_AGO] Подписка истекла (1 день)
+    [LIMITED] Трафик исчерпан
     [REFERRAL_ATTACHED] Реферал закреплен
-    [REFERRAL_REWARD] Получено вознаграждение
+    [REFERRAL_REWARD_RECEIVED] Вознаграждение за реферала
     *[OTHER] { $type }
     }
 
@@ -271,15 +271,16 @@ btn-notifications =
     [1] 🔘
     *[0] ⚪
     } { $type ->
-    [BOT_LIFETIME] Жизненный цикл бота
+    [BOT_LIFECYCLE] Жизненный цикл бота
     [BOT_UPDATE] Обновления бота
     [USER_REGISTERED] Регистрация пользователя
     [SUBSCRIPTION] Оформление подписки
     [PROMOCODE_ACTIVATED] Активация промокода
-    [TRIAL_GETTED] Получение пробника
-    [NODE_STATUS] Статус узла
-    [USER_FIRST_CONNECTED] Первое подключение
-    [USER_HWID] Устройства пользователя
+    [TRIAL_ACTIVATED] Активация пробника
+    [NODE_STATUS_CHANGED] Статус узла
+    [NODE_TRAFFIC_REACHED] Трафик узла
+    [USER_FIRST_CONNECTION] Первое подключение
+    [USER_DEVICES_UPDATED] Устройства пользователя
     *[OTHER] { $type }
     }
 
@@ -298,7 +299,7 @@ btn-plans =
     .availability = ✴️ Доступ
     .durations-prices = ⏳ Длительности и 💰 Цены
     .traffic = 🌐 Трафик
-    .devices = 📱 Устройства.
+    .devices = 📱 Устройства
     .allowed = 👥 Разрешенные пользователи
     .squads = 🔗 Сквады
     .internal-squads = ⏺️ Внутренние сквады
@@ -306,6 +307,21 @@ btn-plans =
     .allowed-user = { $id }
     .duration-add = 🆕 Добавить длительность
     .price-choice = 💸 { $price } { $currency }
+    .export = 📤 Экспорт
+    .import = 📥 Импорт
+    .exporting = 📤 Экспортировать
+    .importing = 📥 Импортировать
+    .url = 📋 Скопировать ссылку на план
+
+    .trial = { $is_trial ->
+    [1] 🔘
+    *[0] ⚪
+    } Пробник 
+
+    .export-choice = { $selected ->
+    [1] 🔘
+    *[0] ⚪
+    } { $name }
 
     .title = { $is_active ->
     [1] 🟢
@@ -331,7 +347,7 @@ btn-plans =
     [EXISTING] 👥 Для клиентов
     [INVITED] ✉️ Для приглашенных
     [ALLOWED] 🔐 Для разрешенных
-    [TRIAL] 🎁 Для пробника
+    [LINK] 🔗 По ссылке
     *[OTHER] { $type }
     }
 
@@ -341,7 +357,7 @@ btn-plans =
     }
 
     .duration = ⌛ { $value ->
-    [-1] { unlimited }
+    [0] { unlimited }
     *[other] { unit-day }
     }
     

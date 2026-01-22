@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 
@@ -105,6 +106,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         uptime=i18n_format_seconds(get_uptime()),
     )
     await event_bus.publish(bot_shutdown_event)
+
+    await asyncio.sleep(2)
 
     await event_bus.shutdown()
     await telegram_webhook_endpoint.shutdown()

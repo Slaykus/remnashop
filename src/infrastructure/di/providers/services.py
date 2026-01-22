@@ -5,18 +5,21 @@ from src.application.common import (
     EventPublisher,
     EventSubscriber,
     Notifier,
+    Redirect,
     Remnawave,
 )
 from src.application.services import (
     CommandService,
     NotificationService,
-    ReferralService,
+    PricingService,
     WebhookService,
 )
+from src.application.services.bot import BotService
 from src.infrastructure.services import (
     CryptographerImpl,
     EventBusImpl,
     NotificationQueue,
+    RedirectImpl,
     RemnawaveImpl,
 )
 
@@ -24,7 +27,10 @@ from src.infrastructure.services import (
 class ServicesProvider(Provider):
     scope = Scope.APP
 
+    bot = provide(source=BotService)
     cryptographer = provide(source=CryptographerImpl, provides=Cryptographer)
+    redirect = provide(source=RedirectImpl, provides=Redirect)
+    pricing = provide(source=PricingService)
 
     event_bus = provide(EventBusImpl)
     publisher = alias(source=EventBusImpl, provides=EventPublisher)
@@ -41,5 +47,3 @@ class ServicesProvider(Provider):
         scope=Scope.REQUEST,
         provides=AnyOf[Notifier, NotificationService],
     )
-
-    referral = provide(source=ReferralService, scope=Scope.REQUEST)

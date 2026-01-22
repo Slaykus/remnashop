@@ -13,6 +13,8 @@ from .base import BaseDto, TimestampMixin, TrackableMixin
 @dataclass(kw_only=True)
 class PlanSnapshotDto:
     id: int
+
+    public_code: Optional[str] = None
     name: str
     tag: Optional[str] = None
 
@@ -32,6 +34,7 @@ class PlanSnapshotDto:
 
 @dataclass(kw_only=True)
 class PlanDto(BaseDto, TrackableMixin, TimestampMixin):
+    public_code: Optional[str] = None
     name: str = "Default Plan"
     description: Optional[str] = None
     tag: Optional[str] = None
@@ -52,6 +55,17 @@ class PlanDto(BaseDto, TrackableMixin, TimestampMixin):
     is_trial: bool = False
 
     durations: list["PlanDurationDto"] = field(default_factory=list)
+
+    @property
+    def is_unlimited_traffic(self) -> bool:
+        return self.type not in {PlanType.TRAFFIC, PlanType.BOTH}
+
+    @property
+    def is_unlimited_devices(self) -> bool:
+        return self.type not in {PlanType.DEVICES, PlanType.BOTH}
+
+    def get_duration(self, days: int) -> Optional["PlanDurationDto"]:
+        return next((d for d in self.durations if d.days == days), None)
 
 
 @dataclass(kw_only=True)

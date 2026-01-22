@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Any, Optional
 
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
@@ -55,7 +55,7 @@ class PaymentGatewayDaoImpl(PaymentGatewayDao):
         logger.debug(f"Payment gateway '{gateway_type}' not found")
         return None
 
-    async def get_active_by_currency(self, currency: Currency) -> Sequence[PaymentGatewayDto]:
+    async def get_active_by_currency(self, currency: Currency) -> list[PaymentGatewayDto]:
         stmt = (
             select(PaymentGateway)
             .where(PaymentGateway.is_active == True)  # noqa: E712
@@ -68,7 +68,7 @@ class PaymentGatewayDaoImpl(PaymentGatewayDao):
         logger.debug(f"Retrieved '{len(db_gateways)}' active gateways for currency '{currency}'")
         return self._convert_to_dto_list(db_gateways)
 
-    async def get_all(self, only_active: bool = False) -> Sequence[PaymentGatewayDto]:
+    async def get_all(self, only_active: bool = False) -> list[PaymentGatewayDto]:
         stmt = select(PaymentGateway).order_by(PaymentGateway.order_index.asc())
         if only_active:
             stmt = stmt.where(PaymentGateway.is_active == True)  # noqa: E712
@@ -93,13 +93,13 @@ class PaymentGatewayDaoImpl(PaymentGatewayDao):
         values_to_update = {}
 
         for key, value in settings.changed_data.items():
-            dumped = {k: self.retort.dump(v) for k, v in value.items()}
+            column = getattr(AnyGatewaySettingsDto, key)
 
-            if isinstance(dumped, dict):
-                column = getattr(AnyGatewaySettingsDto, key)
+            if isinstance(value, dict):
+                dumped = {k: self.retort.dump(v, Any) for k, v in value.items()}
                 values_to_update[key] = column.concat(dumped)
             else:
-                values_to_update[key] = dumped
+                values_to_update[key] = self.retort.dump(value)
 
         stmt = (
             update(PaymentGateway)

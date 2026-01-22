@@ -127,6 +127,8 @@ class RemnashopNotifications(StatesGroup):
 
 class RemnashopPlans(StatesGroup):
     MAIN = State()
+    IMPORT = State()
+    EXPORT = State()
     CONFIGURATOR = State()
     NAME = State()
     DESCRIPTION = State()

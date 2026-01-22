@@ -1,4 +1,4 @@
-from typing import Optional, Protocol, Sequence, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from src.application.dto import BroadcastDto, BroadcastMessageDto
@@ -25,6 +25,6 @@ class BroadcastDao(Protocol):
 
     async def increment_stats(self, task_id: UUID, success: bool = True) -> None: ...
 
-    async def get_active(self) -> Sequence[BroadcastDto]: ...
+    async def get_active(self) -> list[BroadcastDto]: ...
 
     async def delete_old(self, days: int = 7) -> int: ...

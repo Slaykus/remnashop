@@ -1,24 +1,17 @@
-from typing import Final, Optional, Sequence
+from typing import Optional
 from uuid import UUID
 
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import exists, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import SubscriptionDao
 from src.application.dto import SubscriptionDto
 from src.core.enums import SubscriptionStatus
 from src.infrastructure.database.models import Subscription
-
-USED_TRIAL_STATUSES: Final[tuple[SubscriptionStatus, ...]] = (
-    SubscriptionStatus.ACTIVE,
-    SubscriptionStatus.DISABLED,
-    SubscriptionStatus.LIMITED,
-    SubscriptionStatus.EXPIRED,
-)
 
 
 class SubscriptionDaoImpl(SubscriptionDao):
@@ -90,7 +83,7 @@ class SubscriptionDaoImpl(SubscriptionDao):
         logger.debug(f"No subscriptions found for telegram user '{telegram_id}'")
         return None
 
-    async def get_all_by_user(self, telegram_id: int) -> Sequence[SubscriptionDto]:
+    async def get_all_by_user(self, telegram_id: int) -> list[SubscriptionDto]:
         stmt = (
             select(Subscription)
             .where(Subscription.user_telegram_id == telegram_id)
@@ -178,16 +171,3 @@ class SubscriptionDaoImpl(SubscriptionDao):
             f"Subscription existence status for remna ID '{user_remna_id}' is '{is_exists}'"
         )
         return is_exists
-
-    async def has_used_trial(self, telegram_id: int) -> bool:
-        stmt = select(
-            exists().where(
-                Subscription.user_telegram_id == telegram_id,
-                Subscription.is_trial == True,  # noqa: E712
-                Subscription.status.in_(USED_TRIAL_STATUSES),
-            )
-        )
-        result = await self.session.scalar(stmt)
-        is_used = bool(result)
-        logger.debug(f"Trial usage check for user '{telegram_id}': '{is_used}'")
-        return is_used
