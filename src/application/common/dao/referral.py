@@ -1,6 +1,6 @@
 from typing import Optional, Protocol, runtime_checkable
 
-from src.application.dto import ReferralDto, ReferralRewardDto
+from src.application.dto import ReferralDto, ReferralRewardDto, ReferralStatisticsDto
 from src.core.enums import ReferralRewardType
 
 
@@ -39,3 +39,5 @@ class ReferralDao(Protocol):
         self,
         referred_id: int,
     ) -> tuple[Optional[ReferralDto], Optional[ReferralDto]]: ...
+
+    async def get_stats(self) -> ReferralStatisticsDto: ...

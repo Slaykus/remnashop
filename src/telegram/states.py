@@ -33,6 +33,10 @@ class Dashboard(StatesGroup):
 
 class DashboardStatistics(StatesGroup):
     MAIN = State()
+    USERS = State()
+    SUBSCRIPTIONS = State()
+    TRANSACTIONS = State()
+    REFERRALS = State()
 
 
 class DashboardBroadcast(StatesGroup):

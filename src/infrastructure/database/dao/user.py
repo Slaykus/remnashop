@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional, cast
 
 from adaptix import Retort
@@ -441,3 +442,21 @@ class UserDaoImpl(UserDao):
 
         logger.debug(f"Retrieved '{len(db_users)}' active users for plan_id '{plan_id}'")
         return self._convert_to_dto_list(db_users)
+
+    async def count_new(self, days: int) -> int:
+        now = datetime.now(timezone.utc)
+        if days == 0:
+            since = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            since = now - timedelta(days=days)
+
+        stmt = select(func.count()).select_from(User).where(User.created_at >= since)
+        count = await self.session.scalar(stmt) or 0
+        logger.debug(f"New users count for last {days} day(s): '{count}'")
+        return count
+
+    async def count_bot_blocked(self) -> int:
+        stmt = select(func.count()).select_from(User).where(User.is_bot_blocked.is_(True))
+        count = await self.session.scalar(stmt) or 0
+        logger.debug(f"Total bot-blocked users count is '{count}'")
+        return count

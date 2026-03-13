@@ -1,4 +1,5 @@
 import base64
+from dataclasses import dataclass
 from io import BytesIO
 from typing import Any, Optional, cast
 
@@ -13,17 +14,24 @@ from src.application.dto import UserDto
 from src.core.constants import ASSETS_DIR, REFERRAL_PREFIX
 
 
-class ValidateReferralCode(Interactor[str, bool]):
+@dataclass(frozen=True)
+class ValidateReferralCodeDto:
+    user_telegram_id: int
+    referral_code: str
+
+
+class ValidateReferralCode(Interactor[ValidateReferralCodeDto, bool]):
     required_permission = None
 
     def __init__(self, user_dao: UserDao) -> None:
         self.user_dao = user_dao
 
-    async def _execute(self, actor: UserDto, referral_code: str) -> bool:
-        referrer = await self.user_dao.get_by_referral_code(referral_code)
-        if not referrer or referrer.telegram_id == actor.telegram_id:
+    async def _execute(self, actor: UserDto, data: ValidateReferralCodeDto) -> bool:
+        referrer = await self.user_dao.get_by_referral_code(data.referral_code)
+        if not referrer or referrer.telegram_id == data.user_telegram_id:
             logger.warning(
-                f"Invalid referral code '{referral_code}' or self-referral by '{actor.telegram_id}'"
+                f"Invalid referral code '{data.referral_code}' "
+                f"or self-referral by '{data.user_telegram_id}'"
             )
             return False
         return True
@@ -48,8 +56,15 @@ class GetReferralCodeFromEvent(Interactor[TelegramObject, Optional[str]]):
         if code.startswith(REFERRAL_PREFIX):
             logger.debug(f"Detected referral event '{code}'")
             code = code[len(REFERRAL_PREFIX) :]
+            aiogram_user = event.from_user
 
-            if await self.validate_referral_code.system(code):
+            if not aiogram_user:
+                logger.warning("Referral event without user")
+                return None
+
+            if await self.validate_referral_code.system(
+                ValidateReferralCodeDto(user_telegram_id=aiogram_user.id, referral_code=code)
+            ):
                 return code
 
         return None

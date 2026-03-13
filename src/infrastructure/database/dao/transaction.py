@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from typing import Optional, cast
 from uuid import UUID
 
@@ -6,11 +7,11 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import TransactionDao
-from src.application.dto import TransactionDto
+from src.application.dto import GatewayStatsDto, PlanIncomeDto, TransactionDto
 from src.core.enums import TransactionStatus
 from src.core.utils.time import datetime_now
 from src.infrastructure.database.models import Transaction
@@ -137,3 +138,128 @@ class TransactionDaoImpl(TransactionDao):
 
         logger.debug(f"Total transactions count is '{total}'")
         return total
+
+    async def count_paying_users(self) -> int:
+        stmt = select(func.count(func.distinct(Transaction.user_telegram_id))).where(
+            Transaction.status == TransactionStatus.COMPLETED
+        )
+
+        return await self.session.scalar(stmt) or 0
+
+    async def count_total(self) -> int:
+        stmt = select(func.count()).select_from(Transaction)
+        return await self.session.scalar(stmt) or 0
+
+    async def count_completed(self) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Transaction)
+            .where(Transaction.status == TransactionStatus.COMPLETED)
+        )
+        return await self.session.scalar(stmt) or 0
+
+    async def count_free(self) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Transaction)
+            .where(Transaction.pricing["final_amount"].as_float() == 0)
+        )
+        return await self.session.scalar(stmt) or 0
+
+    async def get_gateway_stats(self) -> list[GatewayStatsDto]:
+        now = datetime_now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+
+        final_amount = Transaction.pricing["final_amount"].as_float()
+        original_amount = Transaction.pricing["original_amount"].as_float()
+        is_free = final_amount == 0
+        is_completed = Transaction.status == TransactionStatus.COMPLETED
+
+        stmt = select(
+            Transaction.gateway_type,
+            func.count().label("total_transactions"),
+            func.sum(case((is_completed, 1), else_=0)).label("completed_transactions"),
+            func.sum(case((is_free, 1), else_=0)).label("free_transactions"),
+            func.sum(case((is_completed, final_amount), else_=0.0)).label("total_income"),
+            func.sum(
+                case(
+                    (
+                        and_(is_completed, Transaction.created_at >= today_start),
+                        final_amount,
+                    ),
+                    else_=0.0,
+                )
+            ).label("daily_income"),
+            func.sum(
+                case(
+                    (
+                        and_(is_completed, Transaction.created_at >= week_ago),
+                        final_amount,
+                    ),
+                    else_=0.0,
+                )
+            ).label("weekly_income"),
+            func.sum(
+                case(
+                    (
+                        and_(is_completed, Transaction.created_at >= month_ago),
+                        final_amount,
+                    ),
+                    else_=0.0,
+                )
+            ).label("monthly_income"),
+            func.sum(case((and_(is_completed, ~is_free), 1), else_=0)).label("paid_count"),
+            func.sum(case((is_completed, original_amount - final_amount), else_=0.0)).label(
+                "total_discounts"
+            ),
+        ).group_by(Transaction.gateway_type)
+
+        result = await self.session.execute(stmt)
+        rows = result.mappings().all()
+
+        logger.debug(f"Gateway stats fetched for {len(rows)} gateways")
+        return [
+            GatewayStatsDto(
+                gateway_type=row["gateway_type"],
+                total_income=Decimal(row["total_income"] or 0),
+                daily_income=Decimal(row["daily_income"] or 0),
+                weekly_income=Decimal(row["weekly_income"] or 0),
+                monthly_income=Decimal(row["monthly_income"] or 0),
+                paid_count=int(row["paid_count"] or 0),
+                total_discounts=Decimal(row["total_discounts"] or 0),
+                total_transactions=int(row["total_transactions"] or 0),
+                completed_transactions=int(row["completed_transactions"] or 0),
+                free_transactions=int(row["free_transactions"] or 0),
+            )
+            for row in rows
+        ]
+
+    async def get_plan_income(self) -> list[PlanIncomeDto]:
+        plan_id_expr = Transaction.plan_snapshot["id"].as_integer()
+        final_amount_expr = Transaction.pricing["final_amount"].as_float()
+
+        stmt = (
+            select(
+                plan_id_expr.label("plan_id"),
+                Transaction.currency.label("currency"),
+                func.sum(final_amount_expr).label("total_income"),
+            )
+            .where(
+                Transaction.status == TransactionStatus.COMPLETED,
+                plan_id_expr.isnot(None),
+            )
+            .group_by(plan_id_expr, Transaction.currency)
+        )
+
+        result = await self.session.execute(stmt)
+        logger.debug("Plan income stats fetched")
+        return [
+            PlanIncomeDto(
+                plan_id=row["plan_id"],
+                currency=row["currency"].symbol,
+                total_income=float(row["total_income"] or 0),
+            )
+            for row in result.mappings()
+        ]

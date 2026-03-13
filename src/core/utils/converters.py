@@ -79,12 +79,12 @@ def bytes_to_gb(value: Optional[int]) -> int:
     return _round_decimal(Decimal(value) / _GB_FACTOR)
 
 
-def percent(part: int, whole: int) -> str:
+def percent(part: int, whole: int) -> float:
     if whole == 0:
-        return "N/A"
+        return 0
 
     percent = (part / whole) * 100
-    return f"{percent:.2f}"
+    return round(percent, 2)
 
 
 def country_code_to_flag(code: str) -> str:

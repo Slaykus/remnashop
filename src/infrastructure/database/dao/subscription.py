@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Optional, cast
 from uuid import UUID
 
@@ -5,15 +6,14 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.common.dao import SubscriptionDao
-from src.application.common.dao.user import UserDao
-from src.application.dto import SubscriptionDto
+from src.application.common.dao import SubscriptionDao, UserDao
+from src.application.dto import PlanSubStatsDto, SubscriptionDto, SubscriptionStatsDto
 from src.core.enums import SubscriptionStatus
-from src.infrastructure.database.models import Subscription
-from src.infrastructure.database.models.user import User
+from src.core.utils.time import datetime_now
+from src.infrastructure.database.models import Subscription, User
 
 
 class SubscriptionDaoImpl(SubscriptionDao):
@@ -216,3 +216,156 @@ class SubscriptionDaoImpl(SubscriptionDao):
             f"Retrieved '{len(squads)}' unique internal squads from all active subscriptions"
         )
         return squads
+
+    async def count_total_trials(self) -> int:
+        stmt = select(func.count()).select_from(Subscription).where(Subscription.is_trial.is_(True))
+        return await self.session.scalar(stmt) or 0
+
+    async def count_converted_from_trial(self) -> int:
+        trial_users_subq = (
+            select(Subscription.user_telegram_id)
+            .where(Subscription.is_trial.is_(True))
+            .scalar_subquery()
+        )
+
+        stmt = select(func.count(func.distinct(Subscription.user_telegram_id))).where(
+            Subscription.user_telegram_id.in_(trial_users_subq),
+            Subscription.is_trial.is_(False),
+            Subscription.status.in_([SubscriptionStatus.ACTIVE, SubscriptionStatus.EXPIRED]),
+        )
+        return await self.session.scalar(stmt) or 0
+
+    async def get_stats(self) -> SubscriptionStatsDto:
+        now = datetime_now()
+        week_later = now + timedelta(days=7)
+
+        is_active = Subscription.status == SubscriptionStatus.ACTIVE
+        is_expired = Subscription.status == SubscriptionStatus.EXPIRED
+
+        is_expiring = and_(
+            is_active,
+            Subscription.expire_at >= now,
+            Subscription.expire_at <= week_later,
+        )
+
+        is_unlimited = or_(
+            Subscription.traffic_limit == 0,
+            Subscription.device_limit == 0,
+        )
+
+        stmt = select(
+            func.count().label("total"),
+            func.sum(case((is_active, 1), else_=0)).label("total_active"),
+            func.sum(case((is_expired, 1), else_=0)).label("total_expired"),
+            func.sum(case((and_(is_active, Subscription.is_trial.is_(True)), 1), else_=0)).label(
+                "active_trial"
+            ),
+            func.sum(case((is_expiring, 1), else_=0)).label("expiring_soon"),
+            func.sum(case((and_(is_active, is_unlimited), 1), else_=0)).label("total_unlimited"),
+            func.sum(case((and_(is_active, Subscription.traffic_limit != 0), 1), else_=0)).label(
+                "total_traffic"
+            ),
+            func.sum(case((and_(is_active, Subscription.device_limit != 0), 1), else_=0)).label(
+                "total_devices"
+            ),
+        )
+
+        row = (await self.session.execute(stmt)).mappings().one()
+        logger.debug("Subscription stats fetched")
+
+        return SubscriptionStatsDto(
+            total=int(row["total"] or 0),
+            total_active=int(row["total_active"] or 0),
+            total_expired=int(row["total_expired"] or 0),
+            active_trial=int(row["active_trial"] or 0),
+            expiring_soon=int(row["expiring_soon"] or 0),
+            total_unlimited=int(row["total_unlimited"] or 0),
+            total_traffic=int(row["total_traffic"] or 0),
+            total_devices=int(row["total_devices"] or 0),
+        )
+
+    async def get_plan_sub_stats(self) -> list[PlanSubStatsDto]:
+        now = datetime_now()
+        week_later = now + timedelta(days=7)
+
+        plan_id_expr = Subscription.plan_snapshot["id"].as_integer()
+        plan_name_expr = Subscription.plan_snapshot["name"].as_string()
+        duration_expr = Subscription.plan_snapshot["duration"].as_integer()
+
+        is_active = Subscription.status == SubscriptionStatus.ACTIVE
+        is_expired = Subscription.status == SubscriptionStatus.EXPIRED
+        is_expiring = and_(
+            is_active,
+            Subscription.expire_at >= now,
+            Subscription.expire_at <= week_later,
+        )
+        is_unlimited = or_(
+            Subscription.traffic_limit == -1,
+            Subscription.device_limit == -1,
+        )
+
+        counts_stmt = (
+            select(
+                plan_id_expr.label("plan_id"),
+                plan_name_expr.label("plan_name"),
+                func.count().label("total_subs"),
+                func.sum(case((is_active, 1), else_=0)).label("active_subs"),
+                func.sum(case((is_expired, 1), else_=0)).label("expired_subs"),
+                func.sum(case((is_expiring, 1), else_=0)).label("expiring_soon"),
+                func.sum(case((and_(is_active, is_unlimited), 1), else_=0)).label(
+                    "total_unlimited"
+                ),
+                func.sum(
+                    case((and_(is_active, Subscription.traffic_limit != -1), 1), else_=0)
+                ).label("total_traffic"),
+                func.sum(
+                    case((and_(is_active, Subscription.device_limit != -1), 1), else_=0)
+                ).label("total_devices"),
+            )
+            .where(plan_id_expr.isnot(None))
+            .group_by(plan_id_expr, plan_name_expr)
+        )
+
+        duration_subq = (
+            select(
+                plan_id_expr.label("plan_id"),
+                duration_expr.label("duration"),
+                func.row_number()
+                .over(
+                    partition_by=plan_id_expr,
+                    order_by=func.count().desc(),
+                )
+                .label("rn"),
+            )
+            .where(plan_id_expr.isnot(None))
+            .group_by(plan_id_expr, duration_expr)
+            .subquery()
+        )
+        popular_duration_stmt = select(
+            duration_subq.c.plan_id,
+            duration_subq.c.duration,
+        ).where(duration_subq.c.rn == 1)
+
+        counts_rows = await self.session.execute(counts_stmt)
+        duration_rows = await self.session.execute(popular_duration_stmt)
+
+        popular_duration_map: dict[int, int] = {
+            row.plan_id: (row.duration or 0) for row in duration_rows.mappings()
+        }
+
+        logger.debug("Plan subscription stats fetched")
+        return [
+            PlanSubStatsDto(
+                plan_id=row["plan_id"],
+                plan_name=row["plan_name"] or "",
+                total_subs=int(row["total_subs"] or 0),
+                active_subs=int(row["active_subs"] or 0),
+                expired_subs=int(row["expired_subs"] or 0),
+                expiring_soon=int(row["expiring_soon"] or 0),
+                total_unlimited=int(row["total_unlimited"] or 0),
+                total_traffic=int(row["total_traffic"] or 0),
+                total_devices=int(row["total_devices"] or 0),
+                popular_duration=popular_duration_map.get(row["plan_id"], 0),
+            )
+            for row in counts_rows.mappings()
+        ]

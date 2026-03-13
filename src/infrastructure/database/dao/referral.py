@@ -4,13 +4,13 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.application.common.dao import ReferralDao
-from src.application.dto import ReferralDto, ReferralRewardDto
-from src.core.enums import ReferralRewardType
+from src.application.dto import ReferralDto, ReferralRewardDto, ReferralStatisticsDto
+from src.core.enums import ReferralLevel, ReferralRewardType
 from src.infrastructure.database.models import Referral, ReferralReward
 
 
@@ -168,3 +168,106 @@ class ReferralDaoImpl(ReferralDao):
         )
 
         return first_level, second_level
+
+    async def get_stats(self) -> ReferralStatisticsDto:
+        stmt = select(
+            func.count().label("total_referrals"),
+            func.sum(case((Referral.level == ReferralLevel.FIRST, 1), else_=0)).label(
+                "level_1_count"
+            ),
+            func.sum(case((Referral.level == ReferralLevel.SECOND, 1), else_=0)).label(
+                "level_2_count"
+            ),
+            func.count(func.distinct(Referral.referrer_telegram_id)).label("unique_referrers"),
+        )
+
+        rewards_stmt = select(
+            func.sum(case((ReferralReward.is_issued.is_(True), 1), else_=0)).label(
+                "total_rewards_issued"
+            ),
+            func.sum(case((ReferralReward.is_issued.is_(False), 1), else_=0)).label(
+                "total_rewards_pending"
+            ),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            ReferralReward.is_issued.is_(True),
+                            ReferralReward.type == ReferralRewardType.POINTS,
+                        ),
+                        ReferralReward.amount,
+                    ),
+                    else_=0,
+                )
+            ).label("total_points_issued"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            ReferralReward.is_issued.is_(True),
+                            ReferralReward.type == ReferralRewardType.EXTRA_DAYS,
+                        ),
+                        ReferralReward.amount,
+                    ),
+                    else_=0,
+                )
+            ).label("total_days_issued"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            ReferralReward.is_issued.is_(False),
+                            ReferralReward.type == ReferralRewardType.POINTS,
+                        ),
+                        ReferralReward.amount,
+                    ),
+                    else_=0,
+                )
+            ).label("total_points_pending"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            ReferralReward.is_issued.is_(False),
+                            ReferralReward.type == ReferralRewardType.EXTRA_DAYS,
+                        ),
+                        ReferralReward.amount,
+                    ),
+                    else_=0,
+                )
+            ).label("total_days_pending"),
+        )
+
+        top_referrer_stmt = (
+            select(
+                Referral.referrer_telegram_id,
+                func.count().label("invited_count"),
+            )
+            .group_by(Referral.referrer_telegram_id)
+            .order_by(func.count().desc())
+            .limit(1)
+        )
+
+        referral_row = (await self.session.execute(stmt)).mappings().one()
+        reward_row = (await self.session.execute(rewards_stmt)).mappings().one()
+        top_referrer_row = (await self.session.execute(top_referrer_stmt)).mappings().first()
+
+        logger.debug("Referral stats fetched")
+        return ReferralStatisticsDto(
+            total_referrals=int(referral_row["total_referrals"] or 0),
+            level_1_count=int(referral_row["level_1_count"] or 0),
+            level_2_count=int(referral_row["level_2_count"] or 0),
+            unique_referrers=int(referral_row["unique_referrers"] or 0),
+            total_rewards_issued=int(reward_row["total_rewards_issued"] or 0),
+            total_rewards_pending=int(reward_row["total_rewards_pending"] or 0),
+            total_points_issued=int(reward_row["total_points_issued"] or 0),
+            total_days_issued=int(reward_row["total_days_issued"] or 0),
+            total_points_pending=int(reward_row["total_points_pending"] or 0),
+            total_days_pending=int(reward_row["total_days_pending"] or 0),
+            top_referrer_invited_count=int(top_referrer_row["invited_count"])
+            if top_referrer_row
+            else 0,
+            top_referrer_telegram_id=top_referrer_row["referrer_telegram_id"]
+            if top_referrer_row
+            else None,
+        )

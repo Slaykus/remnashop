@@ -1,4 +1,5 @@
 from dataclasses import dataclass, fields
+from decimal import Decimal
 from typing import Any, Literal, Optional, Union
 from uuid import UUID
 
@@ -7,6 +8,20 @@ from pydantic import SecretStr
 from src.core.enums import Currency, PaymentGatewayType, YookassaVatCode
 
 from .base import BaseDto, TrackableMixin
+
+
+@dataclass(frozen=True)
+class GatewayStatsDto:
+    gateway_type: PaymentGatewayType
+    total_income: Decimal
+    daily_income: Decimal
+    weekly_income: Decimal
+    monthly_income: Decimal
+    paid_count: int
+    total_discounts: Decimal
+    total_transactions: int
+    completed_transactions: int
+    free_transactions: int
 
 
 @dataclass(kw_only=True)

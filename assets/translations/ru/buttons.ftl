@@ -64,6 +64,37 @@ btn-dashboard =
     .remnashop = 🛍 RemnaShop
     .importer = 📥 Импорт пользователей
 
+btn-statistics =
+    .users = 👥 Пользователи
+    .subscriptions = 💳 Подписки
+    .transactions = 🧾 Транзакции
+    .promocodes = 🎁 Промокоды
+    .referrals = 👪 Рефералы
+
+    .subscription-page =
+    { $page ->
+        [0] { $is_current ->
+            [1] [ Общая статистика ]
+            *[0] Общая статистика
+        }
+        *[other] { $is_current ->
+            [1] [ { $plan_name } ]
+            *[0] { $plan_name }
+        }
+    }
+
+    .transaction-page =
+    { $page ->
+        [0] { $is_current ->
+            [1] [ Общая статистика ]
+            *[0] Общая статистика
+        }
+        *[other] { $is_current ->
+            [1] [ { gateway-type } ]
+            *[0] { gateway-type }
+        }
+    }
+
 btn-users =
     .search = 🔍 Поиск пользователя
     .recent-registered = 🆕 Последние зарегистрированные
@@ -427,25 +458,3 @@ btn-promocode =
     [1] 🟢
     *[0] 🔴
     } Статус
-
-btn-statistics-page =
-    { $target_page1 ->
-    [1] 👥
-    [2] 🧾
-    [3] 💳
-    [4] 📦
-    [5] 🎁
-    [6] 👪
-    *[OTHER] page
-    }
-
-btn-statistics-current-page =
-    { $current_page1 ->
-    [1] [👥]
-    [2] [🧾]
-    [3] [💳]
-    [4] [📦]
-    [5] [🎁]
-    [6] [👪]
-    *[OTHER] [page]
-    }

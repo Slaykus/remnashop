@@ -74,7 +74,7 @@ async def on_goto(callback: CallbackQuery, dialog_manager: DialogManager, user: 
 
 
 @inject
-@router.message(CommandStart(deep_link=True, ignore_case=True))
+@router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(PLAN_PREFIX))
 async def on_goto_plan(
     message: Message,
     command: CommandObject,
@@ -83,10 +83,6 @@ async def on_goto_plan(
     get_available_plan_by_code: FromDishka[GetAvailablePlanByCode],
 ) -> None:
     args = command.args or ""
-
-    if not args.startswith(PLAN_PREFIX):
-        return
-
     public_code = args.removeprefix(PLAN_PREFIX)
     plan = await get_available_plan_by_code(user, public_code)
 

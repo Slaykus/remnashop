@@ -142,7 +142,7 @@ msg-invite-reward = { $value }{ $reward_strategy_type ->
 msg-dashboard-main = <b>🛠 Панель управления</b>
 msg-users-main = <b>👥 Пользователи</b>
 msg-broadcast-main = <b>📢 Рассылка</b>
-msg-statistics-main = { $statistics }
+msg-statistics-main = <b>📊 Статистика</b>
     
 msg-statistics-users =
     <b>👥 Статистика по пользователям</b>
@@ -156,7 +156,9 @@ msg-statistics-users =
     • <b>С подпиской</b>: { $users_with_subscription }
     • <b>Без подписки</b>: { $users_without_subscription }
     • <b>С пробным периодом</b>: { $users_with_trial }
+    </blockquote>
 
+    <blockquote>
     • <b>Заблокированные</b>: { $blocked_users }
     • <b>Заблокировали бота</b>: { $bot_blocked_users }
 
@@ -164,41 +166,71 @@ msg-statistics-users =
     • <b>Конверсия пробников → подписка</b>: { $trial_conversion }%
     </blockquote>
 
+msg-statistics-subscriptions =
+    { $plan_name ->
+    [0] <b>💳 Статистика по подпискам</b>
+    *[HAS] <b>📦 Статистика { $plan_name }</b>
+    }
+
+    <blockquote>
+    • <b>Всего</b>: { $total }
+    • <b>Активные</b>: { $total_active }
+    • <b>Истекшие</b>: { $total_expired }
+    { $plan_name ->
+    [0] • <b>Пробные</b>: { $active_trial }
+    *[HAS] { empty }
+    }
+    • <b>Истекающие (7 дней)</b>: { $expiring_soon }
+    { $plan_name ->
+    [0] { empty }
+    *[HAS] • <b>Популярная длительность</b>: { $popular_duration }
+    }
+    </blockquote>
+
+    { $plan_name ->
+    [0] <blockquote>
+    • <b>С безлимитом</b>: { $total_unlimited }
+    • <b>С лимитом трафика</b>: { $total_traffic }  
+    • <b>С лимитом устройств</b>: { $total_devices }
+    </blockquote>
+    *[HAS] <b>Общий доход</b>:
+    <blockquote>
+    { $all_income }
+    </blockquote>
+    }
+    
+msg-statistics-subscriptions-plan-income = { $income }{ $currency }
+    
 msg-statistics-transactions =
-    <b>🧾 Статистика по транзакциям</b>
+    { $gateway_type ->
+    [0] <b>🧾 Общая статистика по транзакциям</b>
+    *[HAS] <b>🧾 Статистика { gateway-type }</b>
+    }
 
     <blockquote>
     • <b>Всего транзакций</b>: { $total_transactions }
     • <b>Завершенных транзакций</b>: { $completed_transactions }
     • <b>Бесплатных транзакций</b>: { $free_transactions }
-    { $popular_gateway ->
-    [0] { empty }
-    *[HAS] • <b>Популярная платежная система</b>: { $popular_gateway }
+    { $gateway_type ->
+    [0] { $popular_gateway ->
+        [0] { empty }
+        *[HAS] • <b>Популярная платежная система</b>: { $popular_gateway }
+        }
+    *[HAS] { empty }
     }
     </blockquote>
 
-    { $payment_gateways }
-
-msg-statistics-subscriptions =
-    <b>💳 Статистика по подпискам</b>
-
-    <blockquote>
-    • <b>Активные</b>: { $total_active_subscriptions }
-    • <b>Истекшие</b>: { $total_expire_subscriptions }
-    • <b>Пробные</b>: { $active_trial_subscriptions }
-    • <b>Истекающие (7 дней)</b>: { $expiring_subscriptions }
+    { $gateway_type ->
+    [0] { empty }
+    *[HAS] <blockquote>
+    • <b>Общий доход</b>: { $total_income }{ $currency }
+    • <b>Доход за день</b>: { $daily_income }{ $currency }
+    • <b>Доход за неделю</b>: { $weekly_income }{ $currency }
+    • <b>Доход за месяц</b>: { $monthly_income }{ $currency }
+    • <b>Средний чек</b>: { $average_check }{ $currency }
+    • <b>Сумма скидок</b>: { $total_discounts }{ $currency }
     </blockquote>
-
-    <blockquote>
-    • <b>С безлимитом</b>: { $total_unlimited }
-    • <b>С лимитом трафика</b>: { $total_traffic }
-    • <b>С лимитом устройств</b>: { $total_devices }
-    </blockquote>
-
-msg-statistics-plans = 
-    <b>📦 Статистика по планам</b>
-
-    { $plans }
+    }
 
 msg-statistics-promocodes =
     <b>🎁 Статистика по промокодам</b>
@@ -217,39 +249,28 @@ msg-statistics-promocodes =
     </blockquote>
 
 msg-statistics-referrals =
-    <b>👪 Статистика по реферальной системе</b>
-    
-    <blockquote>
-    • <b></b>:
-    </blockquote>
+    <b>👪 Статистика по рефералам</b>
 
-msg-statistics-transactions-gateway =
-    <b>{ gateway-type }:</b>
     <blockquote>
-    • <b>Общий доход</b>: { $total_income }{ $currency }
-    • <b>Доход за день</b>: { $daily_income }{ $currency }
-    • <b>Доход за неделю</b>: { $weekly_income }{ $currency }
-    • <b>Доход за месяц</b>: { $monthly_income }{ $currency }
-    • <b>Средний чек</b>: { $average_check }{ $currency }
-    • <b>Сумма скидок</b>: { $total_discounts }{ $currency }
-    </blockquote>
-
-msg-statistics-plan =
-    <b>{ $plan_name }:</b> { $popular -> 
-    [0] { space }
-    *[HAS] (⭐)
+    • <b>Всего рефералов</b>: { $total_referrals }
+    • <b>Уровень 1</b>: { $level_1_count }
+    • <b>Уровень 2</b>: { $level_2_count }
+    • <b>Уникальных реферреров</b>: { $unique_referrers }
+    { $top_referrer_telegram_id ->
+        [0] { empty }
+        *[HAS] • <b>Топ реферрер</b>: { $top_referrer_username ->
+            [0] { NUMBER($top_referrer_telegram_id, useGrouping: 0) }
+            *[HAS] <a href="tg://user?id={ $top_referrer_telegram_id }">@{ $top_referrer_username }</a> 
+            } ({ $top_referrer_invited_count } приглашённых)
     }
-    <blockquote>
-    • <b>Всего подписок</b>: { $total_subscriptions }
-    • <b>Активных подписок</b>: { $active_subscriptions }
-    • <b>Популярная длительность</b>: { $popular_duration }
-
-    • <b>Общий доход</b>: 
-    { $all_income }
     </blockquote>
 
-msg-statistics-plan-income = { $income }{ $currency }
-    
+    <blockquote>
+    • <b>Выдано наград</b>: { $total_rewards_issued }
+    • <b>Ожидают выдачи</b>: { $total_rewards_pending }
+    • <b>Выдано поинтов</b>: { $total_points_issued } / { $total_points_pending }
+    • <b>Выдано дней</b>: { $total_days_issued } / { $total_days_pending }
+    </blockquote>
 
 
 # Access

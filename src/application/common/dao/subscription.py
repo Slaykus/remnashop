@@ -1,7 +1,7 @@
 from typing import Optional, Protocol, runtime_checkable
 from uuid import UUID
 
-from src.application.dto import SubscriptionDto
+from src.application.dto import PlanSubStatsDto, SubscriptionDto, SubscriptionStatsDto
 from src.core.enums import SubscriptionStatus
 
 
@@ -32,3 +32,11 @@ class SubscriptionDao(Protocol):
     async def count_active_by_plan(self, plan_id: int) -> int: ...
 
     async def get_all_active_internal_squads(self) -> list[UUID]: ...
+
+    async def count_total_trials(self) -> int: ...
+
+    async def count_converted_from_trial(self) -> int: ...
+
+    async def get_stats(self) -> SubscriptionStatsDto: ...
+
+    async def get_plan_sub_stats(self) -> list[PlanSubStatsDto]: ...
