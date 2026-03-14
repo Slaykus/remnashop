@@ -11,7 +11,7 @@ from .commands.management import (
     UpdateDeviceLimit,
     UpdateTrafficLimit,
 )
-from .commands.purchase import ActivateTrialSubscription, PurchaseSubscription
+from .commands.purchase import ActivateFreePlan, ActivateTrialSubscription, PurchaseSubscription
 from .commands.set_plan import SetUserSubscription
 from .commands.sync import (
     CheckSubscriptionSyncState,
@@ -35,4 +35,5 @@ SUBSCRIPTION_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     SetUserSubscription,
     ActivateTrialSubscription,
     PurchaseSubscription,
+    ActivateFreePlan,
 )

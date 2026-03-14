@@ -5,7 +5,7 @@ from typing import Optional
 from loguru import logger
 
 from src.application.common import EventPublisher, Interactor, Redirect, Remnawave, TranslatorRunner
-from src.application.common.dao import SubscriptionDao, TransactionDao, UserDao
+from src.application.common.dao import PlanDao, SubscriptionDao, TransactionDao, UserDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import PlanSnapshotDto, SubscriptionDto, TransactionDto, UserDto
 from src.application.events import TrialActivatedEvent
@@ -105,6 +105,79 @@ class ActivateTrialSubscription(Interactor[ActivateTrialSubscriptionDto, None]):
             logger.exception(f"{actor.log} Failed to give trial for user '{user.telegram_id}'")
             await self.redirect.to_failed_payment(user.telegram_id)
             raise TrialError(e)
+
+
+@dataclass(frozen=True)
+class ActivateFreePlanDto:
+    telegram_id: int
+
+
+class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
+    """
+    Silent variant of ActivateTrialSubscription for Internal API use.
+    No Telegram redirect or event publishing — just creates the subscription and returns it.
+    Raises ValueError on ineligibility.
+    """
+
+    required_permission = None
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        user_dao: UserDao,
+        subscription_dao: SubscriptionDao,
+        plan_dao: PlanDao,
+        remnawave: Remnawave,
+    ) -> None:
+        self.uow = uow
+        self.user_dao = user_dao
+        self.subscription_dao = subscription_dao
+        self.plan_dao = plan_dao
+        self.remnawave = remnawave
+
+    async def _execute(self, actor: UserDto, data: ActivateFreePlanDto) -> SubscriptionDto:
+        user = await self.user_dao.get_by_telegram_id(data.telegram_id)
+        if not user:
+            raise ValueError("User not found")
+        if not user.is_trial_available:
+            raise ValueError("Trial already used")
+
+        plans = await self.plan_dao.get_active_trial_plans()
+        if not plans:
+            raise ValueError("No trial plan available")
+        plan = plans[0]
+
+        if not plan.durations:
+            raise ValueError("Trial plan has no durations configured")
+        plan_snapshot = PlanSnapshotDto.from_plan(plan, plan.durations[0].days)
+
+        created_user = await self.remnawave.create_user(user, plan=plan_snapshot)
+
+        trial_subscription = SubscriptionDto(
+            user_remna_id=created_user.uuid,
+            status=SubscriptionStatus(created_user.status),
+            is_trial=True,
+            traffic_limit=plan_snapshot.traffic_limit,
+            device_limit=plan_snapshot.device_limit,
+            traffic_limit_strategy=plan_snapshot.traffic_limit_strategy,
+            tag=plan_snapshot.tag,
+            internal_squads=plan_snapshot.internal_squads,
+            external_squad=plan_snapshot.external_squad,
+            expire_at=created_user.expire_at,
+            url=created_user.subscription_url,
+            plan_snapshot=plan_snapshot,
+        )
+
+        async with self.uow:
+            await self.subscription_dao.create(
+                subscription=trial_subscription,
+                telegram_id=data.telegram_id,
+            )
+            await self.user_dao.set_trial_available(data.telegram_id, False)
+            await self.uow.commit()
+
+        logger.info(f"ActivateFreePlan: trial activated for telegram_id={data.telegram_id}")
+        return trial_subscription
 
 
 @dataclass(frozen=True)
