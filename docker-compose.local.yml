@@ -68,6 +68,7 @@ services:
         --appendonly no
         --maxmemory-policy noeviction
         --loglevel warning
+        --requirepass ${REDIS_PASSWORD}
 
     volumes:
       - remnashop-redis-data:/data
@@ -127,15 +128,12 @@ networks:
   remnawave-network:
     name: remnawave-network
     driver: bridge
-    external: false
 
 volumes:
   remnashop-db-data:
     name: remnashop-db-data
     driver: local
-    external: false
-    
+
   remnashop-redis-data:
     name: remnashop-redis-data
     driver: local
-    external: false
