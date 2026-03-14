@@ -1,53 +1,23 @@
-x-build: &build
-  build:
-    context: .
-    dockerfile: Dockerfile.local
-
-  volumes:
-      - ./src:/opt/remnashop/src
-      - ./logs:/opt/remnashop/logs
-      - ./assets:/opt/remnashop/assets
-
-x-common: &common
-  ulimits:
-    nofile:
-      soft: 1048576
-      hard: 1048576
-
-  restart: unless-stopped
-
-  networks:
-    - remnawave-network
-
-x-logging: &logging
-  logging:
-    driver: json-file
-    options:
-      max-size: 100m
-      max-file: 5
-
-x-env: &env
-  env_file: .env
-
-
 services:
   remnashop-db:
     image: postgres:17
     container_name: "remnashop-db"
     hostname: remnashop-db
-    <<: [*common, *logging, *env]
+    restart: unless-stopped
 
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=${DATABASE_USER:-remnashop}
+      - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
-      - POSTGRES_DB=${DATABASE_NAME:-remnashop}
+      - POSTGRES_DB=${DATABASE_NAME}
       - TZ=UTC
-
-    ports:
-      - 127.0.0.1:6767:${DATABASE_PORT:-5432}
-      
+    
     volumes:
       - remnashop-db-data:/var/lib/postgresql/data
+
+    networks:
+      - remnawave-network
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -60,18 +30,15 @@ services:
     image: valkey/valkey:9-alpine
     container_name: "remnashop-redis"
     hostname: remnashop-redis
-    <<: [*common, *logging, *env]
-    
-    command: >
-        valkey-server
-        --save ""
-        --appendonly no
-        --maxmemory-policy noeviction
-        --loglevel warning
-        --requirepass ${REDIS_PASSWORD}
+    restart: unless-stopped
+
+    command: [ "--requirepass", "${REDIS_PASSWORD}" ]
 
     volumes:
       - remnashop-redis-data:/data
+
+    networks:
+      - remnawave-network
 
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
@@ -81,12 +48,16 @@ services:
     
 
   remnashop:
-    container_name: "remnashop-local"
+    &remnashop
+    image: ghcr.io/snoups/remnashop:latest
+    container_name: "remnashop"
     hostname: remnashop
-    <<: [*build, *common, *logging, *env]
+    restart: unless-stopped
 
-    ports:
-      - 127.0.0.1:5000:${APP_PORT:-5000}
+    env_file:
+      - .env
+    environment:
+      RESET_ASSETS: "${RESET_ASSETS:-false}"
 
     depends_on:
         remnashop-db:
@@ -94,14 +65,20 @@ services:
         remnashop-redis:
           condition: service_healthy
 
+    volumes:
+      - ./logs:/opt/remnashop/logs
+      - ./assets:/opt/remnashop/assets
+
+    networks:
+      - remnawave-network
+    
 
   remnashop-taskiq-worker:
+    <<: *remnashop
     container_name: "remnashop-taskiq-worker"
     hostname: remnashop-taskiq-worker
-    <<: [*build, *common, *logging, *env]
-
     command: taskiq worker src.infrastructure.taskiq.worker:worker 
-      --ack-type when_received --tasks-pattern src/infrastructure/taskiq/tasks/*.py -fsd
+      --tasks-pattern src/infrastructure/taskiq/tasks -fsd
 
     depends_on:
         remnashop-redis:
@@ -109,13 +86,13 @@ services:
         remnashop-db:
           condition: service_healthy
 
+
   remnashop-taskiq-scheduler:
+    <<: *remnashop
     container_name: "remnashop-taskiq-scheduler"
     hostname: remnashop-taskiq-scheduler
-    <<: [*build, *common, *logging, *env]
-
     command: taskiq scheduler src.infrastructure.taskiq.scheduler:scheduler
-      --tasks-pattern src/infrastructure/taskiq/tasks/*.py -fsd
+      --tasks-pattern src/infrastructure/taskiq/tasks -fsd
 
     depends_on:
         remnashop-redis:
@@ -126,14 +103,17 @@ services:
 
 networks:
   remnawave-network:
-    name: remnawave-network
-    driver: bridge
+    name: remnawave-network 
+    driver: bridge 
+    external: false
 
 volumes:
   remnashop-db-data:
     name: remnashop-db-data
     driver: local
-
+    external: false
+    
   remnashop-redis-data:
     name: remnashop-redis-data
     driver: local
+    external: false
