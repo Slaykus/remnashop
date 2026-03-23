@@ -51,6 +51,14 @@ else
 fi
 
 
+# Patch remnapy: make CustomRemarksDto fields optional for older panel versions
+REMNAPY_SETTINGS="/opt/remnashop/.venv/lib/python3.12/site-packages/remnapy/models/subscriptions_settings.py"
+if [ -f "$REMNAPY_SETTINGS" ] && grep -q 'emptyInternalSquads", min_length=1' "$REMNAPY_SETTINGS"; then
+    echo "Patching remnapy: making emptyInternalSquads optional"
+    sed -i 's|empty_internal_squads: List\[str\] = Field(alias="emptyInternalSquads", min_length=1)|empty_internal_squads: Optional[List[str]] = Field(None, alias="emptyInternalSquads")|' "$REMNAPY_SETTINGS"
+fi
+
+
 echo "Migrating database"
 
 if ! alembic -c src/infrastructure/database/alembic.ini upgrade head; then

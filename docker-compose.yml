@@ -77,6 +77,11 @@ services:
     hostname: remnashop
     <<: [*build, *common, *logging, *env]
 
+    volumes:
+      - ./logs:/opt/remnashop/logs
+      - ./assets:/opt/remnashop/assets
+      - ./docker-entrypoint.sh:/opt/remnashop/docker-entrypoint.sh:ro
+
     environment:
       RESET_ASSETS: "${RESET_ASSETS:-false}"
 
