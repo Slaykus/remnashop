@@ -107,16 +107,16 @@ async def subscription_getter(
         "device_limit": i18n_format_device_limit(subscription.device_limit),
         "expire_time": i18n_format_expire_time(subscription.expire_at),
         #
-        "internal_squads": user_profile_subscription.formatted_internal_squads,
-        "external_squad": user_profile_subscription.formatted_external_squad,
+        "internal_squads": user_profile_subscription.formatted_internal_squads or False,
+        "external_squad": user_profile_subscription.formatted_external_squad or False,
         "first_connected_at": (
-            remna_user.first_connected.strftime(DATETIME_FORMAT)
-            if remna_user.first_connected
+            remna_user.first_connected_at.strftime(DATETIME_FORMAT)
+            if remna_user.first_connected_at
             else False
         ),
         "last_connected_at": (
-            remna_user.first_connected.strftime(DATETIME_FORMAT)
-            if remna_user.first_connected
+            remna_user.user_traffic.online_at.strftime(DATETIME_FORMAT)
+            if remna_user.user_traffic.online_at
             else False
         ),
         "node_name": user_profile_subscription.last_node_name,

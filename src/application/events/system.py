@@ -223,6 +223,7 @@ class UserFirstConnectionEvent(UserEvent):
         init=False,
     )
 
+    is_trial: bool
     subscription_id: UUID
     subscription_status: SubscriptionStatus
     traffic_used: Any
@@ -390,3 +391,23 @@ class TrialActivatedEvent(UserEvent):
     @property
     def event_key(self) -> str:
         return "event-subscription.trial"
+
+
+@dataclass(frozen=True, kw_only=True)
+class SubscriptionRevokedEvent(UserEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.USER_REVOKED_SUBSCRIPTION,
+        init=False,
+    )
+
+    is_trial: bool
+    subscription_id: UUID
+    subscription_status: SubscriptionStatus
+    traffic_used: Any
+    traffic_limit: Any
+    device_limit: Any
+    expire_time: Any
+
+    @property
+    def event_key(self) -> str:
+        return "event-subscription.revoked"

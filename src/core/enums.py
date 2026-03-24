@@ -199,6 +199,7 @@ class SystemNotificationType(UpperStrEnum):
     #
     USER_FIRST_CONNECTION = auto()
     USER_DEVICES_UPDATED = auto()
+    USER_REVOKED_SUBSCRIPTION = auto()
 
 
 class UserNotificationType(UpperStrEnum):

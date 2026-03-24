@@ -83,7 +83,7 @@ class DeleteSubscription(Interactor[int, None]):
             try:
                 await self.remnawave_sdk.users.delete_user(subscription.user_remna_id)
             except Exception as e:
-                logger.error(f"Failed to delete user '{telegram_id}' from Remnawave: {e}")
+                logger.error(f"Failed to delete user '{telegram_id}' from remnapy: {e}")
                 raise
 
             await self.user_dao.clear_current_subscription(telegram_id)

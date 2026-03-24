@@ -9,6 +9,7 @@ from src.application.common import EventPublisher
 from src.application.common.dao import SubscriptionDao, UserDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
+from src.application.dto.subscription import SubscriptionDto
 from src.application.events import (
     NodeConnectionLostEvent,
     NodeConnectionRestoredEvent,
@@ -20,6 +21,7 @@ from src.application.events import (
     UserDeviceDeletedEvent,
     UserFirstConnectionEvent,
 )
+from src.application.events.system import SubscriptionRevokedEvent
 from src.application.use_cases.remnawave.commands.synchronization import (
     SyncRemnaUser,
     SyncRemnaUserDto,
@@ -57,6 +59,7 @@ class RemnaWebhookService:
     async def handle_user_event(self, event: str, remna_user: RemnaUserDto) -> None:
         logger.debug(f"Received user event '{event}'")
         # TODO: Not connected event
+
         if not remna_user.telegram_id:
             logger.debug(
                 f"Skipping event for RemnaUser '{remna_user.username}': telegram_id is empty"
@@ -72,6 +75,14 @@ class RemnaWebhookService:
             logger.warning(f"Local user not found with telegram_id '{remna_user.telegram_id}'")
             return
 
+        current_subscription = await self.subscription_dao.get_current(remna_user.telegram_id)
+        if not current_subscription:
+            logger.warning(
+                f"Current subscription not found for telegram_id '{remna_user.telegram_id}', "
+                f"status event '{event}' processing aborted"
+            )
+            return
+
         if event == RemnaUserEvent.DELETED:
             logger.debug(f"Executing deletion for RemnaUser '{remna_user.telegram_id}'")
             await self._process_delete_subscription(remna_user)
@@ -83,7 +94,7 @@ class RemnaWebhookService:
             RemnaUserEvent.LIMITED,
             RemnaUserEvent.EXPIRED,
         }:
-            await self._process_status(user, event, remna_user)
+            await self._process_status(user, current_subscription, event, remna_user)
 
         elif event == RemnaUserEvent.EXPIRED_24_HOURS_AGO:
             await self.event_bus.publish(
@@ -110,6 +121,7 @@ class RemnaWebhookService:
                     telegram_id=user.telegram_id,
                     username=user.username,
                     name=user.name,
+                    is_trial=current_subscription.is_trial,
                     subscription_id=remna_user.uuid,
                     subscription_status=SubscriptionStatus(remna_user.status),
                     traffic_used=i18n_format_bytes_to_unit(
@@ -260,33 +272,23 @@ class RemnaWebhookService:
             await self.uow.commit()
             logger.info(f"Successfully processed deletion for subscription '{remna_user.uuid}'")
 
-    async def _process_status(self, user: UserDto, event: str, remna_user: RemnaUserDto) -> None:
-        new_status = SubscriptionStatus(remna_user.status)
-
-        async with self.uow:
-            subscription = await self.subscription_dao.get_by_remna_id(remna_user.uuid)
-            if not subscription:
-                logger.warning(
-                    f"Subscription not found for UUID '{remna_user.uuid}', status update aborted"
-                )
-                return
-
-            if subscription.status != new_status:
-                subscription.status = new_status
-                await self.subscription_dao.update(subscription)
-                await self.uow.commit()
-                logger.info(
-                    f"Status updated to '{new_status}' for subscription '{remna_user.uuid}'"
-                )
+    async def _process_status(
+        self,
+        user: UserDto,
+        current_subscription: SubscriptionDto,
+        event: str,
+        remna_user: RemnaUserDto,
+    ) -> None:
+        await self.sync_user.system(SyncRemnaUserDto(remna_user=remna_user, creating=False))
 
         if event == RemnaUserEvent.LIMITED:
             await self.event_bus.publish(
                 SubscriptionLimitedEvent(
                     user=user,
-                    is_trial=subscription.is_trial,
-                    traffic_strategy=subscription.traffic_limit_strategy,
+                    is_trial=current_subscription.is_trial,
+                    traffic_strategy=current_subscription.traffic_limit_strategy,
                     reset_time=i18n_format_expire_time(
-                        get_traffic_reset_delta(subscription.traffic_limit_strategy)
+                        get_traffic_reset_delta(current_subscription.traffic_limit_strategy)
                     ),
                 )
             )
@@ -298,6 +300,24 @@ class RemnaWebhookService:
                 )
                 return
             await self.event_bus.publish(SubscriptionExpiredEvent(user=user))
+
+        if event == RemnaUserEvent.REVOKED:
+            await self.event_bus.publish(
+                SubscriptionRevokedEvent(
+                    telegram_id=user.telegram_id,
+                    username=user.username,
+                    name=user.name,
+                    is_trial=current_subscription.is_trial,
+                    subscription_id=remna_user.uuid,
+                    subscription_status=SubscriptionStatus(remna_user.status),
+                    traffic_used=i18n_format_bytes_to_unit(
+                        remna_user.used_traffic_bytes, min_unit=ByteUnitKey.MEGABYTE
+                    ),
+                    traffic_limit=i18n_format_bytes_to_unit(remna_user.traffic_limit_bytes),
+                    device_limit=i18n_format_device_limit(remna_user.hwid_device_limit),
+                    expire_time=i18n_format_expire_time(remna_user.expire_at),
+                )
+            )
 
 
 class RemnaUserEvent(StrEnum):

@@ -241,6 +241,17 @@ event-subscription =
         }
     }
 
+    .revoked =
+    #SubscriptionRevokedEvent
+
+    <b>🔅 Событие: Пользователь перевыпустил подписку!</b>
+
+    { hdr-user }
+    { frg-user-info }
+
+    { hdr-subscription }
+    { frg-subscription-details }
+
 
 event-node =
     .connection-lost =

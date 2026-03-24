@@ -109,7 +109,7 @@ def get_platform_icon(platform: str | None) -> str:
         "linux": "🐧",
     }
 
-    default_icon = "📟"
+    default_icon = "📱"
 
     if not platform:
         return default_icon

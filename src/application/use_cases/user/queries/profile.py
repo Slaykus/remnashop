@@ -3,6 +3,7 @@ from typing import Optional
 
 from loguru import logger
 from remnapy import RemnawaveSDK
+from remnapy.models import GetExternalSquadByUuidResponseDto
 from remnapy.models.hwid import HwidDeviceDto
 
 from src.application.common import Interactor, Remnawave
@@ -62,22 +63,23 @@ class GetUserProfileSubscriptionResultDto:
     subscription: SubscriptionDto
     remna_user: RemnaUserDto
     last_node_name: Optional[str] = None
+    external_squad: Optional[GetExternalSquadByUuidResponseDto] = None
 
     @property
     def can_edit(self) -> bool:
         return not self.subscription.is_expired
 
     @property
-    def formatted_internal_squads(self) -> str | bool:
+    def formatted_internal_squads(self) -> Optional[str]:
         if not self.remna_user.active_internal_squads:
-            return False
+            return None
         return ", ".join(s.name for s in self.remna_user.active_internal_squads)
 
     @property
-    def formatted_external_squad(self) -> str | bool:  # TODO: add name
-        if not self.remna_user.external_squad_uuid:
-            return False
-        return str(self.remna_user.external_squad_uuid)
+    def formatted_external_squad(self) -> Optional[str]:
+        if not self.external_squad:
+            return None
+        return self.external_squad.name
 
 
 class GetUserProfileSubscription(Interactor[int, GetUserProfileSubscriptionResultDto]):
@@ -117,10 +119,16 @@ class GetUserProfileSubscription(Interactor[int, GetUserProfileSubscriptionResul
 
         logger.info(f"{actor.log} Viewed subscription details for '{telegram_id}'")
 
+        if remna_user.external_squad_uuid:
+            external_squad = await self.remnawave_sdk.external_squads.get_external_squad_by_uuid(
+                remna_user.external_squad_uuid
+            )
+
         return GetUserProfileSubscriptionResultDto(
             subscription=subscription,
             remna_user=remna_user,
             last_node_name=last_node.name if last_node else None,
+            external_squad=external_squad if remna_user.external_squad_uuid else None,
         )
 
 

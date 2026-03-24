@@ -6,7 +6,7 @@ btn-back =
 
 btn-common =
     .notification-close = ❌ Закрыть
-    .devices-empty = ✨ У вас нет подключённых устройств
+    .devices-empty = ⚠️ У вас нет подключённых устройств
     .cancel = Отмена
 
     .squad-choice = { $selected -> 
