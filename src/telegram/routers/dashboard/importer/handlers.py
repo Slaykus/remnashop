@@ -124,10 +124,16 @@ async def on_import_all_xui(
 
     logger.info(f"{user.log} Started import '{len(users['all'])}' users")
     result = await task.wait_result()
-    success_count, failed_count = result.return_value
 
     if notification:
         await notification.delete()
+
+    if result.is_err or result.return_value is None:
+        logger.error(f"{user.log} Import task failed: {result.error}")
+        await notifier.notify_user(user, i18n_key="ntf-importer.import-failed")
+        return
+
+    success_count, failed_count = result.return_value
 
     dialog_manager.dialog_data["completed"] = {
         "total_count": len(users["all"]),
@@ -171,10 +177,16 @@ async def on_import_active_xui(
     task = await import_exported_users_task.kiq(users["active"], selected_squads)  # type: ignore[call-overload]
     logger.info(f"{user.log} Started import '{len(users['active'])}' users")
     result = await task.wait_result()
-    success_count, failed_count = result.return_value
 
     if notification:
         await notification.delete()
+
+    if result.is_err or result.return_value is None:
+        logger.error(f"{user.log} Import task failed: {result.error}")
+        await notifier.notify_user(user, i18n_key="ntf-importer.import-failed")
+        return
+
+    success_count, failed_count = result.return_value
 
     dialog_manager.dialog_data["completed"] = {
         "total_count": len(users["active"]),
