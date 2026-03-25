@@ -23,7 +23,16 @@ class MatchPlan(Interactor[MatchPlanDto, Optional[PlanDto]]):
             if self._is_plan_equal(snapshot, plan):
                 return plan
 
-        logger.warning(f"{actor.log} No matching plan found for snapshot '{snapshot.id}'")
+        logger.warning(
+            f"{actor.log} No matching plan found for snapshot '{snapshot.id}' "
+            f"type={snapshot.type} traffic={snapshot.traffic_limit} "
+            f"devices={snapshot.device_limit} squads={snapshot.internal_squads}"
+        )
+        for plan in data.plans:
+            logger.warning(
+                f"  candidate plan '{plan.id}' type={plan.type} traffic={plan.traffic_limit} "
+                f"devices={plan.device_limit} squads={plan.internal_squads}"
+            )
         return None
 
     def _is_plan_equal(self, snapshot: PlanSnapshotDto, plan: PlanDto) -> bool:
