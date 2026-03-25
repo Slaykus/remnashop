@@ -233,7 +233,7 @@ class UserFirstConnectionEvent(UserEvent):
 
     @property
     def event_key(self) -> str:
-        return "event-user.first-connection"
+        return "event-user.first-connected"
 
 
 @dataclass(frozen=True, kw_only=True)
