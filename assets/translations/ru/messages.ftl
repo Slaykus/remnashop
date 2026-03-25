@@ -748,7 +748,7 @@ msg-remnawave-inbounds =
 # Rain VPN
 msg-remnashop-main = <b>🌧️ Rain VPN { $version ->
 [0] { space }
-*[HAS] v{ $version }
+*[HAS] { $version }
 }</b>
 
 msg-admins-main = <b>👮‍♂️ Администраторы</b>
