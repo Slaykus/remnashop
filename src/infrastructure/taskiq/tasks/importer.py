@@ -1,3 +1,4 @@
+import dataclasses
 from uuid import UUID
 
 from adaptix import Retort
@@ -36,7 +37,7 @@ async def import_exported_users_task(
         if isinstance(user_data, dict):
             user_data = ExportedUserDto(**user_data)
         try:
-            created_user = CreateUserRequestDto.model_validate(user_data)
+            created_user = CreateUserRequestDto.model_validate(dataclasses.asdict(user_data))
             created_user.active_internal_squads = active_internal_squads
             await remnawave_sdk.users.create_user(created_user)
             success_count += 1
