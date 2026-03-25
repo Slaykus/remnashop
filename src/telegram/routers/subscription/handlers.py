@@ -130,7 +130,7 @@ async def on_purchase_type_select(
     if purchase_type == PurchaseType.RENEW:
         if current_subscription:
             matched_plan = await match_plan.system(
-                MatchPlanDto(plan_snapshot=current_subscription.plan_snapshot, plans=plans)
+                MatchPlanDto(plan_snapshot=current_subscription.plan_snapshot, plans=plans, subscription=current_subscription)
             )
             if matched_plan:
                 dialog_manager.dialog_data[PlanDto.__name__] = retort.dump(matched_plan)
@@ -196,7 +196,7 @@ async def on_subscription_plans(  # noqa: C901
     if purchase_type == PurchaseType.RENEW:
         if current_subscription:
             matched_plan = await match_plan.system(
-                MatchPlanDto(plan_snapshot=current_subscription.plan_snapshot, plans=plans)
+                MatchPlanDto(plan_snapshot=current_subscription.plan_snapshot, plans=plans, subscription=current_subscription)
             )
             if matched_plan:
                 dialog_manager.dialog_data[PlanDto.__name__] = retort.dump(matched_plan)
