@@ -127,7 +127,9 @@ async def main() -> None:
 
         elif status == "ACTIVE":
             current_limit = user.hwid_device_limit or 1
-            new_limit = current_limit * 2
+            doubled = current_limit * 2
+            # If doubled limit has no squad mapping, keep the original limit
+            new_limit = doubled if doubled in LIMIT_TO_SQUAD else current_limit
             squad_name = LIMIT_TO_SQUAD.get(new_limit)
             squad_uuid = squad_map.get(squad_name) if squad_name else None
 
