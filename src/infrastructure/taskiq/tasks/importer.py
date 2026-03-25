@@ -6,6 +6,7 @@ from loguru import logger
 from redis.asyncio import Redis
 from remnapy import RemnawaveSDK
 from remnapy.exceptions import BadRequestError
+from remnapy.exceptions.general import ConflictError
 from remnapy.models import CreateUserRequestDto, UserResponseDto
 
 from src.application.common.dao import SubscriptionDao, UserDao
@@ -31,18 +32,20 @@ async def import_exported_users_task(
     success_count = 0
     failed_count = 0
 
-    for user in imported_users:
+    for user_data in imported_users:
+        if isinstance(user_data, dict):
+            user_data = ExportedUserDto(**user_data)
         try:
-            created_user = CreateUserRequestDto.model_validate(user)
+            created_user = CreateUserRequestDto.model_validate(user_data)
             created_user.active_internal_squads = active_internal_squads
             await remnawave_sdk.users.create_user(created_user)
             success_count += 1
-        except BadRequestError as error:
-            logger.warning(f"User '{user.username}' already exists, skipping. Error: {error}")
+        except (BadRequestError, ConflictError) as error:
+            logger.warning(f"User '{user_data.username}' already exists, skipping. Error: {error}")
             failed_count += 1
 
         except Exception as exception:
-            logger.exception(f"Failed to create user '{user.username}' exception: {exception}")
+            logger.exception(f"Failed to create user '{user_data.username}' exception: {exception}")
             failed_count += 1
 
     logger.info(f"Import completed: '{success_count}' successful, '{failed_count}' failed")
