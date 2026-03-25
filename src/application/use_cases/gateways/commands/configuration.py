@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union, get_args, get_origin, get_type_hints
 
 from loguru import logger
 from pydantic import SecretStr
@@ -107,6 +107,15 @@ class UpdatePaymentGatewaySettings(Interactor[UpdatePaymentGatewaySettingsDto, N
                 new_value: Any = data.value
                 if data.field_name in ["api_key", "secret_key"] and isinstance(new_value, str):
                     new_value = SecretStr(new_value)
+                elif isinstance(new_value, str):
+                    hints = get_type_hints(type(gateway.settings))
+                    hint = hints.get(data.field_name)
+                    if hint is not None:
+                        if get_origin(hint) is Union:
+                            inner = [a for a in get_args(hint) if a is not type(None)]
+                            hint = inner[0] if inner else hint
+                        if isinstance(hint, type) and issubclass(hint, int):
+                            new_value = hint(int(new_value))
 
                 setattr(gateway.settings, data.field_name, new_value)
 

@@ -15,3 +15,10 @@ c-menu-link2 = 2️⃣ Вторая кнопка
 
 c-plan-name1 = 1️⃣ Первый план
 c-plan-name2 = 2️⃣ Второй план
+
+# Названия планов Rain VPN
+Free = 🌧️ Free | Бесплатный
+Solo = 👤 Solo | 2 устройства
+Duo = 👥 Duo | 4 устройства
+Family = 👨‍👩‍👧 Family | 6 устройств
+Team = 🏢 Team | 10 устройств

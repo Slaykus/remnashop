@@ -77,59 +77,59 @@ msg-menu-devices-confirm-delete-all =
     🗑 Удалить <b>все устройства</b>?
 
 msg-menu-invite =
-    <b>👥 Пригласить друзей</b>
-    
-    Делитесь вашей уникальной ссылкой и получайте вознаграждение в виде { $reward_type ->
-        [POINTS] <b>баллов, которые можно обменять на подписку или реальные деньги</b>
-        [EXTRA_DAYS] <b>бесплатных дней к вашей подписке</b>
-        *[OTHER] { $reward_type }
-    }!
+    <b>🤝 Реферальная программа</b>
 
-    <b>📊 Статистика:</b>
+    Приглашайте пользователей по вашей уникальной ссылке и получайте { $reward_type ->
+        [POINTS] <b>баллы</b> — обменивайте на дни доступа или подписку
+        [EXTRA_DAYS] <b>бесплатные дни</b> к вашей текущей подписке
+        *[OTHER] { $reward_type }
+    }.
+
+    <b>📊 Ваша статистика:</b>
     <blockquote>
-    👥 Всего приглашенных: { $referrals }
-    💳 Платежей по вашей ссылке: { $payments }
-    { $reward_type -> 
-    [POINTS] 💎 Ваши баллы: { $points }
+    • Приглашено пользователей: { $referrals }
+    • Оплат по вашей ссылке: { $payments }
+    { $reward_type ->
+    [POINTS] • Баллов на счёте: { $points }
     *[EXTRA_DAYS] { empty }
     }
     </blockquote>
 
 msg-menu-invite-about =
-    <b>🎁 Подробнее о вознаграждении</b>
+    <b>💡 Условия программы</b>
 
-    <b>✨ Как получить награду:</b>
+    <b>Условие начисления:</b>
     <blockquote>
     { $accrual_strategy ->
-    [ON_FIRST_PAYMENT] Награда начисляется за первую покупку подписки приглашенным пользователем.
-    [ON_EACH_PAYMENT] Награда начисляется за каждую покупку или продление подписки приглашенным пользователем.
+    [ON_FIRST_PAYMENT] Вознаграждение начисляется однократно — за первую оплату подписки приглашённым пользователем.
+    [ON_EACH_PAYMENT] Вознаграждение начисляется за каждую оплату или продление подписки приглашённым пользователем.
     *[OTHER] { $accrual_strategy }
     }
     </blockquote>
 
-    <b>💎 Что вы получаете:</b>
+    <b>Размер вознаграждения:</b>
     <blockquote>
-    { $max_level -> 
-    [1] За приглашенных друзей: { $reward_level_1 }
+    { $max_level ->
+    [1] За приглашённых: { $reward_level_1 }
     *[MORE]
     { $identical_reward ->
     [0]
-    1️⃣ За ваших друзей: { $reward_level_1 }
-    2️⃣ За приглашенных вашими друзьями: { $reward_level_2 }
+    • Уровень 1 (ваши приглашённые): { $reward_level_1 }
+    • Уровень 2 (приглашённые ваших друзей): { $reward_level_2 }
     *[1]
-    За ваших друзей и приглашенных вашими друзьями: { $reward_level_1 }
+    За все уровни: { $reward_level_1 }
     }
     }
-    
+
     { $reward_strategy_type ->
     [AMOUNT] { $reward_type ->
         [POINTS] { space }
-        [EXTRA_DAYS] <i>(Все дополнительные дни начисляются к вашей текущей подписке)</i>
+        [EXTRA_DAYS] <i>Дополнительные дни начисляются к вашей текущей подписке.</i>
         *[OTHER] { $reward_type }
     }
     [PERCENT] { $reward_type ->
-        [POINTS] <i>(Процент баллов от стоимости их приобретенной подписки)</i>
-        [EXTRA_DAYS] <i>(Процент доп. дней от их приобретенной подписки)</i>
+        [POINTS] <i>Процент рассчитывается от стоимости подписки приглашённого.</i>
+        [EXTRA_DAYS] <i>Процент рассчитывается от длительности подписки приглашённого.</i>
         *[OTHER] { $reward_type }
     }
     *[OTHER] { $reward_strategy_type }
@@ -453,7 +453,7 @@ msg-user-referrals = <b>👪 Рефералы пользователя</b>
 msg-user-sync = 
     <b>🌀 Синхронизировать пользователя</b>
 
-    <b>🛍 Remnashop:</b> { $bot_version }
+    <b>🌧️ Rain VPN:</b> { $bot_version }
     <blockquote>
     { $has_bot_subscription -> 
     [0] Данные отсутствуют
@@ -745,8 +745,8 @@ msg-remnawave-inbounds =
     { $inbound }
 
 
-# RemnaShop
-msg-remnashop-main = <b>🛍 RemnaShop { $version ->
+# Rain VPN
+msg-remnashop-main = <b>🌧️ Rain VPN { $version ->
 [0] { space }
 *[HAS] v{ $version }
 }</b>

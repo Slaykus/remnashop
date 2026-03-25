@@ -40,26 +40,26 @@ btn-requirement =
     .channel-confirm = ✅ Подтвердить
 
 btn-menu =
-    .trial = 🎁 ПОПРОБОВАТЬ БЕСПЛАТНО
-    .connect = 🚀 Подключиться
+    .trial = 🌧️ ПОПРОБОВАТЬ БЕСПЛАТНО
+    .connect = ⚡ Подключиться
     .devices = 📱 Мои устройства
-    .subscription = 💳 Подписка
-    .invite = 👥 Пригласить
-    .support = 🆘 Поддержка
-    .dashboard = 🛠 Панель управления
+    .subscription = 💎 Подписка
+    .invite = 🤝 Пригласить друга
+    .support = 💬 Поддержка
+    .dashboard = ⚙️ Панель управления
 
     .connect-not-available =
-    ⚠️ { $status -> 
+    ⚠️ { $status ->
     [LIMITED] ПРЕВЫШЕН ЛИМИТ ТРАФИКА
-    [EXPIRED] СРОК ДЕЙСТВИЯ ИСТЕК
-    *[OTHER] ВАША ПОДПИСКА НЕ РАБОТАЕТ
+    [EXPIRED] ПОДПИСКА ИСТЕКЛА
+    *[OTHER] ПОДПИСКА НЕ АКТИВНА
     } ⚠️
 
 btn-invite =
-    .about = ❓ Подробнее о награде
+    .about = 💡 Подробнее о награде
     .copy = 📋 Скопировать ссылку
-    .send = 📩 Пригласить
-    .qr = 🧾 QR-код
+    .send = 🤝 Пригласить
+    .qr = 📲 QR-код
     .withdraw-points = 💎 Обменять баллы
 
 btn-dashboard =
@@ -69,7 +69,7 @@ btn-dashboard =
     .promocodes = 🎟 Промокоды
     .access = 🔓 Режим доступа
     .remnawave = 🌊 RemnaWave
-    .remnashop = 🛍 RemnaShop
+    .remnashop = 🌧️ Rain VPN
     .importer = 📥 Импорт пользователей
 
 btn-statistics =
@@ -133,7 +133,7 @@ btn-user =
     .message-confirm = ✅ Отправить
     .sync = 🌀 Синхронизировать
     .sync-remnawave = 🌊 Использовать данные Remnawave
-    .sync-remnashop = 🛍 Использовать данные Remnashop
+    .sync-remnashop = 🌧️ Использовать данные Rain VPN
     .give-subscription = 🎁 Выдать подписку
     .subscription-internal-squads = ⏺️ Внутренние сквады
     .subscription-external-squads = ⏹️ Внешний сквад
@@ -194,13 +194,13 @@ btn-broadcast =
     } { $created_at }
     
 btn-goto =
-    .subscription = 💳 Купить подписку
+    .subscription = 🌧️ Купить подписку
     .promocode = 🎟 Активировать промокод
-    .invite = 👥 Пригласить
+    .invite = 🤝 Пригласить друга
     .subscription-renew = 🔄 Продлить подписку
     .user-profile = 👤 Перейти к пользователю
     .referrer-profile = 🤝 Перейти к пригласителю
-    .contact-support = 📩 Перейти в поддержку
+    .contact-support = 💬 Перейти в поддержку
 
 btn-promocodes =
     .list = 📃 Список промокодов
@@ -436,10 +436,10 @@ btn-importer =
     .import-active = ❇️ Импортировать активных
 
 btn-subscription =
-    .plan = 💳 Перейти к оформлению подписки
-    .new = 💸 Купить подписку
-    .renew = 🔄 Продлить
-    .change = 🔃 Изменить
+    .plan = 💎 Перейти к оформлению подписки
+    .new = 🌧️ Купить подписку
+    .renew = 🔄 Продлить подписку
+    .change = 🔃 Изменить план
     .promocode = 🎟 Активировать промокод
     .payment-method = { gateway-type } | { $price } { $currency }
     .pay = 💳 Оплатить
@@ -447,7 +447,7 @@ btn-subscription =
     .back-plans = ⬅️ Назад к выбору плана
     .back-duration = ⬅️ Изменить длительность
     .back-payment-method = ⬅️ Изменить способ оплаты
-    .connect = 🚀 Подключиться
+    .connect = ⚡ Подключиться
 
     .duration = { $period } | { $final_amount -> 
     [0] 🎁
