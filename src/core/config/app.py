@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Self
+from typing import Optional, Self
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_core.core_schema import FieldValidationInfo
@@ -30,6 +30,9 @@ class AppConfig(BaseConfig, env_prefix="APP_"):
     crypt_key: SecretStr
     assets_dir: Path = ASSETS_DIR
     origins: StringList = StringList("")
+
+    moy_nalog_service_url: Optional[str] = None
+    moy_nalog_service_key: Optional[str] = None
 
     bot: BotConfig = Field(default_factory=BotConfig)
     remnawave: RemnawaveConfig = Field(default_factory=RemnawaveConfig)

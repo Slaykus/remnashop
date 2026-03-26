@@ -16,6 +16,7 @@ from src.application.services import (
     RemnaWebhookService,
     WebhookService,
 )
+from src.application.services.nalog_receipts import NalogReceiptsService
 from src.infrastructure.services import (
     CryptographerImpl,
     EventBusImpl,
@@ -49,3 +50,4 @@ class ServicesProvider(Provider):
         scope=Scope.REQUEST,
         provides=AnyOf[Notifier, NotificationService],
     )
+    nalog_receipts = provide(NalogReceiptsService, scope=Scope.APP)
