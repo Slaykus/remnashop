@@ -181,7 +181,7 @@ class NotificationService(Notifier):
 
         if isinstance(user, UserDto) and payload.i18n_key == "ntf-broadcast.message":
             user_data = asdict(user)
-            render_kwargs = {**user_data, **payload.i18n_kwargs}
+            render_kwargs = {**user_data, "content": "", **payload.i18n_kwargs}
 
         reply_markup = self._prepare_reply_markup(
             payload.reply_markup,
