@@ -38,8 +38,14 @@ class WebhookService:
 
         if await self.webhook_dao.is_hash_exists(self.bot.id, webhook_hash):
             if not self.config.bot.reset_webhook:
-                logger.info(f"Webhook setup skipped for bot '{self.bot.id}', hash matches")
-                return await self.bot.get_webhook_info()
+                current_info = await self.bot.get_webhook_info()
+                expected_url = self.config.bot.webhook_url(domain=self.config.domain).get_secret_value()
+                if current_info.url == expected_url:
+                    logger.info(f"Webhook setup skipped for bot '{self.bot.id}', hash matches")
+                    return current_info
+                logger.warning(
+                    f"Webhook hash matches but Telegram webhook URL is wrong/missing, re-registering"
+                )
 
         if not await self.bot(webhook_request):
             logger.error(f"Failed to set webhook for bot '{self.bot.id}' on URL '{safe_url}'")
