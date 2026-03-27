@@ -18,7 +18,9 @@ ntf-common =
 
     .invalid-value = ❌ <i>Некорректное значение.</i>
     .value-updated = ✅ <i>Параметр успешно обновлен.</i>
-    
+
+    .plan-not-found = ❌ <i>План не найден или недоступен.</i>
+
     .connect-not-available =
     ⚠️ { $status ->
     [LIMITED]
@@ -153,6 +155,7 @@ ntf-sync =
 
 ntf-menu-editor =
     .button-saved = ✅ <i>Кнопка успешно сохранена.</i>
+    .invalid-payload = ❌ <i>Недопустимый формат URL для payload.</i>
 
 ntf-devices =
     .deleted = ✅ <i>Устройство удалено.</i>

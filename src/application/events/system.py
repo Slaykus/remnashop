@@ -235,6 +235,17 @@ class UserFirstConnectionEvent(UserEvent):
     def event_key(self) -> str:
         return "event-user.first-connected"
 
+    def as_payload(self) -> "MessagePayloadDto":
+        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
+
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={**asdict(self)},
+            reply_markup=get_user_keyboard(self.telegram_id),
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
 
 @dataclass(frozen=True, kw_only=True)
 class UserDevicesUpdatedEvent(UserEvent):
