@@ -24,6 +24,6 @@ class NalogReceiptsService:
         await create_moy_nalog_receipt_task.kiq(
             payment_id=str(event.payment_id),
             amount=float(event.final_amount),
-            description=f"Подписка Rain VPN — {event.plan_name}",
+            description=f"Подписка Rain — {event.plan_name}",
             operation_time=event.occurred_at.isoformat(),
         )
