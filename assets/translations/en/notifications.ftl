@@ -117,7 +117,7 @@ ntf-subscription =
 
 ntf-broadcast =
     .message = { $content }
-    .text-too-long = ❌ Maximum character limit exceeded ({ max_limit }).
+    .text-too-long = ❌ Maximum character limit exceeded ({ $max_limit }).
     .list-empty = ❌ <i>Broadcast list is empty.</i>
     .plans-unavailable = ❌ <i>No plans available.</i>
     .audience-unavailable = ❌ <i>No users for the selected audience.</i>

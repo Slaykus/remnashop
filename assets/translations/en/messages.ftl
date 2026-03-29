@@ -194,6 +194,8 @@ msg-statistics-subscriptions =
     <blockquote>
     • <b>Total</b>: { $total }
     • <b>Active</b>: { $total_active }
+    • <b>Disabled</b>: { $total_disabled }
+    • <b>Limited</b>: { $total_limited }
     • <b>Expired</b>: { $total_expired }
     • <b>Expiring (7 days)</b>: { $expiring_soon }
     { $plan_name ->
