@@ -302,7 +302,7 @@ proxy = Window(
             allow_user_chats=True,
             allow_group_chats=True,
             allow_channel_chats=False,
-            id="proxy-send",
+            id="proxy_send",
         ),
         CopyText(
             text=I18nFormat("btn-proxy.copy"),
