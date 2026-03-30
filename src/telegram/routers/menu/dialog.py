@@ -103,12 +103,17 @@ menu = Window(
     ),
     Row(
         SwitchInlineQueryChosenChatButton(
-            text=I18nFormat("btn-menu.proxy"),
+            text=I18nFormat("btn-menu.proxy-share"),
             query=Format(INLINE_QUERY_PROXY),
             allow_user_chats=True,
             allow_group_chats=True,
             allow_channel_chats=False,
             id="proxy",
+            when=F["proxy_enabled"],
+        ),
+        CopyText(
+            text=I18nFormat("btn-menu.proxy-copy"),
+            copy_text=Format("{proxy_url}"),
             when=F["proxy_enabled"],
         ),
     ),

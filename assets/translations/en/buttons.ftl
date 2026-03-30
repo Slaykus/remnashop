@@ -46,7 +46,8 @@ btn-menu =
     .subscription = 💎 Subscription
     .invite = 🤝 Invite a friend
     .support = 💬 Support
-    .proxy = 📡 Share Proxy
+    .proxy-share = 📡 Share
+    .proxy-copy = 📋 Copy link
     .dashboard = ⚙️ Dashboard
 
     .connect-not-available =
