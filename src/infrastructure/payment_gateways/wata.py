@@ -2,7 +2,7 @@ import uuid
 from base64 import b64decode
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Final
+from typing import Any, Final, Optional
 from uuid import UUID
 
 import orjson
@@ -50,9 +50,9 @@ class WataGateway(BasePaymentGateway):
             },
         )
 
-    async def handle_create_payment(self, amount: Decimal, details: str) -> PaymentResultDto:
+    async def handle_create_payment(self, amount: Decimal, details: str, return_url: Optional[str] = None) -> PaymentResultDto:
         order_id = str(uuid.uuid4())
-        payload = await self._create_payment_payload(amount, details, order_id)
+        payload = await self._create_payment_payload(amount, details, order_id, return_url)
         logger.debug(f"Creating payment payload: {payload}")
 
         try:
@@ -106,8 +106,9 @@ class WataGateway(BasePaymentGateway):
         amount: Decimal,
         details: str,
         order_id: str,
+        return_url: Optional[str] = None,
     ) -> dict[str, Any]:
-        redirect_url = await self._get_bot_redirect_url()
+        redirect_url = await self._get_redirect_url(return_url)
         return {
             "type": "OneTime",
             "amount": float(amount),

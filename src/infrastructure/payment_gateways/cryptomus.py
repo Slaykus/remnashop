@@ -4,7 +4,7 @@ import json
 import uuid
 from decimal import Decimal
 from hmac import compare_digest
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID
 
 import orjson
@@ -49,8 +49,8 @@ class CryptomusGateway(BasePaymentGateway):
             headers={"merchant": self.data.settings.merchant_id},  # type: ignore[dict-item]
         )
 
-    async def handle_create_payment(self, amount: Decimal, details: str) -> PaymentResultDto:
-        payload = await self._create_payment_payload(str(amount), str(uuid.uuid4()))
+    async def handle_create_payment(self, amount: Decimal, details: str, return_url: Optional[str] = None) -> PaymentResultDto:
+        payload = await self._create_payment_payload(str(amount), str(uuid.uuid4()), return_url)
         headers = {"sign": self._generate_signature(json.dumps(payload))}
         logger.debug(f"Creating payment payload: {payload}")
 
@@ -98,13 +98,14 @@ class CryptomusGateway(BasePaymentGateway):
 
         return payment_id, transaction_status
 
-    async def _create_payment_payload(self, amount: str, order_id: str) -> dict[str, Any]:
+    async def _create_payment_payload(self, amount: str, order_id: str, return_url: Optional[str] = None) -> dict[str, Any]:
+        redirect = await self._get_redirect_url(return_url)
         return {
             "amount": amount,
             "currency": self.CURRENCY,
             "order_id": order_id,
-            "url_return": await self._get_bot_redirect_url(),
-            "url_success": await self._get_bot_redirect_url(),
+            "url_return": redirect,
+            "url_success": redirect,
             "url_callback": self.config.get_webhook(self.data.type),
             "lifetime": 1800,
             "is_payment_multiple": False,

@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import uuid
 from decimal import Decimal
-from typing import Any, Final
+from typing import Any, Final, Optional
 from uuid import UUID
 
 import orjson
@@ -39,8 +39,8 @@ class CryptoPayGateway(BasePaymentGateway):
             headers={"Crypto-Pay-API-Token": self.data.settings.api_key.get_secret_value()},  # type: ignore[union-attr]
         )
 
-    async def handle_create_payment(self, amount: Decimal, details: str) -> PaymentResultDto:
-        payload = await self._create_payment_payload(str(amount), details)
+    async def handle_create_payment(self, amount: Decimal, details: str, return_url: Optional[str] = None) -> PaymentResultDto:
+        payload = await self._create_payment_payload(str(amount), details, return_url)
         logger.debug(f"Creating payment payload: {payload}")
 
         try:
@@ -98,7 +98,7 @@ class CryptoPayGateway(BasePaymentGateway):
 
         return payment_id, transaction_status
 
-    async def _create_payment_payload(self, amount: str, details: str) -> dict[str, Any]:
+    async def _create_payment_payload(self, amount: str, details: str, return_url: Optional[str] = None) -> dict[str, Any]:
         order_id = str(uuid.uuid4())
         return {
             "currency_type": "fiat",
@@ -107,7 +107,7 @@ class CryptoPayGateway(BasePaymentGateway):
             "description": details,
             "payload": order_id,
             "paid_btn_name": "openBot",
-            "paid_btn_url": await self._get_bot_redirect_url(),
+            "paid_btn_url": await self._get_redirect_url(return_url),
             "expires_in": 1800,
         }
 

@@ -19,15 +19,20 @@ from pydantic import BaseModel
 from remnapy import RemnawaveSDK
 
 from src.application.common import Remnawave
-from src.application.common.dao import PlanDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao
+from decimal import Decimal
+
+from src.application.common.dao import PlanDao, PaymentGatewayDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
+from src.application.dto.plan import PlanSnapshotDto
+from src.application.dto.transaction import PriceDetailsDto
+from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
 from src.application.use_cases.subscription import AddSubscriptionDuration
 from src.application.use_cases.subscription.commands.management import AddSubscriptionDurationDto
 from src.application.use_cases.subscription.commands.purchase import ActivateFreePlan, ActivateFreePlanDto
 from src.application.use_cases.user import SetUserPersonalDiscount
 from src.application.use_cases.user.commands.profile_edit import SetUserPersonalDiscountDto
-from src.core.enums import ReferralRewardType
+from src.core.enums import PaymentGatewayType, PurchaseType, ReferralRewardType
 from src.core.constants import API_V1
 
 router = APIRouter(prefix=API_V1 + "/internal", tags=["internal"])
@@ -566,3 +571,118 @@ async def migrate_telegram(
             pass  # Don't fail the migration if Remnawave update fails
 
     return MigrateTelegramResponse(migrated=True, message="Migrated successfully")
+
+
+# ---------------------------------------------------------------------------
+# Payment gateways & web payments
+# ---------------------------------------------------------------------------
+
+
+class GatewayResponse(BaseModel):
+    type: str
+    currency: str
+
+
+class CreateWebPaymentRequest(BaseModel):
+    telegram_id: int
+    plan_id: int
+    duration_days: int
+    gateway_type: str
+    return_url: str
+
+
+class CreateWebPaymentResponse(BaseModel):
+    payment_id: str
+    payment_url: str | None
+
+
+@router.get(
+    "/gateways",
+    response_model=list[GatewayResponse],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_active_gateways(
+    gateway_dao: FromDishka[PaymentGatewayDao],
+) -> list[GatewayResponse]:
+    gateways = await gateway_dao.get_all(only_active=True)
+    return [
+        GatewayResponse(type=g.type.value.lower(), currency=g.currency.value)
+        for g in gateways
+        if g.type != PaymentGatewayType.TELEGRAM_STARS
+    ]
+
+
+@router.post(
+    "/payments",
+    response_model=CreateWebPaymentResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def create_web_payment(
+    body: CreateWebPaymentRequest,
+    user_dao: FromDishka[UserDao],
+    plan_dao: FromDishka[PlanDao],
+    gateway_dao: FromDishka[PaymentGatewayDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+    create_payment: FromDishka[CreatePayment],
+) -> CreateWebPaymentResponse:
+    user = await user_dao.get_by_telegram_id(body.telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    plan = await plan_dao.get_by_id(body.plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    duration = plan.get_duration(body.duration_days)
+    if not duration:
+        raise HTTPException(status_code=404, detail=f"Duration {body.duration_days} days not found for this plan")
+
+    try:
+        gateway_type = PaymentGatewayType(body.gateway_type.upper())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown gateway type: {body.gateway_type}")
+
+    gateway = await gateway_dao.get_by_type(gateway_type)
+    if not gateway or not gateway.is_active:
+        raise HTTPException(status_code=400, detail=f"Gateway '{body.gateway_type}' is not active")
+
+    base_price = duration.get_price(gateway.currency)
+    discount = getattr(user, "personal_discount", 0) or 0
+    final_amount = base_price * (100 - discount) / Decimal(100)
+
+    pricing = PriceDetailsDto(
+        original_amount=base_price,
+        discount_percent=discount,
+        final_amount=final_amount.quantize(Decimal("0.01")),
+    )
+
+    plan_snapshot = PlanSnapshotDto.from_plan(plan, body.duration_days)
+
+    subscription = await subscription_dao.get_current(body.telegram_id)
+    if subscription is None:
+        purchase_type = PurchaseType.NEW
+    elif subscription.plan_snapshot and subscription.plan_snapshot.id != plan.id:
+        purchase_type = PurchaseType.CHANGE
+    else:
+        purchase_type = PurchaseType.RENEW
+
+    try:
+        result = await create_payment(
+            user,
+            CreatePaymentDto(
+                plan_snapshot=plan_snapshot,
+                pricing=pricing,
+                purchase_type=purchase_type,
+                gateway_type=gateway_type,
+                return_url=body.return_url,
+            ),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Payment creation failed: {e}")
+
+    return CreateWebPaymentResponse(
+        payment_id=str(result.id),
+        payment_url=result.url,
+    )

@@ -1,5 +1,6 @@
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 from uuid import UUID
 
 from loguru import logger
@@ -111,6 +112,7 @@ class CreatePaymentDto:
     pricing: PriceDetailsDto
     purchase_type: PurchaseType
     gateway_type: PaymentGatewayType
+    return_url: Optional[str] = field(default=None)
 
 
 class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
@@ -166,6 +168,7 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
             payment: PaymentResultDto = await gateway_instance.handle_create_payment(
                 amount=data.pricing.final_amount,
                 details=details,
+                return_url=data.return_url,
             )
 
             transaction.payment_id = payment.id

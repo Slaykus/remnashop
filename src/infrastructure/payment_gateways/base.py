@@ -38,7 +38,9 @@ class BasePaymentGateway(ABC):
         logger.debug(f"{self.__class__.__name__} Initialized")
 
     @abstractmethod
-    async def handle_create_payment(self, amount: Decimal, details: str) -> PaymentResultDto: ...
+    async def handle_create_payment(
+        self, amount: Decimal, details: str, return_url: Optional[str] = None
+    ) -> PaymentResultDto: ...
 
     @abstractmethod
     async def handle_webhook(self, request: Request) -> tuple[UUID, TransactionStatus]: ...
@@ -50,6 +52,9 @@ class BasePaymentGateway(ABC):
         if self._bot_username is None:
             self._bot_username = (await self.bot.get_me()).username
         return f"{T_ME}{self._bot_username}"
+
+    async def _get_redirect_url(self, return_url: Optional[str] = None) -> str:
+        return return_url or await self._get_bot_redirect_url()
 
     async def _get_webhook_data(self, request: Request) -> dict:
         try:
