@@ -44,6 +44,8 @@ async def menu_getter(
             "support_url": support_url,
             # referral
             "referral_enabled": menu_data.is_referral_enabled,
+            # proxy
+            "proxy_enabled": bool(config.proxy_url),
             # defaults
             "has_subscription": False,
             "connectable": False,

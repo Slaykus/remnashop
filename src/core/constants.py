@@ -22,6 +22,7 @@ REMNAWAVE_WEBHOOK_PATH: Final[str] = "/remnawave"
 
 IMPORTED_TAG: Final[str] = "IMPORTED"
 INLINE_QUERY_INVITE: Final[str] = "invite"
+INLINE_QUERY_PROXY: Final[str] = "proxy"
 REMNASHOP_PREFIX: Final[str] = "rs_"
 PAYMENT_PREFIX: Final[str] = "payment_"
 GOTO_PREFIX: Final[str] = "gt_"

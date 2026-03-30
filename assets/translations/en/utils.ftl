@@ -22,6 +22,16 @@ inline-invite =
         New users get free access for testing.
     .start = Try for free
 
+inline-proxy =
+    .title = Telegram Proxy
+    .description = Connect to Telegram via Rain proxy server
+    .message =
+        📡 Telegram Proxy
+
+        Telegram blocked? Connect via Rain VPN proxy server.
+        No VPN app needed — one tap to connect.
+    .connect = 🔗 Connect Proxy
+
 message =
     .withdraw-points = Hello! I would like to request a points exchange.
     .paysupport = Hello! I would like to request a refund.

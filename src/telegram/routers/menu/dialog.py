@@ -16,7 +16,7 @@ from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
 from src.application.common.policy import Permission
-from src.core.constants import INLINE_QUERY_INVITE, PAYMENT_PREFIX
+from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROXY, PAYMENT_PREFIX
 from src.core.enums import BannerName
 from src.telegram.keyboards import connect_buttons, custom_buttons
 from src.telegram.routers.dashboard.users.handlers import on_user_search
@@ -99,6 +99,17 @@ menu = Window(
             text=I18nFormat("btn-menu.support"),
             id="support",
             url=Format("{support_url}"),
+        ),
+    ),
+    Row(
+        SwitchInlineQueryChosenChatButton(
+            text=I18nFormat("btn-menu.proxy"),
+            query=Format(INLINE_QUERY_PROXY),
+            allow_user_chats=True,
+            allow_group_chats=True,
+            allow_channel_chats=False,
+            id="proxy",
+            when=F["proxy_enabled"],
         ),
     ),
     *custom_buttons,

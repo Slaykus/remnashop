@@ -46,6 +46,7 @@ btn-menu =
     .subscription = 💎 Подписка
     .invite = 🤝 Пригласить друга
     .support = 💬 Поддержка
+    .proxy = 📡 Поделиться прокси
     .dashboard = ⚙️ Панель управления
 
     .connect-not-available =

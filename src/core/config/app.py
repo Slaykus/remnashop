@@ -34,6 +34,8 @@ class AppConfig(BaseConfig, env_prefix="APP_"):
     moy_nalog_service_url: Optional[str] = None
     moy_nalog_service_key: Optional[str] = None
 
+    proxy_url: Optional[str] = None
+
     bot: BotConfig = Field(default_factory=BotConfig)
     remnawave: RemnawaveConfig = Field(default_factory=RemnawaveConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)

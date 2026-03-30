@@ -17,7 +17,8 @@ from loguru import logger
 from src.application.common import TranslatorRunner
 from src.application.common.dao import UserDao
 from src.application.services import BotService
-from src.core.constants import INLINE_QUERY_INVITE
+from src.core.config import AppConfig
+from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROXY
 
 router = Router(name=__name__)
 
@@ -67,3 +68,39 @@ async def handle_inline_query(
     ]
 
     await inline_query.answer(results, cache_time=1, is_personal=True)
+
+
+@inject
+@router.inline_query(F.query == INLINE_QUERY_PROXY)
+async def handle_proxy_inline_query(
+    inline_query: InlineQuery,
+    config: FromDishka[AppConfig],
+    i18n: FromDishka[TranslatorRunner],
+) -> None:
+    if not config.proxy_url:
+        return
+
+    result_id = hashlib.md5(b"proxy").hexdigest()
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=i18n.get("inline-proxy.connect"),
+            style=ButtonStyle.SUCCESS,
+            url=config.proxy_url,
+        )
+    )
+
+    results: list[InlineQueryResultUnion] = [
+        InlineQueryResultArticle(
+            id=result_id,
+            title=i18n.get("inline-proxy.title"),
+            description=i18n.get("inline-proxy.description"),
+            input_message_content=InputTextMessageContent(
+                message_text=i18n.get("inline-proxy.message")
+            ),
+            reply_markup=builder.as_markup(),
+        )
+    ]
+
+    await inline_query.answer(results, cache_time=300, is_personal=False)
