@@ -95,6 +95,15 @@ msg-menu-invite =
     }
     </blockquote>
 
+msg-menu-proxy =
+    📡 <b>Share Proxy</b>
+
+    If a friend's Telegram is blocked — send them this link.
+    They can connect without any VPN app, with one tap.
+
+    • <b>Send via Telegram</b> — if they already have access (via another proxy or VPN)
+    • <b>Other messenger</b> — copy the link and send via WhatsApp, Viber, or SMS
+
 msg-menu-invite-about =
     <b>💡 Program terms</b>
 

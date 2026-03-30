@@ -46,8 +46,7 @@ btn-menu =
     .subscription = 💎 Subscription
     .invite = 🤝 Invite a friend
     .support = 💬 Support
-    .proxy-share = 📡 Share
-    .proxy-copy = 📋 Copy link
+    .proxy = 📡 Proxy for a friend
     .dashboard = ⚙️ Dashboard
 
     .connect-not-available =
@@ -63,6 +62,10 @@ btn-invite =
     .send = 🤝 Invite
     .qr = 📲 QR code
     .withdraw-points = 💎 Redeem points
+
+btn-proxy =
+    .share = 📡 Send via Telegram
+    .copy = 📋 Other messenger
 
 btn-dashboard =
     .statistics = 📊 Statistics

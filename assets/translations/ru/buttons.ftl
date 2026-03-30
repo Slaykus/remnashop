@@ -46,8 +46,7 @@ btn-menu =
     .subscription = 💎 Подписка
     .invite = 🤝 Пригласить друга
     .support = 💬 Поддержка
-    .proxy-share = 📡 Поделиться
-    .proxy-copy = 📋 Скопировать ссылку
+    .proxy = 📡 Прокси для друга
     .dashboard = ⚙️ Панель управления
 
     .connect-not-available =
@@ -63,6 +62,10 @@ btn-invite =
     .send = 🤝 Пригласить
     .qr = 📲 QR-код
     .withdraw-points = 💎 Обменять баллы
+
+btn-proxy =
+    .share = 📡 Отправить в Telegram
+    .copy = 📋 Другой мессенджер
 
 btn-dashboard =
     .statistics = 📊 Статистика

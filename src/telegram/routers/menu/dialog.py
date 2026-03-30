@@ -31,6 +31,7 @@ from .getters import (
     invite_about_getter,
     invite_getter,
     menu_getter,
+    proxy_getter,
 )
 from .handlers import (
     on_device_delete_all_confirm,
@@ -102,18 +103,10 @@ menu = Window(
         ),
     ),
     Row(
-        SwitchInlineQueryChosenChatButton(
-            text=I18nFormat("btn-menu.proxy-share"),
-            query=Format(INLINE_QUERY_PROXY),
-            allow_user_chats=True,
-            allow_group_chats=True,
-            allow_channel_chats=False,
+        SwitchTo(
+            text=I18nFormat("btn-menu.proxy"),
             id="proxy",
-            when=F["proxy_enabled"],
-        ),
-        CopyText(
-            text=I18nFormat("btn-menu.proxy-copy"),
-            copy_text=Format("{proxy_url}"),
+            state=MainMenu.PROXY,
             when=F["proxy_enabled"],
         ),
     ),
@@ -300,6 +293,34 @@ invite_about = Window(
     getter=invite_about_getter,
 )
 
+proxy = Window(
+    I18nFormat("msg-menu-proxy"),
+    Row(
+        SwitchInlineQueryChosenChatButton(
+            text=I18nFormat("btn-proxy.share"),
+            query=Format(INLINE_QUERY_PROXY),
+            allow_user_chats=True,
+            allow_group_chats=True,
+            allow_channel_chats=False,
+            id="proxy-send",
+        ),
+        CopyText(
+            text=I18nFormat("btn-proxy.copy"),
+            copy_text=Format("{proxy_url}"),
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=MainMenu.MAIN,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=MainMenu.PROXY,
+    getter=proxy_getter,
+)
+
 
 device_confirm_reissue = Window(
     Banner(BannerName.MENU),
@@ -330,4 +351,5 @@ router = Dialog(
     device_confirm_reissue,
     invite,
     invite_about,
+    proxy,
 )

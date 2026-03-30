@@ -46,7 +46,6 @@ async def menu_getter(
             "referral_enabled": menu_data.is_referral_enabled,
             # proxy
             "proxy_enabled": bool(config.proxy_url),
-            "proxy_url": config.proxy_url or "",
             # defaults
             "has_subscription": False,
             "connectable": False,
@@ -227,4 +226,15 @@ async def invite_about_getter(
         "accrual_strategy": settings.referral.accrual_strategy,
         "identical_reward": identical_reward,
         "max_level": max_level,
+    }
+
+
+@inject
+async def proxy_getter(
+    config: AppConfig,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    return {
+        "proxy_url": config.proxy_url or "",
+        "proxy_enabled": bool(config.proxy_url),
     }
