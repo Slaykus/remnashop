@@ -63,9 +63,8 @@ btn-invite =
     .qr = 📲 QR-код
     .withdraw-points = 💎 Обменять баллы
 
-btn-proxy =
-    .share = 📡 Отправить в Telegram
-    .copy = 📋 Другой мессенджер
+btn-proxy-share = 📡 Отправить в Telegram
+btn-proxy-copy = 📋 Другой мессенджер
 
 btn-dashboard =
     .statistics = 📊 Статистика

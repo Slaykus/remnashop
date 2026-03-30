@@ -63,9 +63,8 @@ btn-invite =
     .qr = 📲 QR code
     .withdraw-points = 💎 Redeem points
 
-btn-proxy =
-    .share = 📡 Send via Telegram
-    .copy = 📋 Other messenger
+btn-proxy-share = 📡 Send via Telegram
+btn-proxy-copy = 📋 Other messenger
 
 btn-dashboard =
     .statistics = 📊 Statistics

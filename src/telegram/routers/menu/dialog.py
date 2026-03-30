@@ -297,7 +297,7 @@ proxy = Window(
     I18nFormat("msg-menu-proxy"),
     Row(
         SwitchInlineQueryChosenChatButton(
-            text=I18nFormat("btn-proxy.share"),
+            text=I18nFormat("btn-proxy-share"),
             query=Format(INLINE_QUERY_PROXY),
             allow_user_chats=True,
             allow_group_chats=True,
@@ -305,7 +305,7 @@ proxy = Window(
             id="proxy_send",
         ),
         CopyText(
-            text=I18nFormat("btn-proxy.copy"),
+            text=I18nFormat("btn-proxy-copy"),
             copy_text=Format("{proxy_url}"),
         ),
     ),
