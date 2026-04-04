@@ -17,6 +17,7 @@ from src.application.common import Notifier, Redirect
 from src.application.common import Remnawave
 from src.application.common.dao import PlanDao, SubscriptionDao, TransactionDao, UserDao
 from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.uow import UnitOfWork
 from src.application.dto.yandex_quota import UserYandexQuotaDto
 from src.core.config import AppConfig
 from src.application.dto import MessagePayloadDto, UserDto
@@ -696,10 +697,11 @@ async def on_yandex_quota_reset(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
-    config: AppConfig,
+    config: FromDishka[AppConfig],
     remnawave: FromDishka[Remnawave],
     yandex_quota_dao: FromDishka[YandexQuotaDao],
     subscription_dao: FromDishka[SubscriptionDao],
+    uow: FromDishka[UnitOfWork],
 ) -> None:
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
     now = datetime.now(timezone.utc)
@@ -726,6 +728,7 @@ async def on_yandex_quota_reset(
         quota.is_restricted = False
 
     await yandex_quota_dao.upsert(quota)
+    await uow.commit()
     await callback.answer("✅ Счётчик трафика сброшен")
 
 
@@ -734,10 +737,11 @@ async def on_yandex_quota_toggle_restrict(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
-    config: AppConfig,
+    config: FromDishka[AppConfig],
     remnawave: FromDishka[Remnawave],
     yandex_quota_dao: FromDishka[YandexQuotaDao],
     subscription_dao: FromDishka[SubscriptionDao],
+    uow: FromDishka[UnitOfWork],
 ) -> None:
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
     now = datetime.now(timezone.utc)
@@ -772,3 +776,4 @@ async def on_yandex_quota_toggle_restrict(
         await callback.answer("🚫 Доступ ограничен")
 
     await yandex_quota_dao.upsert(quota)
+    await uow.commit()
