@@ -48,6 +48,7 @@ class RemnaSubscriptionDto:
 @dataclass(kw_only=True)
 class SubscriptionDto(BaseDto, TrackableMixin, TimestampMixin):
     user_remna_id: UUID
+    user_telegram_id: Optional[int] = None
 
     status: SubscriptionStatus = SubscriptionStatus.ACTIVE
     is_trial: bool = False
