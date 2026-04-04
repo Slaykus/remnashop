@@ -624,7 +624,7 @@ async def sync_getter(  # noqa: C901
 async def yandex_quota_getter(
     dialog_manager: DialogManager,
     user: UserDto,
-    config: FromDishka[AppConfig],
+    config: AppConfig,
     yandex_quota_dao: FromDishka[YandexQuotaDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
