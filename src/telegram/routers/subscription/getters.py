@@ -39,6 +39,7 @@ async def subscription_getter(
 
     result: dict[str, Any] = {
         "has_active_subscription": has_active,
+        "has_current_subscription": int(bool(current_subscription)),
         "is_not_unlimited": not is_unlimited,
         "yandex_quota_enabled": 0,
         "traffic_limit": None,
@@ -46,7 +47,7 @@ async def subscription_getter(
         "expire_time": None,
     }
 
-    if current_subscription and has_active:
+    if current_subscription:
         result.update({
             "traffic_limit": i18n_format_traffic_limit(current_subscription.traffic_limit),
             "device_limit": i18n_format_device_limit(current_subscription.device_limit),

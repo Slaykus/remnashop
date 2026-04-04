@@ -1096,7 +1096,7 @@ msg-notifications-system = <b>⚙️ System notifications</b>
 msg-subscription-main =
     <b>💳 Subscription</b>
 
-    { $has_active_subscription ->
+    { $has_current_subscription ->
     [1] { frg-subscription }
     *[0] { empty }
     }
