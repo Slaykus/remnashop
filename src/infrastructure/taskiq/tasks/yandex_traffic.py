@@ -74,8 +74,9 @@ async def check_yandex_traffic(
             )
             for item in result.response:
                 traffic[str(item.user_uuid)] += item.total
-            logger.debug(
-                f"[YandexQuota] Node {node_uuid}: got stats for {len(result.response)} users"
+            logger.info(
+                f"[YandexQuota] Node {node_uuid}: got stats for {len(result.response)} users, "
+                f"total traffic: {sum(i.total for i in result.response) / 1024**3:.2f} GB"
             )
         except Exception as e:
             logger.error(f"[YandexQuota] Failed to get stats for node {node_uuid}: {e}")
