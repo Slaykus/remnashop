@@ -28,7 +28,7 @@ from src.telegram.states import Subscription
 async def subscription_getter(
     dialog_manager: DialogManager,
     user: UserDto,
-    config: FromDishka[AppConfig],
+    config: AppConfig,
     subscription_dao: FromDishka[SubscriptionDao],
     yandex_quota_dao: FromDishka[YandexQuotaDao],
     **kwargs: Any,
