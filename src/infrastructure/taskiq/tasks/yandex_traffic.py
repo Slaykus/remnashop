@@ -25,6 +25,7 @@ from remnapy import RemnawaveSDK
 from src.application.common import Remnawave
 from src.application.common.dao import SubscriptionDao
 from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.uow import UnitOfWork
 from src.application.dto.yandex_quota import UserYandexQuotaDto
 from src.core.config import AppConfig
 from src.infrastructure.taskiq.broker import broker
@@ -42,6 +43,7 @@ async def check_yandex_traffic(
     remnawave: FromDishka[Remnawave],
     subscription_dao: FromDishka[SubscriptionDao],
     quota_dao: FromDishka[YandexQuotaDao],
+    uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
 ) -> None:
     yandex = config.yandex
@@ -171,6 +173,7 @@ async def check_yandex_traffic(
 
         await quota_dao.upsert(quota)
 
+    await uow.commit()
     logger.info(
         f"[YandexQuota] Check complete. Active: {len(active_subs)}, "
         f"Over quota: {would_restrict}{'  [DRY-RUN]' if dry_run else ''}"
@@ -184,6 +187,7 @@ async def reset_yandex_monthly(
     remnawave: FromDishka[Remnawave],
     subscription_dao: FromDishka[SubscriptionDao],
     quota_dao: FromDishka[YandexQuotaDao],
+    uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
 ) -> None:
     yandex = config.yandex
@@ -233,4 +237,5 @@ async def reset_yandex_monthly(
         quota.restricted_at = None
         await quota_dao.upsert(quota)
 
+    await uow.commit()
     logger.info("[YandexQuota] Monthly reset complete")
