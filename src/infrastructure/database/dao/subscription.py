@@ -393,3 +393,18 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
             )
             for row in counts_rows.mappings()
         ]
+
+    async def get_all_active(self) -> list[SubscriptionDto]:
+        stmt = (
+            select(Subscription)
+            .join(User, User.current_subscription_id == Subscription.id)
+            .where(
+                Subscription.status == SubscriptionStatus.ACTIVE,
+                User.is_blocked.is_(False),
+                User.is_bot_blocked.is_(False),
+            )
+        )
+        result = await self.session.scalars(stmt)
+        db_subscriptions = cast(list, result.all())
+        logger.debug(f"Retrieved {len(db_subscriptions)} active subscriptions")
+        return self._convert_to_dto_list(db_subscriptions)

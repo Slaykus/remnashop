@@ -11,6 +11,7 @@ from src.application.common.dao import (
     UserDao,
     WaitlistDao,
     WebhookDao,
+    YandexQuotaDao,
 )
 from src.infrastructure.database.dao import (
     BroadcastDaoImpl,
@@ -23,6 +24,7 @@ from src.infrastructure.database.dao import (
     UserDaoImpl,
     WaitlistDaoImpl,
     WebhookDaoImpl,
+    YandexQuotaDaoImpl,
 )
 
 
@@ -37,6 +39,7 @@ class DaoProvider(Provider):
     subscription = provide(source=SubscriptionDaoImpl, provides=SubscriptionDao)
     transaction = provide(source=TransactionDaoImpl, provides=TransactionDao)
     user = provide(source=UserDaoImpl, provides=UserDao)
+    yandex_quota = provide(source=YandexQuotaDaoImpl, provides=YandexQuotaDao)
 
     webhook = provide(source=WebhookDaoImpl, provides=WebhookDao, scope=Scope.APP)
     waitlist = provide(source=WaitlistDaoImpl, provides=WaitlistDao, scope=Scope.APP)

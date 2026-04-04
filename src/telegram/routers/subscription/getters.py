@@ -8,6 +8,7 @@ from loguru import logger
 
 from src.application.common import TranslatorRunner
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
+from src.application.common.dao.yandex_quota import YandexQuotaDao
 from src.application.dto import PlanDto, PriceDetailsDto, UserDto
 from src.application.services import PricingService
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
@@ -27,16 +28,38 @@ from src.telegram.states import Subscription
 async def subscription_getter(
     dialog_manager: DialogManager,
     user: UserDto,
+    config: FromDishka[AppConfig],
     subscription_dao: FromDishka[SubscriptionDao],
+    yandex_quota_dao: FromDishka[YandexQuotaDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     current_subscription = await subscription_dao.get_current(user.telegram_id)
     has_active = bool(current_subscription and not current_subscription.is_trial)
     is_unlimited = current_subscription.is_unlimited if current_subscription else False
-    return {
+
+    result: dict[str, Any] = {
         "has_active_subscription": has_active,
         "is_not_unlimited": not is_unlimited,
+        "yandex_quota_enabled": 0,
     }
+
+    yandex = config.yandex
+    if yandex.enabled:
+        quota = await yandex_quota_dao.get_by_telegram_id(user.telegram_id)
+        limit_gb = yandex.monthly_limit_gb
+        used_bytes = quota.used_bytes if quota else 0
+        used_gb = round(used_bytes / 1024**3, 1)
+        free_gb = max(round(limit_gb - used_gb, 1), 0)
+        is_restricted = quota.is_restricted if quota else False
+        result.update({
+            "yandex_quota_enabled": 1,
+            "yandex_used_gb": used_gb,
+            "yandex_limit_gb": limit_gb,
+            "yandex_free_gb": free_gb,
+            "yandex_is_restricted": 1 if is_restricted else 0,
+        })
+
+    return result
 
 
 @inject

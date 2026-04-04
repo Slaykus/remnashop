@@ -42,6 +42,13 @@ class Remnawave(Protocol):
 
     async def revoke_subscription(self, uuid: UUID) -> None: ...
 
+    async def update_user_squads(
+        self,
+        uuid: UUID,
+        add_squad: Optional[UUID] = None,
+        remove_squad: Optional[UUID] = None,
+    ) -> None: ...
+
     def apply_sync(
         self,
         target: T,

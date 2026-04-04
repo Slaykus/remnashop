@@ -21,7 +21,8 @@ from remnapy import RemnawaveSDK
 from src.application.common import Remnawave
 from decimal import Decimal
 
-from src.application.common.dao import PlanDao, PaymentGatewayDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao
+from src.application.common.dao import PlanDao, PaymentGatewayDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, YandexQuotaDao
+from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
 from src.application.dto.plan import PlanSnapshotDto
@@ -571,6 +572,58 @@ async def migrate_telegram(
             pass  # Don't fail the migration if Remnawave update fails
 
     return MigrateTelegramResponse(migrated=True, message="Migrated successfully")
+
+
+# ---------------------------------------------------------------------------
+# Yandex quota
+# ---------------------------------------------------------------------------
+
+
+class YandexQuotaResponse(BaseModel):
+    enabled: bool
+    limit_gb: float
+    used_gb: float
+    free_gb: float
+    used_bytes: int
+    is_restricted: bool
+    period_start: datetime | None
+
+
+@router.get(
+    "/yandex-quota/{telegram_id}",
+    response_model=YandexQuotaResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_yandex_quota(
+    telegram_id: int,
+    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    config: FromDishka[AppConfig],
+) -> YandexQuotaResponse:
+    if not config.yandex.enabled:
+        return YandexQuotaResponse(
+            enabled=False,
+            limit_gb=0,
+            used_gb=0,
+            free_gb=0,
+            used_bytes=0,
+            is_restricted=False,
+            period_start=None,
+        )
+    quota = await yandex_quota_dao.get_by_telegram_id(telegram_id)
+    limit_gb = float(config.yandex.monthly_limit_gb)
+    used_bytes = quota.used_bytes if quota else 0
+    used_gb = round(used_bytes / 1024**3, 2)
+    free_gb = max(round(limit_gb - used_gb, 2), 0)
+    return YandexQuotaResponse(
+        enabled=True,
+        limit_gb=limit_gb,
+        used_gb=used_gb,
+        free_gb=free_gb,
+        used_bytes=used_bytes,
+        is_restricted=quota.is_restricted if quota else False,
+        period_start=quota.period_start if quota else None,
+    )
 
 
 # ---------------------------------------------------------------------------

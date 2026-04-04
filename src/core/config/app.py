@@ -17,6 +17,7 @@ from .log import LogConfig
 from .redis import RedisConfig
 from .remnawave import RemnawaveConfig
 from .validators import validate_not_change_me
+from .yandex import YandexConfig
 
 
 class AppConfig(BaseConfig, env_prefix="APP_"):
@@ -42,6 +43,7 @@ class AppConfig(BaseConfig, env_prefix="APP_"):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     build: BuildConfig = Field(default_factory=BuildConfig)
     log: LogConfig = Field(default_factory=LogConfig)
+    yandex: YandexConfig = Field(default_factory=YandexConfig)
 
     @property
     def banners_dir(self) -> Path:

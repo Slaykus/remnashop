@@ -16,6 +16,8 @@ from src.application.common.dao import (
     TransactionDao,
     UserDao,
 )
+from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.core.config import AppConfig
 from src.application.dto import PlanDurationDto, RemnaSubscriptionDto, SubscriptionDto, UserDto
 from src.application.use_cases.statistics.queries.users import GetUserStatistics
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
@@ -85,6 +87,7 @@ async def user_getter(
 async def subscription_getter(
     dialog_manager: DialogManager,
     user: UserDto,
+    config: FromDishka[AppConfig],
     get_user_profile_subscription: FromDishka[GetUserProfileSubscription],
     **kwargs: Any,
 ) -> dict[str, Any]:
@@ -133,6 +136,7 @@ async def subscription_getter(
         "plan_device_limit": i18n_format_device_limit(subscription.plan_snapshot.device_limit),
         "plan_duration": i18n_format_days(subscription.plan_snapshot.duration),
         "can_edit": user_profile_subscription.can_edit,
+        "yandex_enabled": config.yandex.enabled,
     }
 
 
@@ -613,4 +617,40 @@ async def sync_getter(  # noqa: C901
         "remna_version": i18n.get("msg-user-sync-version", version=remna_version_key),
         "bot_subscription": format_subscription(bot_sub),
         "remna_subscription": format_subscription(remna_sub),
+    }
+
+
+@inject
+async def yandex_quota_getter(
+    dialog_manager: DialogManager,
+    user: UserDto,
+    config: FromDishka[AppConfig],
+    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
+    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+
+    limit_gb = config.yandex.monthly_limit_gb
+    used_bytes = quota.used_bytes if quota else 0
+    used_gb = round(used_bytes / 1024**3, 1)
+    free_gb = max(round(limit_gb - used_gb, 1), 0)
+    pct = min(int(used_gb / limit_gb * 100), 100) if limit_gb > 0 else 0
+    is_restricted = quota.is_restricted if quota else False
+    period_start = quota.period_start.strftime(DATETIME_FORMAT) if quota else "—"
+    restricted_at = (
+        quota.restricted_at.strftime(DATETIME_FORMAT)
+        if quota and quota.restricted_at
+        else "0"
+    )
+
+    return {
+        "yandex_limit_gb": limit_gb,
+        "yandex_used_gb": used_gb,
+        "yandex_free_gb": free_gb,
+        "yandex_pct": pct,
+        "is_restricted": 1 if is_restricted else 0,
+        "period_start": period_start,
+        "restricted_at": restricted_at if restricted_at != "0" else "0",
+        "can_edit": True,
     }

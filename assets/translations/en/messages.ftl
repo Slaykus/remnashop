@@ -597,6 +597,25 @@ msg-user-subscription-internal-squads =
 
     Select which internal groups will be assigned to this user.
 
+msg-user-yandex-quota =
+    <b>🇷🇺 4G/LTE Traffic (Yandex nodes)</b>
+
+    <blockquote>
+    • <b>Node</b>: 🇷🇺🔴 4G/LTE | Not for Wi-Fi
+    • <b>Limit</b>: { $yandex_limit_gb } GB / month
+    • <b>Used</b>: { $yandex_used_gb } GB ({ $yandex_pct }%)
+    • <b>Free</b>: { $yandex_free_gb } GB
+    • <b>Period</b>: since { $period_start }
+    • <b>Status</b>: { $is_restricted ->
+    [1] 🚫 Restricted
+    *[0] ✅ Active
+    }
+    { $restricted_at ->
+    [0] { empty }
+    *[HAS] • <b>Restricted since</b>: { $restricted_at }
+    }
+    </blockquote>
+
 msg-user-subscription-external-squads =
     <b>⏹️ Change external squad</b>
 
@@ -1074,7 +1093,23 @@ msg-notifications-system = <b>⚙️ System notifications</b>
 
 
 # Subscription
-msg-subscription-main = <b>💳 Subscription</b>
+msg-subscription-main =
+    <b>💳 Subscription</b>
+
+    { $yandex_quota_enabled ->
+    [1]
+    <b>🇷🇺 4G/LTE node:</b>
+    <blockquote>
+    { $yandex_is_restricted ->
+    [1] • 🚫 Access restricted until the 1st of next month
+    *[0]
+    • <b>Used</b>: { $yandex_used_gb } / { $yandex_limit_gb } GB
+    • <b>Free</b>: { $yandex_free_gb } GB
+    }
+    </blockquote>
+    *[0] { empty }
+    }
+
 msg-subscription-plans = <b>📦 Select a plan</b>
 msg-subscription-new-success = To start using our service, click the <code>`{ btn-subscription.connect }`</code> button and follow the instructions!
 msg-subscription-renew-success = Your subscription has been extended by { $added_duration }.

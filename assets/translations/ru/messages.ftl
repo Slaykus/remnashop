@@ -604,6 +604,25 @@ msg-user-subscription-internal-squads =
 
     Выберите, какие внутренние группы будут присвоены этому пользователю.
 
+msg-user-yandex-quota =
+    <b>🇷🇺 4G/LTE трафик (Яндекс-ноды)</b>
+
+    <blockquote>
+    • <b>Нода</b>: 🇷🇺🔴 4G/LTE | Не для Wi-Fi
+    • <b>Лимит</b>: { $yandex_limit_gb } ГБ / мес
+    • <b>Использовано</b>: { $yandex_used_gb } ГБ ({ $yandex_pct }%)
+    • <b>Свободно</b>: { $yandex_free_gb } ГБ
+    • <b>Период</b>: с { $period_start }
+    • <b>Статус</b>: { $is_restricted ->
+    [1] 🚫 Ограничен
+    *[0] ✅ Активен
+    }
+    { $restricted_at ->
+    [0] { empty }
+    *[HAS] • <b>Ограничен с</b>: { $restricted_at }
+    }
+    </blockquote>
+
 msg-user-subscription-external-squads =
     <b>⏹️ Изменить внешний сквад</b>
 
@@ -1085,7 +1104,23 @@ msg-notifications-system = <b>⚙️ Системные уведомления</
 
 
 # Subscription
-msg-subscription-main = <b>💳 Подписка</b>
+msg-subscription-main =
+    <b>💳 Подписка</b>
+
+    { $yandex_quota_enabled ->
+    [1]
+    <b>🇷🇺 4G/LTE нода:</b>
+    <blockquote>
+    { $yandex_is_restricted ->
+    [1] • 🚫 Доступ ограничен до 1-го числа следующего месяца
+    *[0]
+    • <b>Использовано</b>: { $yandex_used_gb } / { $yandex_limit_gb } ГБ
+    • <b>Свободно</b>: { $yandex_free_gb } ГБ
+    }
+    </blockquote>
+    *[0] { empty }
+    }
+
 msg-subscription-plans = <b>📦 Выберите план</b>
 msg-subscription-new-success = Чтобы начать пользоваться нашим сервисом, нажмите кнопку <code>`{ btn-subscription.connect }`</code> и следуйте инструкциям!
 msg-subscription-renew-success = Ваша подписка продлена на { $added_duration }.

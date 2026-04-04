@@ -44,6 +44,7 @@ from .getters import (
     transaction_getter,
     transactions_getter,
     user_getter,
+    yandex_quota_getter,
 )
 from .handlers import (
     on_active_toggle,
@@ -78,6 +79,8 @@ from .handlers import (
     on_transaction_select,
     on_transactions,
     on_user_select,
+    on_yandex_quota_reset,
+    on_yandex_quota_toggle_restrict,
 )
 
 user = Window(
@@ -208,6 +211,14 @@ subscription = Window(
             state=DashboardUser.SQUADS,
             when=F["can_edit"],
         ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-user.yandex-quota"),
+            id="yandex_quota",
+            state=DashboardUser.YANDEX_QUOTA,
+        ),
+        when=F["yandex_enabled"],
     ),
     Row(
         Button(
@@ -746,6 +757,44 @@ give_access = Window(
     getter=give_access_getter,
 )
 
+yandex_quota = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-user-yandex-quota"),
+    Row(
+        Button(
+            text=I18nFormat("btn-user.yandex-quota-reset"),
+            id="yq_reset",
+            on_click=on_yandex_quota_reset,
+        ),
+        when=F["can_edit"],
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-user.yandex-quota-unrestrict"),
+            id="yq_unrestrict",
+            on_click=on_yandex_quota_toggle_restrict,
+            when=F["is_restricted"],
+        ),
+        Button(
+            text=I18nFormat("btn-user.yandex-quota-restrict"),
+            id="yq_restrict",
+            on_click=on_yandex_quota_toggle_restrict,
+            when=~F["is_restricted"],
+        ),
+        when=F["can_edit"],
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=DashboardUser.SUBSCRIPTION,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=DashboardUser.YANDEX_QUOTA,
+    getter=yandex_quota_getter,
+)
+
 role = Window(
     Banner(BannerName.DASHBOARD),
     I18nFormat("msg-user-role"),
@@ -794,4 +843,5 @@ router = Dialog(
     points,
     give_access,
     role,
+    yandex_quota,
 )

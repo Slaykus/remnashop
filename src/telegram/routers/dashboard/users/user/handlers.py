@@ -10,8 +10,15 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
 
+from datetime import datetime, timezone
+from uuid import UUID
+
 from src.application.common import Notifier, Redirect
+from src.application.common import Remnawave
 from src.application.common.dao import PlanDao, SubscriptionDao, TransactionDao, UserDao
+from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.dto.yandex_quota import UserYandexQuotaDto
+from src.core.config import AppConfig
 from src.application.dto import MessagePayloadDto, UserDto
 from src.application.use_cases.plan.commands.access import (
     ToggleUserPlanAccess,
@@ -682,3 +689,86 @@ async def on_subscription_duration_select(
         SetUserSubscriptionDto(target_telegram_id, plan_id, selected_duration),
     )
     await dialog_manager.switch_to(state=DashboardUser.MAIN)
+
+
+@inject
+async def on_yandex_quota_reset(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    config: FromDishka[AppConfig],
+    remnawave: FromDishka[Remnawave],
+    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+) -> None:
+    target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
+    now = datetime.now(timezone.utc)
+
+    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    if quota is None:
+        quota = UserYandexQuotaDto(
+            user_telegram_id=target_telegram_id,
+            period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
+        )
+
+    was_restricted = quota.is_restricted
+    quota.used_bytes = 0
+    quota.warned_at = None
+    quota.restricted_at = None
+
+    if was_restricted and config.yandex.enabled and config.yandex.squad_uuid:
+        sub = await subscription_dao.get_current(target_telegram_id)
+        if sub and sub.user_remna_id:
+            try:
+                await remnawave.update_user_squads(sub.user_remna_id, add_squad=UUID(config.yandex.squad_uuid))
+            except Exception:
+                pass
+        quota.is_restricted = False
+
+    await yandex_quota_dao.upsert(quota)
+    await callback.answer("✅ Счётчик трафика сброшен")
+
+
+@inject
+async def on_yandex_quota_toggle_restrict(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    config: FromDishka[AppConfig],
+    remnawave: FromDishka[Remnawave],
+    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+) -> None:
+    target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
+    now = datetime.now(timezone.utc)
+
+    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    if quota is None:
+        quota = UserYandexQuotaDto(
+            user_telegram_id=target_telegram_id,
+            period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
+        )
+
+    sub = await subscription_dao.get_current(target_telegram_id)
+    squad_uuid = UUID(config.yandex.squad_uuid) if config.yandex.squad_uuid else None
+
+    if quota.is_restricted:
+        if squad_uuid and sub and sub.user_remna_id:
+            try:
+                await remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
+            except Exception:
+                pass
+        quota.is_restricted = False
+        quota.restricted_at = None
+        await callback.answer("✅ Ограничение снято")
+    else:
+        if squad_uuid and sub and sub.user_remna_id:
+            try:
+                await remnawave.update_user_squads(sub.user_remna_id, remove_squad=squad_uuid)
+            except Exception:
+                pass
+        quota.is_restricted = True
+        quota.restricted_at = now
+        await callback.answer("🚫 Доступ ограничен")
+
+    await yandex_quota_dao.upsert(quota)

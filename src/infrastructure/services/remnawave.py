@@ -157,6 +157,43 @@ class RemnawaveImpl(Remnawave):
         except NotFoundError:
             logger.debug(f"RemnaUser '{uuid}' not found in panel")
 
+    async def update_user_squads(
+        self,
+        uuid: UUID,
+        add_squad: Optional[UUID] = None,
+        remove_squad: Optional[UUID] = None,
+    ) -> None:
+        remna_user = await self.sdk.users.get_user_by_uuid(uuid)
+        if not remna_user:
+            logger.warning(f"RemnaUser '{uuid}' not found, cannot update squads")
+            return
+
+        squads: list[UUID] = list(remna_user.active_internal_squads or [])
+
+        if add_squad and add_squad not in squads:
+            squads.append(add_squad)
+        if remove_squad and remove_squad in squads:
+            squads.remove(remove_squad)
+
+        await self.sdk.users.update_user(
+            UpdateUserRequestDto(
+                uuid=remna_user.uuid,
+                telegram_id=remna_user.telegram_id,
+                expire_at=remna_user.expire_at,
+                status=remna_user.status,
+                traffic_limit_strategy=remna_user.traffic_limit_strategy,
+                traffic_limit_bytes=remna_user.traffic_limit_bytes,
+                hwid_device_limit=remna_user.hwid_device_limit,
+                description=remna_user.description,
+                tag=remna_user.tag,
+                active_internal_squads=squads,
+                external_squad_uuid=remna_user.external_squad,
+            )
+        )
+        action = "added" if add_squad else "removed"
+        squad_id = add_squad or remove_squad
+        logger.info(f"Squad '{squad_id}' {action} for RemnaUser '{uuid}'")
+
     def apply_sync(self, target: T, source: Union[SubscriptionDto, RemnaSubscriptionDto]) -> T:
         if not is_dataclass(target) or not is_dataclass(source):
             raise TypeError("Both target and source must be dataclasses")
