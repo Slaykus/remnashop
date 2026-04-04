@@ -1096,6 +1096,11 @@ msg-notifications-system = <b>⚙️ System notifications</b>
 msg-subscription-main =
     <b>💳 Subscription</b>
 
+    { $has_active_subscription ->
+    [1] { frg-subscription }
+    *[0] { empty }
+    }
+
     { $yandex_quota_enabled ->
     [1]
     <b>🇷🇺 4G/LTE node:</b>

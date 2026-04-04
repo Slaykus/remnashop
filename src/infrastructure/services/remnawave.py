@@ -168,7 +168,7 @@ class RemnawaveImpl(Remnawave):
             logger.warning(f"RemnaUser '{uuid}' not found, cannot update squads")
             return
 
-        squads: list[UUID] = list(remna_user.active_internal_squads or [])
+        squads: list[UUID] = [s.uuid for s in (remna_user.active_internal_squads or [])]
 
         if add_squad and add_squad not in squads:
             squads.append(add_squad)

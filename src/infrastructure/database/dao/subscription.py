@@ -40,6 +40,7 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
 
     async def create(self, subscription: SubscriptionDto, telegram_id: int) -> SubscriptionDto:
         subscription_data = self.retort.dump(subscription)
+        subscription_data.pop('user_telegram_id', None)
         db_subscription = Subscription(**subscription_data, user_telegram_id=telegram_id)
 
         self.session.add(db_subscription)

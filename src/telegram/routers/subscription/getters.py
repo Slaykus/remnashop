@@ -41,7 +41,17 @@ async def subscription_getter(
         "has_active_subscription": has_active,
         "is_not_unlimited": not is_unlimited,
         "yandex_quota_enabled": 0,
+        "traffic_limit": None,
+        "device_limit": None,
+        "expire_time": None,
     }
+
+    if current_subscription and has_active:
+        result.update({
+            "traffic_limit": i18n_format_traffic_limit(current_subscription.traffic_limit),
+            "device_limit": i18n_format_device_limit(current_subscription.device_limit),
+            "expire_time": i18n_format_expire_time(current_subscription.expire_at),
+        })
 
     yandex = config.yandex
     if yandex.enabled:
