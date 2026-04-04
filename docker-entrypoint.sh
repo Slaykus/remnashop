@@ -50,6 +50,12 @@ else
     echo "Volume mounted to '${ASSETS_CONTAINER_PATH}' is not empty, skipping asset initialization to preserve user data"
 fi
 
+# Always sync translations from defaults to pick up any code updates
+echo "Syncing translations from defaults"
+mkdir -p "$ASSETS_CONTAINER_PATH/translations"
+cp -r "$ASSETS_DEFAULT_PATH/translations/." "$ASSETS_CONTAINER_PATH/translations/"
+echo "Translations synced"
+
 
 # Patch remnapy: make all CustomRemarksDto list fields optional for older panel versions
 REMNAPY_SETTINGS="/opt/remnashop/.venv/lib/python3.12/site-packages/remnapy/models/subscriptions_settings.py"
