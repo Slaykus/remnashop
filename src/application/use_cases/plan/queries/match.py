@@ -40,6 +40,11 @@ class MatchPlan(Interactor[MatchPlanDto, Optional[PlanDto]]):
         if not is_imported and snapshot.id != plan.id:
             return False
 
+        # For non-imported plans, ID match is sufficient.
+        # Squad/traffic comparisons would break renewal when plan config changes.
+        if not is_imported:
+            return True
+
         # For imported users use the subscription's up-to-date values,
         # because plan_snapshot is never updated after the initial sync.
         if is_imported and subscription is not None:

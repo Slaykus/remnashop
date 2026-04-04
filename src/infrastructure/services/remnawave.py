@@ -187,7 +187,7 @@ class RemnawaveImpl(Remnawave):
                 description=remna_user.description,
                 tag=remna_user.tag,
                 active_internal_squads=squads,
-                external_squad_uuid=remna_user.external_squad,
+                external_squad_uuid=remna_user.external_squad_uuid,
             )
         )
         action = "added" if add_squad else "removed"
