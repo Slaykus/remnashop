@@ -87,7 +87,7 @@ async def user_getter(
 async def subscription_getter(
     dialog_manager: DialogManager,
     user: UserDto,
-    config: FromDishka[AppConfig],
+    config: AppConfig,
     get_user_profile_subscription: FromDishka[GetUserProfileSubscription],
     **kwargs: Any,
 ) -> dict[str, Any]:
