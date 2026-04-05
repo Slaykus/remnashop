@@ -693,6 +693,41 @@ async def on_subscription_duration_select(
 
 
 @inject
+async def on_yandex_quota_test_notify(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    config: FromDishka[AppConfig],
+    yandex_quota_dao: FromDishka[YandexQuotaDao],
+) -> None:
+    target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
+    yandex = config.yandex
+    limit_gb = yandex.monthly_limit_gb
+
+    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    used_bytes = quota.used_bytes if quota else 0
+    used_gb = round(used_bytes / 1024**3, 1)
+
+    bot = callback.bot
+    if bot is None:
+        await callback.answer("❌ Bot instance not available")
+        return
+
+    try:
+        await bot.send_message(
+            target_telegram_id,
+            f"⚠️ Вы использовали <b>{used_gb:.1f} ГБ</b> из "
+            f"<b>{limit_gb} ГБ</b> месячного лимита на сервере для 4G/LTE.\n"
+            f"При достижении 100% доступ будет ограничен до конца месяца.",
+            parse_mode="HTML",
+        )
+        await callback.answer("✅ Тестовое уведомление отправлено")
+    except Exception as e:
+        logger.error(f"[YandexQuota] Test notify failed for {target_telegram_id}: {e}")
+        await callback.answer(f"❌ Ошибка: {e}")
+
+
+@inject
 async def on_yandex_quota_reset(
     callback: CallbackQuery,
     widget: Button,

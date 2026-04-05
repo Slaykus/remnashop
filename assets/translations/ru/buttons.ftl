@@ -137,6 +137,7 @@ btn-user =
     .yandex-quota-reset = 🔄 Сбросить счётчик
     .yandex-quota-restrict = 🚫 Ограничить доступ
     .yandex-quota-unrestrict = ✅ Снять ограничение
+    .yandex-quota-test-notify = 📨 Тест уведомления
     .message-preview = 👀 Предпросмотр
     .message-confirm = ✅ Отправить
     .sync = 🌀 Синхронизировать

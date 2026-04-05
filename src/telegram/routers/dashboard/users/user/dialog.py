@@ -50,6 +50,7 @@ from .handlers import (
     on_active_toggle,
     on_block_toggle,
     on_current_subscription,
+    on_yandex_quota_test_notify,
     on_device_delete,
     on_device_limit_input,
     on_device_limit_select,
@@ -780,6 +781,14 @@ yandex_quota = Window(
             id="yq_restrict",
             on_click=on_yandex_quota_toggle_restrict,
             when=~F["is_restricted"],
+        ),
+        when=F["can_edit"],
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-user.yandex-quota-test-notify"),
+            id="yq_test_notify",
+            on_click=on_yandex_quota_test_notify,
         ),
         when=F["can_edit"],
     ),
