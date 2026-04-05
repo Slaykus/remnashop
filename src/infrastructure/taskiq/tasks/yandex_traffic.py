@@ -238,5 +238,15 @@ async def reset_yandex_monthly(
         quota.restricted_at = None
         await quota_dao.upsert(quota)
 
+    # Clear warned_at for non-restricted users so they get a fresh warning next month
+    all_quotas = await quota_dao.get_all()
+    warned_non_restricted = [q for q in all_quotas if not q.is_restricted and q.warned_at is not None]
+    for quota in warned_non_restricted:
+        quota.warned_at = None
+        quota.period_start = new_period_start
+        await quota_dao.upsert(quota)
+    if warned_non_restricted:
+        logger.info(f"[YandexQuota] Monthly reset: cleared warnings for {len(warned_non_restricted)} non-restricted users")
+
     await uow.commit()
     logger.info("[YandexQuota] Monthly reset complete")

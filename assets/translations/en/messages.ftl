@@ -598,7 +598,7 @@ msg-user-subscription-internal-squads =
     Select which internal groups will be assigned to this user.
 
 msg-user-yandex-quota =
-    <b>🇷🇺 4G/LTE Traffic (Yandex nodes)</b>
+    <b>🔴 4G/LTE Server</b>
 
     <blockquote>
     • <b>Node</b>: 🇷🇺🔴 4G/LTE | Not for Wi-Fi
@@ -1103,7 +1103,7 @@ msg-subscription-main =
 
     { $yandex_quota_enabled ->
     [1]
-    <b>🇷🇺 4G/LTE node:</b>
+    <b>🔴 4G/LTE Server:</b>
     <blockquote>
     { $yandex_is_restricted ->
     [1] • 🚫 Access restricted until the 1st of next month

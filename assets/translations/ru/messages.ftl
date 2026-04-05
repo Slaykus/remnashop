@@ -605,7 +605,7 @@ msg-user-subscription-internal-squads =
     Выберите, какие внутренние группы будут присвоены этому пользователю.
 
 msg-user-yandex-quota =
-    <b>🇷🇺 4G/LTE трафик (Яндекс-ноды)</b>
+    <b>🔴 Сервер для 4G/LTE</b>
 
     <blockquote>
     • <b>Нода</b>: 🇷🇺🔴 4G/LTE | Не для Wi-Fi
@@ -1114,7 +1114,7 @@ msg-subscription-main =
 
     { $yandex_quota_enabled ->
     [1]
-    <b>🇷🇺 4G/LTE нода:</b>
+    <b>🔴 Сервер для 4G/LTE:</b>
     <blockquote>
     { $yandex_is_restricted ->
     [1] • 🚫 Доступ ограничен до 1-го числа следующего месяца
