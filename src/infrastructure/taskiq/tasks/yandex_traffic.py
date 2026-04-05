@@ -142,12 +142,12 @@ async def check_yandex_traffic(
                     await bot.send_message(
                         tid,
                         f"⚠️ Вы использовали <b>{used_gb:.1f} ГБ</b> из "
-                        f"<b>{limit_gb} ГБ</b> месячного лимита Яндекс-нод.\n"
+                        f"<b>{limit_gb} ГБ</b> месячного лимита на сервере для 4G/LTE.\n"
                         f"При достижении 100% доступ будет ограничен до конца месяца.",
                     )
                 except Exception as e:
                     logger.warning(f"[YandexQuota] Could not warn user {tid}: {e}")
-            quota.warned_at = now
+                quota.warned_at = now  # only mark as warned after real notification
 
         # Block at 100%
         if user_traffic > limit_bytes and not quota.is_restricted:
@@ -163,8 +163,8 @@ async def check_yandex_traffic(
                     )
                     await bot.send_message(
                         tid,
-                        f"🚫 Ваш месячный лимит Яндекс-нод (<b>{limit_gb} ГБ</b>) исчерпан.\n"
-                        f"Доступ к Яндекс-нодам будет восстановлен 1-го числа следующего месяца.",
+                        f"🚫 Ваш месячный лимит на сервере для 4G/LTE (<b>{limit_gb} ГБ</b>) исчерпан.\n"
+                        f"Доступ будет восстановлен 1-го числа следующего месяца.",
                     )
                     quota.is_restricted = True
                     quota.restricted_at = now
