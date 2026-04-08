@@ -535,6 +535,7 @@ msg-user-sync-subscription =
     [DAY] Каждый день
     [WEEK] Каждую неделю
     [MONTH] Каждый месяц
+    [MONTH_ROLLING] Каждый месяц (по дате создания)
     *[OTHER] { $traffic_limit_strategy }
     }
     • Тег: { $tag -> 
@@ -558,9 +559,20 @@ msg-user-give-subscription-duration =
     Выберите длительность выдаваемой подписки.
 
 msg-user-discount =
-    <b>💸 Изменить персональную скидку</b>
+    <b>💸 Изменить скидку</b>
+
+    Выберите тип скидки для изменения.
+
+msg-user-discount-personal =
+    <b>👤 Персональная скидка</b>
 
     Выберите по кнопке или введите свой вариант.
+
+msg-user-discount-purchase =
+    <b>🎟 Скидка на следующую покупку</b>
+
+    Выберите по кнопке или введите свой вариант.
+    Скидка будет применена один раз и сброшена после любого платежа.
 
 msg-user-points =
     <b>💎 Изменить баллы реферальной системы</b>
@@ -828,7 +840,7 @@ msg-menu-editor-button =
 msg-menu-editor-button-text =
     <b>🏷️ Изменить текст кнопки</b>
 
-    Введите текст кнопки (маскимум 16 символов) или ключ перевода.
+    Введите текст кнопки (максимум 32 символа) или ключ перевода.
 
 msg-menu-editor-button-availability =
     <b>✴️ Изменить доступ к кнопке</b>
@@ -994,7 +1006,7 @@ msg-plan-name =
     </blockquote>
     }
 
-    Введите уникальное название плана или ключ перевода (максимум 16 символов).
+    Введите уникальное название плана или ключ перевода (максимум 32 символа).
 
 msg-plan-description =
     <b>💬 Изменить описание</b>
@@ -1167,6 +1179,17 @@ msg-subscription-details =
     { $final_amount ->
     [0] { empty }
     *[HAS] • <b>Стоимость</b>: { frg-payment-amount }
+    }
+    </blockquote>
+    
+    <blockquote>
+    { $discount_percent ->
+    [0] { empty }
+    *[HAS] <i>Цены указаны с учетом { $is_personal_discount ->
+        [1] вашей персональной скидки { $discount_percent }%
+        *[0] разовой скидки { $discount_percent }%
+        }
+        </i>
     }
     </blockquote>
 
