@@ -3,7 +3,7 @@ import hmac
 import time
 import uuid
 from decimal import Decimal
-from typing import Any, Final, Optional
+from typing import Any, Final
 from uuid import UUID
 
 import orjson
@@ -45,9 +45,9 @@ class FreeKassaGateway(BasePaymentGateway):
 
         self._client = self._make_client(base_url=self.API_BASE)
 
-    async def handle_create_payment(self, amount: Decimal, details: str, return_url: Optional[str] = None) -> PaymentResultDto:
+    async def handle_create_payment(self, amount: Decimal, details: str) -> PaymentResultDto:
         order_id = str(uuid.uuid4())
-        payload = await self._create_payment_payload(str(amount), order_id, return_url)
+        payload = await self._create_payment_payload(str(amount), order_id)
         logger.debug(f"Creating payment payload: {payload}")
 
         try:
@@ -93,18 +93,18 @@ class FreeKassaGateway(BasePaymentGateway):
     async def build_webhook_response(self, request: Request) -> PlainTextResponse:
         return PlainTextResponse(content="YES")
 
-    async def _create_payment_payload(self, amount: str, order_id: str, return_url: Optional[str] = None) -> dict[str, Any]:
+    async def _create_payment_payload(self, amount: str, order_id: str) -> dict[str, Any]:
         data: dict[str, Any] = {
             "shopId": self.data.settings.shop_id,  # type: ignore[union-attr]
-            "nonce": int(time.time() * 1000),  # must be strictly increasing
+            "nonce": time.time_ns(),  # must be strictly increasing
             "paymentId": order_id,
             "i": self.data.settings.payment_system_id,  # type: ignore[union-attr]
             "email": self.data.settings.customer_email,  # type: ignore[union-attr]
             "ip": self.data.settings.customer_ip,  # type: ignore[union-attr]
             "amount": str(amount),
-            "currency": self.data.currency.value,
-            "success_url": await self._get_redirect_url(return_url),
-            "failure_url": await self._get_redirect_url(return_url),
+            "currency": self.data.currency.upper(),
+            "success_url": await self._get_bot_redirect_url(),
+            "failure_url": await self._get_bot_redirect_url(),
             "notification_url": self.config.get_webhook(self.data.type),
         }
 
