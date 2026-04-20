@@ -4,6 +4,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class MainMenu(StatesGroup):
+    WELCOME = State()
     MAIN = State()
     DEVICES = State()
     DEVICE_CONFIRM_DELETE = State()

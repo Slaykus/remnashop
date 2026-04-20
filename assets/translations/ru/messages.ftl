@@ -1,3 +1,14 @@
+# Onboarding
+msg-onboarding-welcome =
+    🌧️ <b>Добро пожаловать в Rain VPN!</b>
+
+    Вы в одном шаге от стабильного интернета.
+
+    { $trial_available ->
+    [1] Первые <b>{ $trial_days } дней</b> — бесплатно.
+    *[0] { "" }
+    }
+
 # Menu
 msg-main-menu =
     { hdr-user-profile }

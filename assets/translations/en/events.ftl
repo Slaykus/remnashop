@@ -200,45 +200,82 @@ event-subscription =
     { frg-plan-snapshot-comparison }
 
     .expiring =
+    { $value ->
+    [1]
     { $is_trial ->
     [0]
-    <b>⚠️ Attention! Your subscription expires in { unit-day }.</b>
+    ⚠️ <b>Your subscription expires tomorrow!</b>
 
-    Renew it in advance to avoid losing access to the service!
+    Renew now — otherwise VPN will stop working tomorrow.
     *[1]
-    <b>⚠️ Attention! Your free trial expires in { unit-day }.</b>
+    ⚠️ <b>Your free trial ends tomorrow!</b>
 
-    Subscribe to avoid losing access to the service!
+    Subscribe now to keep access to the service.
+    }
+    [2]
+    { $is_trial ->
+    [0]
+    ⏰ <b>Your subscription ends in 2 days.</b>
+
+    Renew in advance to avoid any interruption.
+    *[1]
+    ⏰ <b>Your free trial ends in 2 days.</b>
+
+    Subscribe in advance to keep uninterrupted access.
+    }
+    *[other]
+    { $is_trial ->
+    [0]
+    📅 <b>Reminder: your subscription ends in { unit-day }.</b>
+
+    Renew in advance to keep access to the service.
+    *[1]
+    📅 <b>Reminder: your free trial ends in { unit-day }.</b>
+
+    Subscribe to continue using the VPN.
+    }
     }
 
     .expired =
-    <b>⛔ Attention! Access suspended — VPN is not working.</b>
-
     { $is_trial ->
-    [0] Your subscription has expired. Renew it to continue using the VPN!
-    *[1] Your free trial has ended. Subscribe to continue using the service!
+    [0]
+    ⛔ <b>Subscription expired — VPN is offline.</b>
+
+    Renew your subscription to restore access.
+    *[1]
+    ⛔ <b>Free trial ended — VPN is offline.</b>
+
+    Subscribe to continue using the service.
     }
 
     .expired-ago =
-    <b>⛔ Attention! Access suspended — VPN is not working.</b>
-
     { $is_trial ->
-    [0] Your subscription expired { unit-day } ago. Renew it to continue using the service!
-    *[1] Your free trial ended { unit-day } ago. Subscribe to continue using the service!
+    [0]
+    ⛔ <b>Your subscription expired { unit-day } ago.</b>
+
+    VPN is still offline. Renew whenever you're ready.
+    *[1]
+    ⛔ <b>Your free trial ended { unit-day } ago.</b>
+
+    Subscribe whenever you're ready — access restores instantly.
     }
 
     .limited =
-    <b>⛔ Attention! Access suspended — VPN is not working.</b>
+    { $is_trial ->
+    [0]
+    ⛔ <b>Traffic exhausted — VPN is suspended.</b>
 
-    Your traffic has been exhausted. { $is_trial ->
-    [0] { $traffic_strategy ->
-        [NO_RESET] Renew your subscription to reset traffic and continue using the service!
-        *[RESET] Traffic will be restored in { $reset_time }. You can also renew your subscription to reset traffic.
-        }
-    *[1] { $traffic_strategy ->
-        [NO_RESET] Subscribe to continue using the service!
-        *[RESET] Traffic will be restored in { $reset_time }. You can also subscribe to use the service without limits.
-        }
+    { $traffic_strategy ->
+    [NO_RESET] Renew your subscription to reset the counter and continue.
+    *[RESET] Traffic resets in { $reset_time }. Or renew now to reset it immediately.
+    }
+    *[1]
+    ⛔ <b>Trial traffic exhausted.</b>
+
+    { $traffic_strategy ->
+    [NO_RESET] Subscribe to continue using the service.
+    *[RESET] Traffic resets in { $reset_time }. Subscribe for unlimited access.
+    }
     }
 
     .revoked =

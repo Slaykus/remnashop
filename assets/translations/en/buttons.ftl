@@ -1,3 +1,8 @@
+btn-onboarding =
+    .trial = 🎁 Start for free
+    .plans = 💳 View plans
+    .menu = 📋 Go to menu
+
 btn-back =
     .general = ⬅️ Back
     .menu = ↩️ Main menu

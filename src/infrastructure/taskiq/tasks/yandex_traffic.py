@@ -18,11 +18,12 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 from dishka.integrations.taskiq import FromDishka, inject
 from loguru import logger
 from remnapy import RemnawaveSDK
 
-from src.application.common import Remnawave
+from src.application.common import Remnawave, TranslatorRunner
 from src.application.common.dao import SubscriptionDao
 from src.application.common.dao.yandex_quota import YandexQuotaDao
 from src.application.common.uow import UnitOfWork
@@ -45,6 +46,7 @@ async def check_yandex_traffic(
     quota_dao: FromDishka[YandexQuotaDao],
     uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
+    i18n: FromDishka[TranslatorRunner],
 ) -> None:
     yandex = config.yandex
 
@@ -142,9 +144,12 @@ async def check_yandex_traffic(
                 try:
                     await bot.send_message(
                         tid,
-                        f"⚠️ Вы использовали <b>{used_gb:.1f} ГБ</b> из "
-                        f"<b>{limit_gb} ГБ</b> месячного лимита на сервере для 4G/LTE.\n"
-                        f"При достижении 100% доступ будет ограничен до конца месяца.",
+                        i18n.get(
+                            "ntf-yandex.warn",
+                            used_gb=f"{used_gb:.1f}",
+                            limit_gb=str(limit_gb),
+                        ),
+                        parse_mode=ParseMode.HTML,
                     )
                 except Exception as e:
                     logger.warning(f"[YandexQuota] Could not warn user {tid}: {e}")
@@ -164,8 +169,12 @@ async def check_yandex_traffic(
                     )
                     await bot.send_message(
                         tid,
-                        f"🚫 Ваш месячный лимит на сервере для 4G/LTE (<b>{limit_gb} ГБ</b>) исчерпан.\n"
-                        f"Доступ будет восстановлен 1-го числа следующего месяца.",
+                        i18n.get(
+                            "ntf-yandex.limited",
+                            limit_gb=str(limit_gb),
+                            reset_price=str(yandex.reset_price_rub),
+                        ),
+                        parse_mode=ParseMode.HTML,
                     )
                     quota.is_restricted = True
                     quota.restricted_at = now
@@ -191,6 +200,7 @@ async def reset_yandex_monthly(
     quota_dao: FromDishka[YandexQuotaDao],
     uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
+    i18n: FromDishka[TranslatorRunner],
 ) -> None:
     yandex = config.yandex
 
@@ -209,6 +219,8 @@ async def reset_yandex_monthly(
     restricted = await quota_dao.get_all_restricted()
     logger.info(f"[YandexQuota] Monthly reset: {len(restricted)} restricted users to restore")
 
+    monthly_reset_text = i18n.get("ntf-yandex.monthly-reset")
+
     for quota in restricted:
         tid = quota.user_telegram_id
         sub = await subscription_dao.get_by_telegram_id(tid)
@@ -224,10 +236,7 @@ async def reset_yandex_monthly(
                         sub.user_remna_id,
                         add_squad=squad_uuid,
                     )
-                    await bot.send_message(
-                        tid,
-                        "✅ Месячный лимит Яндекс-нод сброшен. Доступ восстановлен!",
-                    )
+                    await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
                 except Exception as e:
                     logger.error(f"[YandexQuota] Failed to restore user {tid}: {e}")
                     continue
@@ -240,16 +249,25 @@ async def reset_yandex_monthly(
         quota.restricted_at = None
         await quota_dao.upsert(quota)
 
-    # Clear warned_at and baseline for non-restricted users so they get a fresh warning next month
+    # Clear warned_at and baseline for warned (but not restricted) users + notify them
     all_quotas = await quota_dao.get_all()
     warned_non_restricted = [q for q in all_quotas if not q.is_restricted and q.warned_at is not None]
     for quota in warned_non_restricted:
+        tid = quota.user_telegram_id
+        if not dry_run:
+            try:
+                await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
+            except Exception as e:
+                logger.warning(f"[YandexQuota] Could not notify warned user {tid}: {e}")
         quota.warned_at = None
         quota.reset_baseline_bytes = 0
         quota.period_start = new_period_start
         await quota_dao.upsert(quota)
     if warned_non_restricted:
-        logger.info(f"[YandexQuota] Monthly reset: cleared warnings for {len(warned_non_restricted)} non-restricted users")
+        logger.info(
+            f"[YandexQuota] Monthly reset: cleared warnings and notified "
+            f"{len(warned_non_restricted)} non-restricted users"
+        )
 
     await uow.commit()
     logger.info("[YandexQuota] Monthly reset complete")

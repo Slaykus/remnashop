@@ -1,4 +1,9 @@
-btn-back = 
+btn-onboarding =
+    .trial = 🎁 Начать бесплатно
+    .plans = 💳 Посмотреть тарифы
+    .menu = 📋 Перейти в меню
+
+btn-back =
     .general = ⬅️ Назад
     .menu = ↩️ Главное меню
     .menu-return = ↩️ Вернуться в главное меню

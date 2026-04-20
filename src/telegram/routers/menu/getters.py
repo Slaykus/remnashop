@@ -10,6 +10,7 @@ from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import UserDto
 from src.application.services import BotService
 from src.application.use_cases.misc.queries.menu import GetMenuData
+from src.application.use_cases.user.queries.plans import GetAvailableTrial
 from src.core.config import AppConfig
 from src.core.exceptions import MenuRenderError
 from src.core.utils.i18n_helpers import (
@@ -248,4 +249,20 @@ async def proxy_getter(
     return {
         "proxy_url": config.proxy_url or "",
         "proxy_enabled": bool(config.proxy_url),
+    }
+
+
+@inject
+async def welcome_getter(
+    dialog_manager: DialogManager,
+    user: UserDto,
+    get_available_trial: FromDishka[GetAvailableTrial],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    plan = await get_available_trial.system(user)
+    trial_available = bool(plan) and user.is_trial_available
+    trial_days = plan.durations[0].days if plan and plan.durations else 0
+    return {
+        "trial_available": 1 if trial_available else 0,
+        "trial_days": trial_days,
     }

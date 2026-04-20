@@ -164,3 +164,21 @@ ntf-devices =
 
 ntf-yandex =
     .reset-purchased = ✅ <i>4G/LTE traffic counter has been reset!</i>
+
+    .warn =
+⚠️ You have used <b>{ $used_gb } GB</b> out of <b>{ $limit_gb } GB</b> of your monthly limit on the 4G/LTE server.
+
+At 100% usage, access to this server will be restricted until the end of the month.
+
+    .limited =
+🚫 Your monthly limit on the 4G/LTE server (<b>{ $limit_gb } GB</b>) has been reached.
+
+Access will be restored on the 1st of next month.{ $reset_price ->
+    [0] { "" }
+    *[other]  You can also <b>reset the counter early</b> for { $reset_price } ₽ in the Subscription section.
+    }
+
+    .monthly-reset =
+✅ A new month has begun — your 4G/LTE traffic counter has been reset!
+
+Your limit has been fully restored.

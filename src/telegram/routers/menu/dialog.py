@@ -32,6 +32,7 @@ from .getters import (
     invite_getter,
     menu_getter,
     proxy_getter,
+    welcome_getter,
 )
 from .handlers import (
     on_device_delete_all_confirm,
@@ -43,6 +44,35 @@ from .handlers import (
     on_show_qr,
     on_withdraw_points,
     show_reason,
+)
+
+welcome = Window(
+    Banner(BannerName.MENU),
+    I18nFormat("msg-onboarding-welcome"),
+    Row(
+        Button(
+            text=I18nFormat("btn-onboarding.trial"),
+            id="welcome_trial",
+            on_click=on_get_trial,
+            when=F["trial_available"],
+            style=Style(ButtonStyle.SUCCESS),
+        ),
+        Start(
+            text=I18nFormat("btn-onboarding.plans"),
+            id="welcome_plans",
+            state=Subscription.MAIN,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-onboarding.menu"),
+            id="welcome_menu",
+            state=MainMenu.MAIN,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=MainMenu.WELCOME,
+    getter=welcome_getter,
 )
 
 menu = Window(
@@ -344,6 +374,7 @@ device_confirm_reissue = Window(
 )
 
 router = Dialog(
+    welcome,
     menu,
     devices,
     device_confirm_delete,
