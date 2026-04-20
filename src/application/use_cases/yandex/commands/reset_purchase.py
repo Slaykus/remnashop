@@ -10,6 +10,7 @@ from src.application.common.dao import SubscriptionDao
 from src.application.common.dao.yandex_quota import YandexQuotaDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
+from src.application.dto.message_payload import MessagePayloadDto
 from src.application.dto.yandex_quota import UserYandexQuotaDto
 from src.core.config import AppConfig
 
@@ -76,4 +77,7 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
 
         logger.info(f"[YandexQuota] Traffic reset purchased by user {user.telegram_id}, new baseline={quota.reset_baseline_bytes}")
 
-        await self.notifier.notify_user(user, i18n_key="ntf-yandex.reset-purchased")
+        await self.notifier.notify_user(
+            user,
+            payload=MessagePayloadDto(i18n_key="ntf-yandex.reset-purchased", delete_after=None),
+        )
