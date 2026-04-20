@@ -56,25 +56,18 @@ async def main(dry_run: bool) -> None:
     import sqlalchemy as sa
     from sqlalchemy.ext.asyncio import create_async_engine
 
-    db_url = os.environ.get("APP_DATABASE_URL") or os.environ.get("DATABASE_URL")
-    if not db_url:
-        # Try to load from .env
-        try:
-            from dotenv import load_dotenv
-            load_dotenv("/opt/remnashop/.env")
-            db_url = os.environ.get("APP_DATABASE_URL") or os.environ.get("DATABASE_URL")
-        except ImportError:
-            pass
+    # Build DSN from individual DATABASE_* env vars (how the app configures the DB)
+    host = os.environ.get("DATABASE_HOST", "remnashop-db")
+    port = os.environ.get("DATABASE_PORT", "5432")
+    name = os.environ.get("DATABASE_NAME", "remnashop")
+    user = os.environ.get("DATABASE_USER", "remnashop")
+    password = os.environ.get("DATABASE_PASSWORD", "")
 
-    if not db_url:
-        print("ERROR: Cannot find database URL in APP_DATABASE_URL or DATABASE_URL env var.")
+    if not password:
+        print("ERROR: DATABASE_PASSWORD env var is not set.")
         sys.exit(1)
 
-    # asyncpg driver
-    if db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    elif db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{name}"
 
     engine = create_async_engine(db_url, echo=False)
 
