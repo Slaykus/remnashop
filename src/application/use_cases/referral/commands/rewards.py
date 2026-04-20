@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from loguru import logger
 
 from src.application.common import EventPublisher, Interactor
-from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao, UserDao
+from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao, TransactionDao, UserDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import ReferralRewardDto, TransactionDto, UserDto
 from src.application.events import ReferralRewardFailedEvent, ReferralRewardReceivedEvent
@@ -24,6 +24,8 @@ from src.application.use_cases.user.commands.profile_edit import (
     ChangeUserPointsDto,
 )
 from src.core.enums import PurchaseType, ReferralAccrualStrategy, ReferralLevel, ReferralRewardType
+
+MILESTONE_PURCHASE_TYPES = {PurchaseType.NEW, PurchaseType.RENEW, PurchaseType.CHANGE}
 
 
 @dataclass(frozen=True)
@@ -139,6 +141,7 @@ class AssignReferralRewards(Interactor[AssignReferralRewardsDto, None]):
         settings_dao: SettingsDao,
         user_dao: UserDao,
         referral_dao: ReferralDao,
+        transaction_dao: TransactionDao,
         calculate_referral_reward: CalculateReferralReward,
         give_referrer_reward: GiveReferrerReward,
         check_referral_milestone: CheckReferralMilestone,
@@ -147,6 +150,7 @@ class AssignReferralRewards(Interactor[AssignReferralRewardsDto, None]):
         self.settings_dao = settings_dao
         self.user_dao = user_dao
         self.referral_dao = referral_dao
+        self.transaction_dao = transaction_dao
         self.calculate_referral_reward = calculate_referral_reward
         self.give_referrer_reward = give_referrer_reward
         self.check_referral_milestone = check_referral_milestone
@@ -230,11 +234,20 @@ class AssignReferralRewards(Interactor[AssignReferralRewardsDto, None]):
                 f"'{referrer.telegram_id}' (level '{level.name}')"
             )
 
-        # Milestone check: only on first payment by this referred user, for the direct referrer
-        if (
-            data.transaction.purchase_type == PurchaseType.NEW
-            and referral
-        ):
-            await self.check_referral_milestone.system(
-                CheckReferralMilestoneDto(referrer_telegram_id=referral.referrer.telegram_id)
+        # Milestone check: trigger on first-ever paid transaction by the referred user
+        # (NEW/RENEW/CHANGE), regardless of how they got their initial subscription.
+        # Deduplication: skip if they already have another completed paid transaction.
+        if data.transaction.purchase_type in MILESTONE_PURCHASE_TYPES and referral:
+            is_first_paid = not await self.transaction_dao.has_completed_paid_transaction(
+                telegram_id=data.user.telegram_id,
+                exclude_payment_id=data.transaction.payment_id,
             )
+            if is_first_paid:
+                await self.check_referral_milestone.system(
+                    CheckReferralMilestoneDto(referrer_telegram_id=referral.referrer.telegram_id)
+                )
+            else:
+                logger.debug(
+                    f"Milestone skipped for referrer '{referral.referrer.telegram_id}': "
+                    f"referred user '{data.user.telegram_id}' already has prior paid transactions"
+                )

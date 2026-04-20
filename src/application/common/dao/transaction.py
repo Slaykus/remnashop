@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 from uuid import UUID
@@ -46,3 +48,9 @@ class TransactionDao(Protocol):
         self,
         telegram_id: int,
     ) -> tuple[Optional[datetime], list[UserPaymentStatsDto]]: ...
+
+    async def has_completed_paid_transaction(
+        self,
+        telegram_id: int,
+        exclude_payment_id: "UUID | None" = None,
+    ) -> bool: ...

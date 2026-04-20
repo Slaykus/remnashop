@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import TransactionDao
 from src.application.dto import GatewayStatsDto, PlanIncomeDto, TransactionDto, UserPaymentStatsDto
-from src.core.enums import TransactionStatus
+from src.core.enums import PurchaseType, TransactionStatus
 from src.core.utils.time import datetime_now
 from src.infrastructure.database.models import Transaction
 
@@ -305,3 +305,25 @@ class TransactionDaoImpl(TransactionDao):
             )
             for row in amounts_rows
         ]
+
+    async def has_completed_paid_transaction(
+        self,
+        telegram_id: int,
+        exclude_payment_id: "UUID | None" = None,
+    ) -> bool:
+        """Return True if user has any COMPLETED NEW/RENEW/CHANGE transaction (excluding current)."""
+        paid_types = [PurchaseType.NEW, PurchaseType.RENEW, PurchaseType.CHANGE]
+        stmt = (
+            select(func.count())
+            .select_from(Transaction)
+            .where(
+                Transaction.user_telegram_id == telegram_id,
+                Transaction.status == TransactionStatus.COMPLETED,
+                Transaction.purchase_type.in_(paid_types),
+            )
+        )
+        if exclude_payment_id is not None:
+            stmt = stmt.where(Transaction.payment_id != exclude_payment_id)
+
+        count = await self.session.scalar(stmt) or 0
+        return count > 0
