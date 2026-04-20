@@ -29,6 +29,7 @@ class Subscription(StatesGroup):
     SUCCESS = State()
     FAILED = State()
     TRIAL = State()
+    TRAFFIC_RESET_CONFIRM = State()
 
 
 class Dashboard(StatesGroup):

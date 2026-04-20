@@ -125,14 +125,15 @@ async def check_yandex_traffic(
                 period_start=_month_start(now),
             )
 
-        quota.used_bytes = user_traffic
+        effective_traffic = max(0, user_traffic - quota.reset_baseline_bytes)
+        quota.used_bytes = effective_traffic
         quota.last_checked_at = now
 
-        used_gb = user_traffic / 1024**3
+        used_gb = effective_traffic / 1024**3
         limit_gb = yandex.monthly_limit_gb
 
         # Warning at 80%
-        if user_traffic >= warn_threshold and quota.warned_at is None:
+        if effective_traffic >= warn_threshold and quota.warned_at is None:
             logger.info(
                 f"[YandexQuota] {'[DRY-RUN] Would warn' if dry_run else 'Warning'} "
                 f"user {tid} ({used_gb:.1f} GB / {limit_gb} GB)"
@@ -150,7 +151,7 @@ async def check_yandex_traffic(
                 quota.warned_at = now  # only mark as warned after real notification
 
         # Block at 100%
-        if user_traffic > limit_bytes and not quota.is_restricted:
+        if effective_traffic > limit_bytes and not quota.is_restricted:
             logger.info(
                 f"[YandexQuota] {'[DRY-RUN] Would restrict' if dry_run else 'Restricting'} "
                 f"user {tid} ({used_gb:.1f} GB / {limit_gb} GB)"
@@ -233,16 +234,18 @@ async def reset_yandex_monthly(
 
         quota.is_restricted = False
         quota.used_bytes = 0
+        quota.reset_baseline_bytes = 0
         quota.period_start = new_period_start
         quota.warned_at = None
         quota.restricted_at = None
         await quota_dao.upsert(quota)
 
-    # Clear warned_at for non-restricted users so they get a fresh warning next month
+    # Clear warned_at and baseline for non-restricted users so they get a fresh warning next month
     all_quotas = await quota_dao.get_all()
     warned_non_restricted = [q for q in all_quotas if not q.is_restricted and q.warned_at is not None]
     for quota in warned_non_restricted:
         quota.warned_at = None
+        quota.reset_baseline_bytes = 0
         quota.period_start = new_period_start
         await quota_dao.upsert(quota)
     if warned_non_restricted:

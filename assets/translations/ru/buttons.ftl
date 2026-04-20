@@ -474,10 +474,12 @@ btn-subscription =
     .back-payment-method = ⬅️ Изменить способ оплаты
     .connect = ⚡ Подключиться
 
-    .duration = { $period } | { $final_amount -> 
+    .duration = { $period } | { $final_amount ->
     [0] 🎁
     *[HAS] { $final_amount }{ $currency }
     }
+    .traffic-reset = 🔴 Сброс трафика 4G/LTE — { $price } ₽
+    .traffic-reset-gateway = { gateway-type } — { $price } { $currency }
 
 btn-promocode =
     .code = 🏷️ Код

@@ -809,6 +809,7 @@ async def on_yandex_quota_reset(
         )
 
     was_restricted = quota.is_restricted
+    quota.reset_baseline_bytes += quota.used_bytes
     quota.used_bytes = 0
     quota.warned_at = None
     quota.restricted_at = None

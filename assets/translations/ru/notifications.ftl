@@ -161,3 +161,6 @@ ntf-devices =
     .deleted = ✅ <i>Устройство удалено.</i>
     .all-deleted = ✅ <i>Все устройства удалены.</i>
     .reissued = ✅ <i>Подписка успешно перевыпущена.</i>
+
+ntf-yandex =
+    .reset-purchased = ✅ <i>Счётчик трафика 4G/LTE успешно сброшен!</i>

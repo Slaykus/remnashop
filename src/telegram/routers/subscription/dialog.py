@@ -20,6 +20,7 @@ from .getters import (
     plans_getter,
     subscription_getter,
     success_payment_getter,
+    traffic_reset_getter,
 )
 from .handlers import (
     on_duration_select,
@@ -27,6 +28,8 @@ from .handlers import (
     on_payment_method_select,
     on_plan_select,
     on_subscription_plans,
+    on_traffic_reset_click,
+    on_traffic_reset_gateway_select,
 )
 
 subscription = Window(
@@ -50,6 +53,14 @@ subscription = Window(
             id=f"{PAYMENT_PREFIX}{PurchaseType.CHANGE}",
             on_click=on_subscription_plans,
             when=F["has_active_subscription"],
+        ),
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-subscription.traffic-reset", price=F["yandex_reset_price"]),
+            id="traffic_reset",
+            on_click=on_traffic_reset_click,
+            when=F["yandex_reset_available"],
         ),
     ),
     # Row(
@@ -267,6 +278,46 @@ failed = Window(
     state=Subscription.FAILED,
 )
 
+traffic_reset_confirm = Window(
+    Banner(BannerName.SUBSCRIPTION),
+    I18nFormat("msg-subscription-traffic-reset-confirm"),
+    Column(
+        Select(
+            text=I18nFormat(
+                "btn-subscription.traffic-reset-gateway",
+                gateway_type=F["item"]["gateway_type"],
+                price=F["item"]["price"],
+                currency=F["item"]["currency"],
+            ),
+            id="tr_payment",
+            item_id_getter=lambda item: item["gateway_type"],
+            items="tr_gateways",
+            type_factory=PaymentGatewayType,
+            on_click=on_traffic_reset_gateway_select,
+            when=~F["tr_url_has"],
+        ),
+    ),
+    Row(
+        Url(
+            text=I18nFormat("btn-subscription.pay"),
+            url=Format("{tr_url}"),
+            when=F["tr_url_has"],
+            style=Style(ButtonStyle.SUCCESS),
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="tr_back",
+            state=Subscription.MAIN,
+        ),
+    ),
+    *back_main_menu_button,
+    IgnoreUpdate(),
+    state=Subscription.TRAFFIC_RESET_CONFIRM,
+    getter=traffic_reset_getter,
+)
+
 router = Dialog(
     subscription,
     plan,
@@ -277,4 +328,5 @@ router = Dialog(
     success_payment,
     success_trial,
     failed,
+    traffic_reset_confirm,
 )

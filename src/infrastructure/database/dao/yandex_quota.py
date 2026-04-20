@@ -47,6 +47,7 @@ class YandexQuotaDaoImpl(YandexQuotaDao, BaseDaoImpl):
             "is_restricted": dto.is_restricted,
             "period_start": dto.period_start,
             "used_bytes": dto.used_bytes,
+            "reset_baseline_bytes": dto.reset_baseline_bytes,
             "last_checked_at": dto.last_checked_at,
             "warned_at": dto.warned_at,
             "restricted_at": dto.restricted_at,

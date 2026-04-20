@@ -53,6 +53,10 @@ from src.application.use_cases.subscription.commands.purchase import (
     PurchaseSubscription,
     PurchaseSubscriptionDto,
 )
+from src.application.use_cases.yandex.commands.reset_purchase import (
+    PurchaseTrafficReset,
+    PurchaseTrafficResetDto,
+)
 from src.core.enums import Currency, PaymentGatewayType, PurchaseType, TransactionStatus
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
@@ -248,6 +252,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         i18n: TranslatorRunner,
         assign_referral_rewards: AssignReferralRewards,
         purchase_subscription: PurchaseSubscription,
+        purchase_traffic_reset: PurchaseTrafficReset,
     ) -> None:
         self.uow = uow
         self.user_dao = user_dao
@@ -259,6 +264,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         self.i18n = i18n
         self.assign_referral_rewards = assign_referral_rewards
         self.purchase_subscription = purchase_subscription
+        self.purchase_traffic_reset = purchase_traffic_reset
 
     async def _execute(self, actor: UserDto, data: ProcessPaymentDto) -> None:
         payment_id = data.payment_id
@@ -304,6 +310,10 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
     async def _handle_success(self, user: UserDto, transaction: TransactionDto) -> None:
         if transaction.is_test:
             await self.notifier.notify_user(user, i18n_key="ntf-gateway.test-payment-confirmed")
+            return
+
+        if transaction.purchase_type == PurchaseType.TRAFFIC_RESET:
+            await self.purchase_traffic_reset.system(PurchaseTrafficResetDto(user))
             return
 
         subscription = await self.subscription_dao.get_current(user.telegram_id)

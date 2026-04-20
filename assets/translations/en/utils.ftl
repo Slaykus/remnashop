@@ -357,6 +357,7 @@ purchase-type = { $purchase_type ->
     [NEW] Purchase
     [RENEW] Renewal
     [CHANGE] Change
+    [TRAFFIC_RESET] Traffic Reset
     *[OTHER] { $purchase_type }
 }
 

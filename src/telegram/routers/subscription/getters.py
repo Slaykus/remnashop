@@ -9,6 +9,7 @@ from loguru import logger
 from src.application.common import TranslatorRunner
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
 from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.core.enums import Currency
 from src.application.dto import PlanDto, PriceDetailsDto, UserDto
 from src.application.services import PricingService
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
@@ -42,6 +43,8 @@ async def subscription_getter(
         "has_current_subscription": int(bool(current_subscription)),
         "is_not_unlimited": not is_unlimited,
         "yandex_quota_enabled": 0,
+        "yandex_reset_available": 0,
+        "yandex_reset_price": 0,
         "traffic_limit": None,
         "device_limit": None,
         "expire_time": None,
@@ -68,6 +71,8 @@ async def subscription_getter(
             "yandex_limit_gb": limit_gb,
             "yandex_free_gb": free_gb,
             "yandex_is_restricted": 1 if is_restricted else 0,
+            "yandex_reset_available": 1 if current_subscription else 0,
+            "yandex_reset_price": yandex.reset_price_rub,
         })
 
     return result
@@ -354,4 +359,31 @@ async def success_payment_getter(
         "is_mini_app": config.bot.is_mini_app,
         "connection_url": config.bot.mini_app_url or subscription.url,
         "connectable": True,
+    }
+
+
+@inject
+async def traffic_reset_getter(
+    dialog_manager: DialogManager,
+    config: AppConfig,
+    payment_gateway_dao: FromDishka[PaymentGatewayDao],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    gateways = await payment_gateway_dao.get_active()
+    price_rub = config.yandex.reset_price_rub
+    rub_gateways = [
+        {
+            "gateway_type": gw.type,
+            "price": price_rub,
+            "currency": gw.currency.symbol,
+        }
+        for gw in gateways
+        if gw.currency == Currency.RUB
+    ]
+    tr_url = dialog_manager.dialog_data.get("tr_url")
+    return {
+        "price": price_rub,
+        "tr_gateways": rub_gateways,
+        "tr_url": tr_url or "",
+        "tr_url_has": 1 if tr_url else 0,
     }

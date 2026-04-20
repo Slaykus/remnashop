@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Optional, TypedDict, cast
 
 from adaptix import Retort
@@ -11,6 +12,7 @@ from loguru import logger
 from src.application.common import Notifier
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
 from src.application.dto import PlanDto, PlanSnapshotDto, UserDto
+from src.application.dto.transaction import PriceDetailsDto
 from src.application.services import PricingService
 from src.application.use_cases.gateways.commands.payment import (
     CreatePayment,
@@ -20,6 +22,7 @@ from src.application.use_cases.gateways.commands.payment import (
 )
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
+from src.core.config import AppConfig
 from src.core.constants import PAYMENT_PREFIX, USER_KEY
 from src.core.enums import PaymentGatewayType, PurchaseType, TransactionStatus
 from src.telegram.states import Subscription
@@ -425,3 +428,48 @@ async def on_get_subscription(
     payment_id = dialog_manager.dialog_data["payment_id"]
     logger.info(f"{user.log} Getted free subscription '{payment_id}'")
     await process_payment.system(ProcessPaymentDto(payment_id, TransactionStatus.COMPLETED))
+
+
+async def on_traffic_reset_click(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data.pop("tr_url", None)
+    await dialog_manager.switch_to(state=Subscription.TRAFFIC_RESET_CONFIRM)
+
+
+@inject
+async def on_traffic_reset_gateway_select(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    selected_gateway: PaymentGatewayType,
+    config: FromDishka[AppConfig],
+    notifier: FromDishka[Notifier],
+    create_payment: FromDishka[CreatePayment],
+) -> None:
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    price_rub = config.yandex.reset_price_rub
+    pricing = PriceDetailsDto(
+        final_amount=Decimal(price_rub),
+        original_amount=Decimal(price_rub),
+        discount_percent=0,
+    )
+    plan_snapshot = PlanSnapshotDto.test()
+
+    try:
+        result = await create_payment(
+            user,
+            CreatePaymentDto(
+                plan_snapshot=plan_snapshot,
+                pricing=pricing,
+                purchase_type=PurchaseType.TRAFFIC_RESET,
+                gateway_type=selected_gateway,
+            ),
+        )
+        dialog_manager.dialog_data["tr_url"] = result.url
+        logger.info(f"{user.log} Created traffic reset payment '{result.id}'")
+    except Exception:
+        logger.error(f"{user.log} Failed to create traffic reset payment")
+        await notifier.notify_user(user, i18n_key="ntf-subscription.payment-creation-failed")

@@ -1134,6 +1134,20 @@ msg-subscription-main =
     *[0] { empty }
     }
 
+msg-subscription-traffic-reset-confirm =
+    <b>🔴 Сброс трафика 4G/LTE</b>
+
+    Сбросьте счётчик использованного трафика на сервере 4G/LTE.
+
+    <b>Стоимость:</b> { $price } ₽
+
+    После успешной оплаты счётчик будет немедленно обнулён, и вы снова получите доступ к полному лимиту.
+
+    { $tr_url_has ->
+    [1] ✅ Платёж создан. Нажмите кнопку ниже для оплаты.
+    *[0] Выберите способ оплаты:
+    }
+
 msg-subscription-plans = <b>📦 Выберите план</b>
 msg-subscription-new-success = Чтобы начать пользоваться нашим сервисом, нажмите кнопку <code>`{ btn-subscription.connect }`</code> и следуйте инструкциям!
 msg-subscription-renew-success = Ваша подписка продлена на { $added_duration }.

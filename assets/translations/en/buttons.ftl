@@ -468,6 +468,8 @@ btn-subscription =
     [0] 🎁
     *[HAS] { $final_amount }{ $currency }
     }
+    .traffic-reset = 🔴 Traffic Reset 4G/LTE — { $price } ₽
+    .traffic-reset-gateway = { gateway-type } — { $price } { $currency }
 
 btn-promocode =
     .code = 🏷️ Code

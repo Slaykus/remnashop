@@ -1115,6 +1115,20 @@ msg-subscription-main =
     *[0] { empty }
     }
 
+msg-subscription-traffic-reset-confirm =
+    <b>🔴 4G/LTE Traffic Reset</b>
+
+    Reset your used traffic counter for the 4G/LTE server.
+
+    <b>Cost:</b> { $price } ₽
+
+    After successful payment, your counter will be reset immediately and you will regain access to your full monthly limit.
+
+    { $tr_url_has ->
+    [1] ✅ Payment created. Click the button below to pay.
+    *[0] Select a payment method:
+    }
+
 msg-subscription-plans = <b>📦 Select a plan</b>
 msg-subscription-new-success = To start using our service, click the <code>`{ btn-subscription.connect }`</code> button and follow the instructions!
 msg-subscription-renew-success = Your subscription has been extended by { $added_duration }.

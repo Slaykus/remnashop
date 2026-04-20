@@ -98,6 +98,7 @@ class PurchaseType(UpperStrEnum):
     NEW = auto()
     RENEW = auto()
     CHANGE = auto()
+    TRAFFIC_RESET = auto()
 
 
 class TransactionStatus(UpperStrEnum):

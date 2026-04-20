@@ -22,6 +22,7 @@ class UserYandexQuota(BaseSql, TimestampMixin):
     is_restricted: Mapped[bool] = mapped_column(Boolean, default=False)
     period_start: Mapped[datetime]
     used_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    reset_baseline_bytes: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
 
     last_checked_at: Mapped[Optional[datetime]]
     warned_at: Mapped[Optional[datetime]]

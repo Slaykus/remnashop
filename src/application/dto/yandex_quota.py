@@ -11,6 +11,7 @@ class UserYandexQuotaDto(BaseDto):
     is_restricted: bool = False
     period_start: datetime
     used_bytes: int = 0
+    reset_baseline_bytes: int = 0
     last_checked_at: Optional[datetime] = None
     warned_at: Optional[datetime] = None
     restricted_at: Optional[datetime] = None
