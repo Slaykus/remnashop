@@ -71,7 +71,8 @@ async def main(dry_run: bool) -> None:
 
     engine = create_async_engine(db_url, echo=False)
 
-    # Query: for each referrer, count distinct referred users who have ≥1 NEW COMPLETED tx
+    # Query: for each referrer, count distinct referred users who have ≥1 COMPLETED paid tx
+    # Counts NEW, RENEW, CHANGE — user is considered "active" if they paid anything
     count_query = sa.text("""
         SELECT
             r.referrer_telegram_id,
@@ -81,7 +82,7 @@ async def main(dry_run: bool) -> None:
           AND EXISTS (
               SELECT 1 FROM transactions t
               WHERE t.user_telegram_id = r.referred_telegram_id
-                AND t.purchase_type = 'NEW'
+                AND t.purchase_type IN ('NEW', 'RENEW', 'CHANGE')
                 AND t.status = 'COMPLETED'
           )
         GROUP BY r.referrer_telegram_id
