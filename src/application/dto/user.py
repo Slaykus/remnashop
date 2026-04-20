@@ -44,6 +44,8 @@ class UserDto(BaseDto, TrackableMixin, TimestampMixin):
     purchase_discount: int = 0
     points: int = 0
 
+    paid_referrals_count: int = 0
+
     is_blocked: bool = False
     is_bot_blocked: bool = False
     is_rules_accepted: bool = False

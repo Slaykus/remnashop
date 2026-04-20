@@ -26,6 +26,8 @@ class User(BaseSql, TimestampMixin):
     purchase_discount: Mapped[int]
     points: Mapped[int]
 
+    paid_referrals_count: Mapped[int] = mapped_column(default=0, server_default="0")
+
     is_blocked: Mapped[bool]
     is_bot_blocked: Mapped[bool]
     is_rules_accepted: Mapped[bool]

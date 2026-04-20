@@ -176,3 +176,32 @@ class ReferralRewardFailedEvent(ReferralRewardEvent):
     @property
     def event_key(self) -> str:
         return "event-referral.reward-failed"
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReferralMilestoneEvent(UserEvent):
+    notification_type: NotificationType = field(
+        default=UserNotificationType.REFERRAL_REWARD_RECEIVED,
+        init=True,
+    )
+
+    tier: int
+    paid_referrals_count: int
+    discount: int
+
+    @property
+    def event_key(self) -> str:
+        return "event-referral.milestone"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={
+                "tier": self.tier,
+                "paid_referrals_count": self.paid_referrals_count,
+                "discount": self.discount,
+            },
+            disable_default_markup=False,
+            delete_after=None,
+            message_effect=MessageEffectId.PARTY,
+        )

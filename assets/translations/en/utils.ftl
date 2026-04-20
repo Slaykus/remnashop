@@ -65,9 +65,20 @@ frg-user =
     <blockquote>
     • <b>ID</b>: <code>{ NUMBER($telegram_id, useGrouping: 0) }</code>
     • <b>Name</b>: { $name }
-    { $personal_discount ->
-    [0] { empty }
-    *[HAS] • <b>Your discount</b>: { $personal_discount }%
+    { $referral_tier ->
+    [1] • <b>Status</b>: 💧 Drop
+    [2] • <b>Status</b>: ☁️ Cloud
+    [3] • <b>Status</b>: ⛈️ Storm
+    [4] • <b>Status</b>: 🌧️ Rain
+    *[0] { empty }
+    }
+    { $show_personal_discount ->
+    [1] • <b>Personal discount</b>: { $personal_discount }%
+    *[0] { empty }
+    }
+    { $show_purchase_discount ->
+    [1] • <b>Purchase discount</b>: { $purchase_discount }%
+    *[0] { empty }
     }
     </blockquote>
 

@@ -17,6 +17,7 @@ from .log import LogConfig
 from .redis import RedisConfig
 from .remnawave import RemnawaveConfig
 from .validators import validate_not_change_me
+from .referral_milestones import ReferralMilestonesConfig
 from .yandex import YandexConfig
 
 
@@ -44,6 +45,7 @@ class AppConfig(BaseConfig, env_prefix="APP_"):
     build: BuildConfig = Field(default_factory=BuildConfig)
     log: LogConfig = Field(default_factory=LogConfig)
     yandex: YandexConfig = Field(default_factory=YandexConfig)
+    referral_milestones: ReferralMilestonesConfig = Field(default_factory=ReferralMilestonesConfig)
 
     @property
     def banners_dir(self) -> Path:

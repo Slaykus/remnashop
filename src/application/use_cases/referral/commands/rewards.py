@@ -7,6 +7,10 @@ from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import ReferralRewardDto, TransactionDto, UserDto
 from src.application.events import ReferralRewardFailedEvent, ReferralRewardReceivedEvent
+from src.application.use_cases.referral.commands.milestone import (
+    CheckReferralMilestone,
+    CheckReferralMilestoneDto,
+)
 from src.application.use_cases.referral.queries.calculations import (
     CalculateReferralReward,
     CalculateReferralRewardDto,
@@ -137,6 +141,7 @@ class AssignReferralRewards(Interactor[AssignReferralRewardsDto, None]):
         referral_dao: ReferralDao,
         calculate_referral_reward: CalculateReferralReward,
         give_referrer_reward: GiveReferrerReward,
+        check_referral_milestone: CheckReferralMilestone,
     ) -> None:
         self.uow = uow
         self.settings_dao = settings_dao
@@ -144,6 +149,7 @@ class AssignReferralRewards(Interactor[AssignReferralRewardsDto, None]):
         self.referral_dao = referral_dao
         self.calculate_referral_reward = calculate_referral_reward
         self.give_referrer_reward = give_referrer_reward
+        self.check_referral_milestone = check_referral_milestone
 
     async def _execute(self, actor: UserDto, data: AssignReferralRewardsDto) -> None:
         settings = await self.settings_dao.get()
@@ -222,4 +228,13 @@ class AssignReferralRewards(Interactor[AssignReferralRewardsDto, None]):
             logger.info(
                 f"Issued '{reward_type}' reward '{reward_amount}' for referrer "
                 f"'{referrer.telegram_id}' (level '{level.name}')"
+            )
+
+        # Milestone check: only on first payment by this referred user, for the direct referrer
+        if (
+            data.transaction.purchase_type == PurchaseType.NEW
+            and referral
+        ):
+            await self.check_referral_milestone.system(
+                CheckReferralMilestoneDto(referrer_telegram_id=referral.referrer.telegram_id)
             )

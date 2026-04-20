@@ -19,6 +19,7 @@ from .system import (
 )
 from .user import (
     ReferralAttachedEvent,
+    ReferralMilestoneEvent,
     ReferralRewardFailedEvent,
     ReferralRewardReceivedEvent,
     SubscriptionExpiredEvent,
@@ -50,6 +51,7 @@ __all__ = [
     "UserRegisteredEvent",
     #
     "ReferralAttachedEvent",
+    "ReferralMilestoneEvent",
     "ReferralRewardFailedEvent",
     "ReferralRewardReceivedEvent",
     #

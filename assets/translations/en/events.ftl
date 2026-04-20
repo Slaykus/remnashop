@@ -362,6 +362,22 @@ event-referral =
     <i>Subscribe to receive rewards for invited users.</i>
     </blockquote>
 
+    .milestone =
+    { $tier ->
+    [1] 🎉 <b>New status: 💧 Drop!</b>
+    [2] 🎉 <b>New status: ☁️ Cloud!</b>
+    [3] 🎉 <b>New status: ⛈️ Storm!</b>
+    [4] 🎉 <b>New status: 🌧️ Rain!</b>
+    *[other] 🎉 <b>New status unlocked!</b>
+    }
+
+    <blockquote>
+    You've brought <b>{ $paid_referrals_count } active { $paid_referrals_count ->
+        [one] user
+        *[other] users
+    }</b> — and earned a permanent <b>{ $discount }% discount</b> on all subscriptions!
+    </blockquote>
+
 event-remnashop-welcome =
     <b>🌧️ Rain VPN v{ $version }</b>
 
