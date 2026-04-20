@@ -140,13 +140,16 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
         gateway_instance = await self.get_payment_gateway_instance.system(data.gateway_type)
         i18n = self.translator_hub.get_translator_by_locale(actor.language)
 
-        key, kw = i18n_format_days(data.plan_snapshot.duration)
-        details = i18n.get(
-            "payment-invoice-description",
-            purchase_type=data.purchase_type,
-            name=data.plan_snapshot.name,
-            duration=i18n.get(key, **kw),
-        )
+        if data.purchase_type == PurchaseType.TRAFFIC_RESET:
+            details = i18n.get("payment-invoice-description-traffic-reset")
+        else:
+            key, kw = i18n_format_days(data.plan_snapshot.duration)
+            details = i18n.get(
+                "payment-invoice-description",
+                purchase_type=data.purchase_type,
+                name=data.plan_snapshot.name,
+                duration=i18n.get(key, **kw),
+            )
 
         transaction = TransactionDto(
             payment_id=uuid.uuid4(),

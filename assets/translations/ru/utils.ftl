@@ -9,6 +9,7 @@ unknown = —
 development-promocode = Промокоды еще не реализованы, для мотивации и ускорения разработки можете закинуть монет.
 
 payment-invoice-description = { purchase-type } подписки { $name } на { $duration }
+payment-invoice-description-traffic-reset = Сброс трафика 4G/LTE
 
 inline-invite =
     .title = Rain VPN — стабильный доступ
