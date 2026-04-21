@@ -125,12 +125,12 @@ msg-menu-invite =
     </blockquote>
 
 msg-menu-proxy =
-    📡 <b>Help a friend get into Telegram</b>
+    📡 <b>Telegram proxy</b>
 
-    Telegram blocked? Send this link — one tap and they're connected, no VPN app needed.
+    If a friend's Telegram is blocked — share this link. One tap and Telegram works again. No apps to install.
 
-    • <b>Send via Telegram</b> — if they already have access (via proxy or VPN)
-    • <b>Other messenger</b> — copy the link and send via any other messenger that works
+    • <b>Send via Telegram</b> — pick a chat and share directly
+    • <b>Other messenger</b> — copy the link and send via any app
 
 msg-menu-invite-about =
     <b>💡 Program terms</b>
