@@ -364,8 +364,8 @@ event-referral =
 
     .milestone =
     { $tier ->
-    [1] 🎉 <b>New status: 💧 Drop!</b>
-    [2] 🎉 <b>New status: ☁️ Cloud!</b>
+    [1] 🎉 <b>New status: ☁️ Cloud!</b>
+    [2] 🎉 <b>New status: 🌩️ Storm Cloud!</b>
     [3] 🎉 <b>New status: ⛈️ Storm!</b>
     [4] 🎉 <b>New status: 🌧️ Rain!</b>
     *[other] 🎉 <b>New status unlocked!</b>

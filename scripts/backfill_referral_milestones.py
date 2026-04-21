@@ -46,9 +46,9 @@ def get_tier_label(count: int) -> str:
     if count >= 5:
         return "⛈️ Шторм (3)"
     if count >= 3:
-        return "☁️ Облако (2)"
+        return "🌩️ Туча (2)"
     if count >= 1:
-        return "💧 Капля (1)"
+        return "☁️ Облако (1)"
     return "— (0)"
 
 

@@ -66,8 +66,8 @@ frg-user =
     • <b>ID</b>: <code>{ NUMBER($telegram_id, useGrouping: 0) }</code>
     • <b>Name</b>: { $name }
     { $referral_tier ->
-    [1] • <b>Status</b>: 💧 Drop
-    [2] • <b>Status</b>: ☁️ Cloud
+    [1] • <b>Status</b>: ☁️ Cloud
+    [2] • <b>Status</b>: 🌩️ Storm Cloud
     [3] • <b>Status</b>: ⛈️ Storm
     [4] • <b>Status</b>: 🌧️ Rain
     *[0] { empty }

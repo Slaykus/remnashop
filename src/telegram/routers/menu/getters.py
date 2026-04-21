@@ -198,6 +198,7 @@ async def invite_getter(
     payments = await referral_dao.get_referrals_with_payment_count(user.telegram_id)
     referral_url = await bot_service.get_referral_url(user.referral_code)
     support_url = bot_service.get_support_url(text=i18n.get("message.withdraw-points"))
+    referral_tier = get_tier_for_count(user.paid_referrals_count)
 
     return {
         "reward_type": settings.referral.reward.type,
@@ -208,6 +209,8 @@ async def invite_getter(
         "has_points": True if user.points > 0 else False,
         "referral_url": referral_url,
         "withdraw": support_url,
+        "referral_tier": referral_tier,
+        "personal_discount": user.personal_discount or 0,
     }
 
 

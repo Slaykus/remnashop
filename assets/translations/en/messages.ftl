@@ -106,6 +106,24 @@ msg-menu-invite =
     }
     </blockquote>
 
+    <b>🏆 Status and personal discount:</b>
+    <blockquote>
+    For every invited user who subscribes, you earn a permanent discount on all plans:
+
+    • ☁️ Cloud — <b>5%</b> (1 person)
+    • 🌩️ Storm Cloud — <b>10%</b> (3 people)
+    • ⛈️ Storm — <b>15%</b> (5 people)
+    • 🌧️ Rain — <b>25%</b> (10 people)
+
+    { $referral_tier ->
+    [0] Your status: not yet earned.
+    [1] Your status: ☁️ Cloud — discount <b>{ $personal_discount }%</b>
+    [2] Your status: 🌩️ Storm Cloud — discount <b>{ $personal_discount }%</b>
+    [3] Your status: ⛈️ Storm — discount <b>{ $personal_discount }%</b>
+    *[4] Your status: 🌧️ Rain — discount <b>{ $personal_discount }%</b>
+    }
+    </blockquote>
+
 msg-menu-proxy =
     📡 <b>Help a friend get into Telegram</b>
 
