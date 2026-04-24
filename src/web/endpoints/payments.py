@@ -11,7 +11,7 @@ from src.core.constants import API_V1, PAYMENTS_WEBHOOK_PATH
 from src.core.enums import PaymentGatewayType
 from src.infrastructure.taskiq.tasks.payments import handle_payment_transaction_task
 
-router = APIRouter(prefix=API_V1 + PAYMENTS_WEBHOOK_PATH)
+router = APIRouter(prefix=API_V1 + PAYMENTS_WEBHOOK_PATH, include_in_schema=False)
 
 
 @router.post("/{gateway_type}")

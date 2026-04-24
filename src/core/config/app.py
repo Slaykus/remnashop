@@ -31,6 +31,7 @@ class AppConfig(BaseConfig, env_prefix="APP_"):
     crypt_key: SecretStr
     assets_dir: Path = ASSETS_DIR
     origins: StringList = StringList("")
+    swagger_enabled: bool = False
 
     bot: BotConfig = Field(default_factory=BotConfig)
     remnawave: RemnawaveConfig = Field(default_factory=RemnawaveConfig)

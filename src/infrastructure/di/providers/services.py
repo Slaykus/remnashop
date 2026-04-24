@@ -19,6 +19,7 @@ from src.application.services import (
 from src.infrastructure.services import (
     CryptographerImpl,
     EventBusImpl,
+    HealthService,
     NotificationQueue,
     RedirectImpl,
     RemnawaveImpl,
@@ -29,6 +30,7 @@ class ServicesProvider(Provider):
     scope = Scope.APP
 
     bot = provide(source=BotService)
+    health = provide(source=HealthService)
     cryptographer = provide(source=CryptographerImpl, provides=Cryptographer)
     redirect = provide(source=RedirectImpl, provides=Redirect)
     pricing = provide(source=PricingService)

@@ -1,3 +1,8 @@
+import shutil
+import tempfile
+import zipfile
+from pathlib import Path
+
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button
@@ -16,6 +21,8 @@ from src.core.logger import LOG_FILENAME
 from src.telegram.routers.dashboard.users.user.handlers import start_user_window
 from src.telegram.utils import is_double_click
 
+_TELEGRAM_FILE_SIZE_LIMIT = 50 * 1024 * 1024  # 50 MB
+
 
 @inject
 async def on_logs_request(
@@ -27,19 +34,27 @@ async def on_logs_request(
 ) -> None:
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
 
+    tmp_dir: Path | None = None
     try:
         log_file = await get_logs(user)
-        media = MediaDescriptorDto(
-            kind="fs",
-            value=str(log_file.path),
-            filename=log_file.display_name,
-        )
+
+        send_path = log_file.path
+        send_name = log_file.display_name
+
+        if send_path.stat().st_size > _TELEGRAM_FILE_SIZE_LIMIT:
+            tmp_dir = Path(tempfile.mkdtemp())
+            zip_path = tmp_dir / f"{log_file.display_name}.zip"
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(send_path, log_file.display_name)
+            send_path = zip_path
+            send_name = zip_path.name
+            logger.info(f"{user.log} Log file compressed to zip before sending")
 
         await notifier.notify_user(
             user=user,
             payload=MessagePayloadDto(
                 i18n_key="",
-                media=media,
+                media=MediaDescriptorDto(kind="fs", value=str(send_path), filename=send_name),
                 media_type=MediaType.DOCUMENT,
                 delete_after=None,
                 disable_default_markup=False,
@@ -51,6 +66,9 @@ async def on_logs_request(
     except LogsToFileDisabledError:
         logger.debug(f"Logs request denied for '{user.telegram_id}': file logging is off")
         await notifier.notify_user(user, i18n_key="ntf-error.logs-disabled")
+    finally:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @inject

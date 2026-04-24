@@ -87,7 +87,6 @@ class HeleketGatewaySettingsDto(GatewaySettingsDto):
 @dataclass(kw_only=True)
 class CryptoPayGatewaySettingsDto(GatewaySettingsDto):
     type: Literal[PaymentGatewayType.CRYPTOPAY] = PaymentGatewayType.CRYPTOPAY
-    shop_id: Optional[str] = None
     api_key: Optional[SecretStr] = None
 
 

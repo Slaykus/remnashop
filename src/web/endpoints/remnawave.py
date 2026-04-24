@@ -13,7 +13,7 @@ from src.application.services import RemnaWebhookService
 from src.core.config import AppConfig
 from src.core.constants import API_V1, REMNAWAVE_WEBHOOK_PATH
 
-router = APIRouter(prefix=API_V1)
+router = APIRouter(prefix=API_V1, include_in_schema=False)
 
 
 @router.post(REMNAWAVE_WEBHOOK_PATH)
