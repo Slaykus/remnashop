@@ -162,8 +162,6 @@ async def _check_yandex_traffic(
             subscription_dao=subscription_dao,
             quota_dao=quota_dao,
             uow=uow,
-            bot=bot,
-            i18n=i18n,
         )
 
     traffic: dict[str, int] = defaultdict(int)
@@ -209,11 +207,11 @@ async def _check_yandex_traffic(
                 if owner_id:
                     await bot.send_message(
                         owner_id,
-                        i18n.get(
-                            "ntf-yandex.circuit-breaker",
-                            would_restrict=would_restrict,
-                            total_users=len(active_subs),
-                        ),
+                        "⚠️ <b>Сработал circuit breaker для Яндекс-квоты</b>\n\n"
+                        f"{would_restrict} из {len(active_subs)} активных пользователей "
+                        "превышают лимит. Проверьте статистику трафика Яндекса перед "
+                        "продолжением ограничений.",
+                        parse_mode=ParseMode.HTML,
                     )
             except Exception as e:
                 logger.error(f"[YandexQuota] Failed to notify admin: {e}")
@@ -305,8 +303,6 @@ async def reset_yandex_monthly(
     subscription_dao: FromDishka[SubscriptionDao],
     quota_dao: FromDishka[YandexQuotaDao],
     uow: FromDishka[UnitOfWork],
-    bot: FromDishka[Bot],
-    i18n: FromDishka[TranslatorRunner],
     redis: FromDishka[Redis],
 ) -> None:
     token = await _acquire_yandex_quota_lock(
@@ -326,8 +322,6 @@ async def reset_yandex_monthly(
             subscription_dao=subscription_dao,
             quota_dao=quota_dao,
             uow=uow,
-            bot=bot,
-            i18n=i18n,
         )
     finally:
         await _release_yandex_quota_lock(redis, token)
@@ -339,8 +333,6 @@ async def _reset_yandex_monthly(
     subscription_dao: SubscriptionDao,
     quota_dao: YandexQuotaDao,
     uow: UnitOfWork,
-    bot: Bot,
-    i18n: TranslatorRunner,
 ) -> None:
     yandex = config.yandex
 
@@ -358,9 +350,6 @@ async def _reset_yandex_monthly(
 
     all_quotas = await quota_dao.get_all()
     restricted = [quota for quota in all_quotas if quota.is_restricted]
-    warned_non_restricted = [
-        quota for quota in all_quotas if not quota.is_restricted and quota.warned_at is not None
-    ]
     logger.info(
         f"[YandexQuota] Monthly reset: {len(all_quotas)} quota records, "
         f"{len(restricted)} restricted users to restore"
@@ -369,7 +358,6 @@ async def _reset_yandex_monthly(
     # Close the read-only transaction before slow external API and Telegram calls.
     await uow.commit()
 
-    monthly_reset_text = i18n.get("ntf-yandex.monthly-reset")
     keep_restricted_ids: list[int] = []
 
     for quota in restricted:
@@ -393,20 +381,9 @@ async def _reset_yandex_monthly(
 
         try:
             await remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
-            await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
         except Exception as e:
             logger.error(f"[YandexQuota] Failed to restore user {tid}: {e}")
             keep_restricted_ids.append(tid)
-
-    for quota in warned_non_restricted:
-        tid = quota.user_telegram_id
-        if dry_run:
-            continue
-
-        try:
-            await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
-        except Exception as e:
-            logger.warning(f"[YandexQuota] Could not notify warned user {tid}: {e}")
 
     if dry_run:
         logger.info("[YandexQuota] Monthly reset dry-run complete; no records were changed")

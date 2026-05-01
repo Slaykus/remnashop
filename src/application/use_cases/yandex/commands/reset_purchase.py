@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from html import escape
 from uuid import UUID
 
 from loguru import logger
@@ -95,14 +96,16 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
 
         await self.notifier.notify_admins(
             MessagePayloadDto(
-                i18n_key="ntf-yandex.reset-purchased-system",
+                i18n_key="ntf-broadcast.message",
                 i18n_kwargs={
-                    "telegram_id": user.telegram_id,
-                    "name": user.name,
-                    "username": user.username or "-",
-                    "price": yandex.reset_price_rub,
-                    "used_gb": f"{used_bytes_before_reset / 1024**3:.1f}",
-                    "was_restricted": int(was_restricted),
+                    "content": (
+                        "💳 <b>Платный сброс трафика Яндекс</b>\n\n"
+                        f"Пользователь: <code>{user.telegram_id}</code> "
+                        f"({escape(user.name)}, @{escape(user.username or '-')})\n"
+                        f"Сумма: <b>{yandex.reset_price_rub} ₽</b>\n"
+                        f"Сброшено трафика: <b>{used_bytes_before_reset / 1024**3:.1f} ГБ</b>\n"
+                        f"Был ограничен: {'да' if was_restricted else 'нет'}"
+                    ),
                 },
                 disable_default_markup=False,
                 delete_after=None,

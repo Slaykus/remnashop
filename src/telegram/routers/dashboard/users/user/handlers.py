@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from html import escape
 from typing import Union
 from uuid import UUID
 
@@ -831,19 +832,21 @@ async def on_yandex_quota_reset(
     await uow.commit()
 
     target_user = await user_dao.get_by_telegram_id(target_telegram_id)
+    target_name = target_user.name if target_user else "-"
+    target_username = target_user.username if target_user and target_user.username else "-"
     await notifier.notify_admins(
         MessagePayloadDto(
-            i18n_key="ntf-yandex.reset-by-admin-system",
+            i18n_key="ntf-broadcast.message",
             i18n_kwargs={
-                "admin_telegram_id": user.telegram_id,
-                "admin_name": user.name,
-                "target_telegram_id": target_telegram_id,
-                "target_name": target_user.name if target_user else "-",
-                "target_username": (
-                    target_user.username if target_user and target_user.username else "-"
+                "content": (
+                    "🛠 <b>Сброс трафика Яндекс администратором</b>\n\n"
+                    f"Администратор: <code>{user.telegram_id}</code> "
+                    f"({escape(user.name)})\n"
+                    f"Пользователь: <code>{target_telegram_id}</code> "
+                    f"({escape(target_name)}, @{escape(target_username)})\n"
+                    f"Сброшено трафика: <b>{used_bytes_before_reset / 1024**3:.1f} ГБ</b>\n"
+                    f"Был ограничен: {'да' if was_restricted else 'нет'}"
                 ),
-                "used_gb": f"{used_bytes_before_reset / 1024**3:.1f}",
-                "was_restricted": int(was_restricted),
             },
             disable_default_markup=False,
             delete_after=None,
