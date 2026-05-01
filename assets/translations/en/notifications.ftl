@@ -165,6 +165,28 @@ ntf-devices =
 ntf-yandex =
     .reset-purchased = ✅ <i>4G/LTE traffic counter has been reset!</i>
 
+    .reset-purchased-system =
+💳 <b>Paid Yandex traffic reset</b>
+
+User: <code>{ $telegram_id }</code> ({ $name }, @{ $username })
+Amount: <b>{ $price } ₽</b>
+Reset traffic: <b>{ $used_gb } GB</b>
+Was restricted: { $was_restricted ->
+    [1] yes
+    *[0] no
+}
+
+    .reset-by-admin-system =
+🛠 <b>Yandex traffic reset by administrator</b>
+
+Administrator: <code>{ $admin_telegram_id }</code> ({ $admin_name })
+User: <code>{ $target_telegram_id }</code> ({ $target_name }, @{ $target_username })
+Reset traffic: <b>{ $used_gb } GB</b>
+Was restricted: { $was_restricted ->
+    [1] yes
+    *[0] no
+}
+
     .warn =
 ⚠️ You have used <b>{ $used_gb } GB</b> out of <b>{ $limit_gb } GB</b> of your monthly limit on the 4G/LTE server.
 
