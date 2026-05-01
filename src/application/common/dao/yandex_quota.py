@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 
 from src.application.dto.yandex_quota import UserYandexQuotaDto
@@ -12,3 +13,9 @@ class YandexQuotaDao(Protocol):
     async def get_all_restricted(self) -> list[UserYandexQuotaDto]: ...
 
     async def get_all(self) -> list[UserYandexQuotaDto]: ...
+
+    async def reset_monthly(
+        self,
+        period_start: datetime,
+        keep_restricted_ids: list[int] | None = None,
+    ) -> int: ...

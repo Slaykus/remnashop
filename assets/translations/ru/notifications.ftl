@@ -165,6 +165,28 @@ ntf-devices =
 ntf-yandex =
     .reset-purchased = ✅ <i>Счётчик трафика 4G/LTE успешно сброшен!</i>
 
+    .reset-purchased-system =
+💳 <b>Платный сброс трафика Яндекс</b>
+
+Пользователь: <code>{ $telegram_id }</code> ({ $name }, @{ $username })
+Сумма: <b>{ $price } ₽</b>
+Сброшено трафика: <b>{ $used_gb } ГБ</b>
+Был ограничен: { $was_restricted ->
+    [1] да
+    *[0] нет
+}
+
+    .reset-by-admin-system =
+🛠 <b>Сброс трафика Яндекс администратором</b>
+
+Администратор: <code>{ $admin_telegram_id }</code> ({ $admin_name })
+Пользователь: <code>{ $target_telegram_id }</code> ({ $target_name }, @{ $target_username })
+Сброшено трафика: <b>{ $used_gb } ГБ</b>
+Был ограничен: { $was_restricted ->
+    [1] да
+    *[0] нет
+}
+
     .warn =
 ⚠️ Вы использовали <b>{ $used_gb } ГБ</b> из <b>{ $limit_gb } ГБ</b> месячного лимита на сервере для 4G/LTE.
 
@@ -182,3 +204,8 @@ ntf-yandex =
 ✅ Начался новый месяц — счётчик трафика 4G/LTE обнулён!
 
 Ваш лимит полностью восстановлен.
+
+    .circuit-breaker =
+⚠️ Сработал circuit breaker для Яндекс-квоты.
+
+{ $would_restrict } из { $total_users } активных пользователей превышают лимит. Проверьте статистику трафика Яндекса перед продолжением ограничений.

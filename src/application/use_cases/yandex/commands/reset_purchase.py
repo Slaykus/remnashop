@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import timezone
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from loguru import logger
@@ -13,6 +12,7 @@ from src.application.dto import UserDto
 from src.application.dto.message_payload import MessagePayloadDto
 from src.application.dto.yandex_quota import UserYandexQuotaDto
 from src.core.config import AppConfig
+from src.core.enums import Role
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,10 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
         yandex = self.config.yandex
 
         if not yandex.enabled or not yandex.squad_uuid:
-            logger.warning(f"[YandexQuota] Traffic reset purchased by {user.telegram_id} but feature disabled")
+            logger.warning(
+                f"[YandexQuota] Traffic reset purchased by {user.telegram_id} "
+                "but feature disabled"
+            )
             return
 
         now = datetime.now(timezone.utc)
@@ -57,6 +60,9 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
                 period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
             )
 
+        used_bytes_before_reset = quota.used_bytes
+        was_restricted = quota.is_restricted
+
         # Restore squad access if user was restricted
         if quota.is_restricted:
             sub = await self.subscription_dao.get_current(user.telegram_id)
@@ -64,7 +70,9 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
                 try:
                     await self.remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
                 except Exception as e:
-                    logger.error(f"[YandexQuota] Failed to restore squad for {user.telegram_id}: {e}")
+                    logger.error(
+                        f"[YandexQuota] Failed to restore squad for {user.telegram_id}: {e}"
+                    )
             quota.is_restricted = False
             quota.restricted_at = None
 
@@ -75,9 +83,29 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
         await self.quota_dao.upsert(quota)
         await self.uow.commit()
 
-        logger.info(f"[YandexQuota] Traffic reset purchased by user {user.telegram_id}, new baseline={quota.reset_baseline_bytes}")
+        logger.info(
+            f"[YandexQuota] Traffic reset purchased by user {user.telegram_id}, "
+            f"new baseline={quota.reset_baseline_bytes}"
+        )
 
         await self.notifier.notify_user(
             user,
             payload=MessagePayloadDto(i18n_key="ntf-yandex.reset-purchased", delete_after=None),
+        )
+
+        await self.notifier.notify_admins(
+            MessagePayloadDto(
+                i18n_key="ntf-yandex.reset-purchased-system",
+                i18n_kwargs={
+                    "telegram_id": user.telegram_id,
+                    "name": user.name,
+                    "username": user.username or "-",
+                    "price": yandex.reset_price_rub,
+                    "used_gb": f"{used_bytes_before_reset / 1024**3:.1f}",
+                    "was_restricted": int(was_restricted),
+                },
+                disable_default_markup=False,
+                delete_after=None,
+            ),
+            roles=[Role.OWNER, Role.DEV, Role.ADMIN],
         )

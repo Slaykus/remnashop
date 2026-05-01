@@ -1,10 +1,10 @@
-from typing import Optional, cast
 from datetime import datetime, timezone
+from typing import Optional, cast
 
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,14 +68,58 @@ class YandexQuotaDaoImpl(YandexQuotaDao, BaseDaoImpl):
         return self._convert(row)  # type: ignore[arg-type]
 
     async def get_all_restricted(self) -> list[UserYandexQuotaDto]:
-        stmt = select(UserYandexQuota).where(UserYandexQuota.is_restricted.is_(True))
+        stmt = (
+            select(UserYandexQuota)
+            .where(UserYandexQuota.is_restricted.is_(True))
+            .order_by(UserYandexQuota.user_telegram_id.asc())
+        )
         result = await self.session.scalars(stmt)
         rows = cast(list, result.all())
         logger.debug(f"[YandexQuota] Found {len(rows)} restricted users")
         return self._convert_list(rows)
 
     async def get_all(self) -> list[UserYandexQuotaDto]:
-        stmt = select(UserYandexQuota)
+        stmt = select(UserYandexQuota).order_by(UserYandexQuota.user_telegram_id.asc())
         result = await self.session.scalars(stmt)
         rows = cast(list, result.all())
         return self._convert_list(rows)
+
+    async def reset_monthly(
+        self,
+        period_start: datetime,
+        keep_restricted_ids: list[int] | None = None,
+    ) -> int:
+        now = datetime.now(timezone.utc)
+        keep_restricted_ids = keep_restricted_ids or []
+
+        values = {
+            "period_start": period_start,
+            "used_bytes": 0,
+            "reset_baseline_bytes": 0,
+            "warned_at": None,
+            "updated_at": now,
+        }
+
+        if keep_restricted_ids:
+            values["is_restricted"] = case(
+                (UserYandexQuota.user_telegram_id.in_(keep_restricted_ids), True),
+                else_=False,
+            )
+            values["restricted_at"] = case(
+                (
+                    UserYandexQuota.user_telegram_id.in_(keep_restricted_ids),
+                    UserYandexQuota.restricted_at,
+                ),
+                else_=None,
+            )
+        else:
+            values["is_restricted"] = False
+            values["restricted_at"] = None
+
+        result = await self.session.execute(update(UserYandexQuota).values(**values))
+        count = cast(int, result.rowcount or 0)  # type: ignore[attr-defined]
+        logger.info(
+            f"[YandexQuota] Monthly reset applied to '{count}' quota records; "
+            f"kept restricted: '{len(keep_restricted_ids)}'"
+        )
+        return count

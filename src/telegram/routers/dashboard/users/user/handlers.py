@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Union
 from uuid import UUID
 
@@ -10,17 +11,13 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
 
-from datetime import datetime, timezone
-from uuid import UUID
-
-from src.application.common import Notifier, Redirect
-from src.application.common import Remnawave
+from src.application.common import Notifier, Redirect, Remnawave
 from src.application.common.dao import PlanDao, SubscriptionDao, TransactionDao, UserDao
 from src.application.common.dao.yandex_quota import YandexQuotaDao
 from src.application.common.uow import UnitOfWork
+from src.application.dto import MessagePayloadDto, UserDto
 from src.application.dto.yandex_quota import UserYandexQuotaDto
 from src.core.config import AppConfig
-from src.application.dto import MessagePayloadDto, UserDto
 from src.application.use_cases.plan.commands.access import (
     ToggleUserPlanAccess,
     ToggleUserPlanAccessDto,
@@ -797,7 +794,10 @@ async def on_yandex_quota_reset(
     yandex_quota_dao: FromDishka[YandexQuotaDao],
     subscription_dao: FromDishka[SubscriptionDao],
     uow: FromDishka[UnitOfWork],
+    notifier: FromDishka[Notifier],
+    user_dao: FromDishka[UserDao],
 ) -> None:
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
     now = datetime.now(timezone.utc)
 
@@ -808,6 +808,7 @@ async def on_yandex_quota_reset(
             period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
         )
 
+    used_bytes_before_reset = quota.used_bytes
     was_restricted = quota.is_restricted
     quota.reset_baseline_bytes += quota.used_bytes
     quota.used_bytes = 0
@@ -818,13 +819,37 @@ async def on_yandex_quota_reset(
         sub = await subscription_dao.get_current(target_telegram_id)
         if sub and sub.user_remna_id:
             try:
-                await remnawave.update_user_squads(sub.user_remna_id, add_squad=UUID(config.yandex.squad_uuid))
+                await remnawave.update_user_squads(
+                    sub.user_remna_id,
+                    add_squad=UUID(config.yandex.squad_uuid),
+                )
             except Exception:
                 pass
         quota.is_restricted = False
 
     await yandex_quota_dao.upsert(quota)
     await uow.commit()
+
+    target_user = await user_dao.get_by_telegram_id(target_telegram_id)
+    await notifier.notify_admins(
+        MessagePayloadDto(
+            i18n_key="ntf-yandex.reset-by-admin-system",
+            i18n_kwargs={
+                "admin_telegram_id": user.telegram_id,
+                "admin_name": user.name,
+                "target_telegram_id": target_telegram_id,
+                "target_name": target_user.name if target_user else "-",
+                "target_username": (
+                    target_user.username if target_user and target_user.username else "-"
+                ),
+                "used_gb": f"{used_bytes_before_reset / 1024**3:.1f}",
+                "was_restricted": int(was_restricted),
+            },
+            disable_default_markup=False,
+            delete_after=None,
+        ),
+        roles=[Role.OWNER, Role.DEV, Role.ADMIN],
+    )
     await callback.answer("✅ Счётчик трафика сброшен")
 
 

@@ -3,24 +3,27 @@ Yandex node traffic quota enforcement.
 
 Architecture:
 - Hourly: check per-user traffic on Yandex nodes via BandwidthStats API
-  - Warn at 80% → send Telegram notification
-  - Block at 100% → remove Yandex squad from user's active_internal_squads
-  - Circuit breaker: abort if >CIRCUIT_BREAKER_PCT% of users would be restricted
-- Monthly (1st of month 00:00): reset quota, restore squad access for all restricted users
+  - Warn at 80% -> send Telegram notification
+  - Block at 100% -> remove Yandex squad from user's active_internal_squads
+  - Circuit breaker: abort if >CIRCUIT_BREAKER_PCT% users would be restricted
+- Monthly (1st of month 00:00): reset quota, restore squad access for restricted users
 
 Safety:
-- YANDEX_DRY_RUN=true by default — logs what would happen but makes no changes
+- YANDEX_DRY_RUN=true by default - logs what would happen but makes no changes
 - Feature disabled entirely when YANDEX_SQUAD_UUID is not set
 """
 
+import asyncio
 from collections import defaultdict
 from datetime import datetime, timezone
-from uuid import UUID
+from typing import Optional
+from uuid import UUID, uuid4
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from dishka.integrations.taskiq import FromDishka, inject
 from loguru import logger
+from redis.asyncio import Redis
 from remnapy import RemnawaveSDK
 
 from src.application.common import Remnawave, TranslatorRunner
@@ -31,12 +34,60 @@ from src.application.dto.yandex_quota import UserYandexQuotaDto
 from src.core.config import AppConfig
 from src.infrastructure.taskiq.broker import broker
 
+YANDEX_QUOTA_LOCK_KEY = "yandex_quota:task_lock"
+
 
 def _month_start(dt: datetime) -> datetime:
     return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-@broker.task(schedule=[{"cron": "0 * * * *"}], retry_on_error=False)
+async def _acquire_yandex_quota_lock(
+    redis: Redis,
+    *,
+    owner: str,
+    ttl_seconds: int,
+    wait_seconds: float = 0.0,
+) -> Optional[str]:
+    token = f"{owner}:{uuid4()}"
+    deadline = asyncio.get_running_loop().time() + wait_seconds
+
+    while True:
+        acquired = await redis.set(
+            name=YANDEX_QUOTA_LOCK_KEY,
+            value=token,
+            ex=ttl_seconds,
+            nx=True,
+        )
+        if acquired:
+            logger.debug(
+                f"[YandexQuota] Acquired task lock '{YANDEX_QUOTA_LOCK_KEY}' for '{owner}'"
+            )
+            return token
+
+        if asyncio.get_running_loop().time() >= deadline:
+            logger.warning(
+                f"[YandexQuota] Task '{owner}' skipped: another Yandex quota task is running"
+            )
+            return None
+
+        await asyncio.sleep(1)
+
+
+async def _release_yandex_quota_lock(redis: Redis, token: str) -> None:
+    script = """
+    if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+    end
+    return 0
+    """
+    try:
+        await redis.eval(script, 1, YANDEX_QUOTA_LOCK_KEY, token)
+        logger.debug(f"[YandexQuota] Released task lock '{YANDEX_QUOTA_LOCK_KEY}'")
+    except Exception as e:
+        logger.error(f"[YandexQuota] Failed to release task lock: {e}")
+
+
+@broker.task(schedule=[{"cron": "5 * * * *"}], retry_on_error=False)
 @inject(patch_module=True)
 async def check_yandex_traffic(
     config: FromDishka[AppConfig],
@@ -47,6 +98,41 @@ async def check_yandex_traffic(
     uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
     i18n: FromDishka[TranslatorRunner],
+    redis: FromDishka[Redis],
+) -> None:
+    token = await _acquire_yandex_quota_lock(
+        redis,
+        owner="check_yandex_traffic",
+        ttl_seconds=55 * 60,
+        wait_seconds=0,
+    )
+    if token is None:
+        return
+
+    try:
+        await _check_yandex_traffic(
+            config=config,
+            sdk=sdk,
+            remnawave=remnawave,
+            subscription_dao=subscription_dao,
+            quota_dao=quota_dao,
+            uow=uow,
+            bot=bot,
+            i18n=i18n,
+        )
+    finally:
+        await _release_yandex_quota_lock(redis, token)
+
+
+async def _check_yandex_traffic(
+    config: AppConfig,
+    sdk: RemnawaveSDK,
+    remnawave: Remnawave,
+    subscription_dao: SubscriptionDao,
+    quota_dao: YandexQuotaDao,
+    uow: UnitOfWork,
+    bot: Bot,
+    i18n: TranslatorRunner,
 ) -> None:
     yandex = config.yandex
 
@@ -60,9 +146,8 @@ async def check_yandex_traffic(
     dry_run = yandex.dry_run
 
     if dry_run:
-        logger.info("[YandexQuota] DRY-RUN mode enabled — no changes will be made")
+        logger.info("[YandexQuota] DRY-RUN mode enabled - no changes will be made")
 
-    # Collect traffic: {user_uuid_str → bytes} across all Yandex nodes
     traffic: dict[str, int] = defaultdict(int)
     month_start_iso = _month_start(now).isoformat()
     now_iso = now.isoformat()
@@ -82,17 +167,17 @@ async def check_yandex_traffic(
             )
         except Exception as e:
             logger.error(f"[YandexQuota] Failed to get stats for node {node_uuid}: {e}")
-            return  # Abort on any API error to avoid partial data
+            return
 
     active_subs = await subscription_dao.get_all_active()
+    active_subs = sorted(active_subs, key=lambda sub: sub.user_telegram_id or 0)
+
     if not active_subs:
         logger.debug("[YandexQuota] No active subscriptions, nothing to check")
         return
 
-    # Circuit breaker: abort if too many users would be blocked
     would_restrict = sum(
-        1 for sub in active_subs
-        if traffic.get(str(sub.user_remna_id), 0) > limit_bytes
+        1 for sub in active_subs if traffic.get(str(sub.user_remna_id), 0) > limit_bytes
     )
     if would_restrict > 0:
         pct = would_restrict / len(active_subs) * 100
@@ -106,9 +191,11 @@ async def check_yandex_traffic(
                 if owner_id:
                     await bot.send_message(
                         owner_id,
-                        f"⚠️ Яндекс-квота: сработал circuit breaker!\n"
-                        f"{would_restrict} из {len(active_subs)} пользователей превышают лимит.\n"
-                        f"Проверьте данные статистики.",
+                        i18n.get(
+                            "ntf-yandex.circuit-breaker",
+                            would_restrict=would_restrict,
+                            total_users=len(active_subs),
+                        ),
                     )
             except Exception as e:
                 logger.error(f"[YandexQuota] Failed to notify admin: {e}")
@@ -134,7 +221,6 @@ async def check_yandex_traffic(
         used_gb = effective_traffic / 1024**3
         limit_gb = yandex.monthly_limit_gb
 
-        # Warning at 80%
         if effective_traffic >= warn_threshold and quota.warned_at is None:
             logger.info(
                 f"[YandexQuota] {'[DRY-RUN] Would warn' if dry_run else 'Warning'} "
@@ -153,9 +239,9 @@ async def check_yandex_traffic(
                     )
                 except Exception as e:
                     logger.warning(f"[YandexQuota] Could not warn user {tid}: {e}")
-                quota.warned_at = now  # only mark as warned after real notification
+                else:
+                    quota.warned_at = now
 
-        # Block at 100%
         if effective_traffic > limit_bytes and not quota.is_restricted:
             logger.info(
                 f"[YandexQuota] {'[DRY-RUN] Would restrict' if dry_run else 'Restricting'} "
@@ -180,11 +266,13 @@ async def check_yandex_traffic(
                     quota.restricted_at = now
                 except Exception as e:
                     logger.error(f"[YandexQuota] Failed to restrict user {tid}: {e}")
-                    continue  # Skip saving quota if restriction failed
+                    continue
 
-        await quota_dao.upsert(quota)
+        if not dry_run:
+            await quota_dao.upsert(quota)
 
-    await uow.commit()
+    if not dry_run:
+        await uow.commit()
     logger.info(
         f"[YandexQuota] Check complete. Active: {len(active_subs)}, "
         f"Over quota: {would_restrict}{'  [DRY-RUN]' if dry_run else ''}"
@@ -201,6 +289,40 @@ async def reset_yandex_monthly(
     uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
     i18n: FromDishka[TranslatorRunner],
+    redis: FromDishka[Redis],
+) -> None:
+    token = await _acquire_yandex_quota_lock(
+        redis,
+        owner="reset_yandex_monthly",
+        ttl_seconds=2 * 60 * 60,
+        wait_seconds=5 * 60,
+    )
+    if token is None:
+        logger.error("[YandexQuota] Monthly reset could not acquire lock")
+        return
+
+    try:
+        await _reset_yandex_monthly(
+            config=config,
+            remnawave=remnawave,
+            subscription_dao=subscription_dao,
+            quota_dao=quota_dao,
+            uow=uow,
+            bot=bot,
+            i18n=i18n,
+        )
+    finally:
+        await _release_yandex_quota_lock(redis, token)
+
+
+async def _reset_yandex_monthly(
+    config: AppConfig,
+    remnawave: Remnawave,
+    subscription_dao: SubscriptionDao,
+    quota_dao: YandexQuotaDao,
+    uow: UnitOfWork,
+    bot: Bot,
+    i18n: TranslatorRunner,
 ) -> None:
     yandex = config.yandex
 
@@ -216,58 +338,69 @@ async def reset_yandex_monthly(
     if dry_run:
         logger.info("[YandexQuota] Monthly reset: DRY-RUN mode enabled")
 
-    restricted = await quota_dao.get_all_restricted()
-    logger.info(f"[YandexQuota] Monthly reset: {len(restricted)} restricted users to restore")
+    all_quotas = await quota_dao.get_all()
+    restricted = [quota for quota in all_quotas if quota.is_restricted]
+    warned_non_restricted = [
+        quota for quota in all_quotas if not quota.is_restricted and quota.warned_at is not None
+    ]
+    logger.info(
+        f"[YandexQuota] Monthly reset: {len(all_quotas)} quota records, "
+        f"{len(restricted)} restricted users to restore"
+    )
+
+    # Close the read-only transaction before slow external API and Telegram calls.
+    await uow.commit()
 
     monthly_reset_text = i18n.get("ntf-yandex.monthly-reset")
+    keep_restricted_ids: list[int] = []
 
     for quota in restricted:
         tid = quota.user_telegram_id
-        sub = await subscription_dao.get_by_telegram_id(tid)
+        sub = await subscription_dao.get_current(tid)
 
-        if sub and sub.user_remna_id:
-            logger.info(
-                f"[YandexQuota] {'[DRY-RUN] Would restore' if dry_run else 'Restoring'} "
-                f"Yandex access for user {tid}"
+        if not sub or not sub.user_remna_id:
+            logger.warning(
+                f"[YandexQuota] No current subscription for restricted user {tid}; "
+                "quota will be reset locally"
             )
-            if not dry_run:
-                try:
-                    await remnawave.update_user_squads(
-                        sub.user_remna_id,
-                        add_squad=squad_uuid,
-                    )
-                    await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
-                except Exception as e:
-                    logger.error(f"[YandexQuota] Failed to restore user {tid}: {e}")
-                    continue
+            continue
 
-        quota.is_restricted = False
-        quota.used_bytes = 0
-        quota.reset_baseline_bytes = 0
-        quota.period_start = new_period_start
-        quota.warned_at = None
-        quota.restricted_at = None
-        await quota_dao.upsert(quota)
-
-    # Clear warned_at and baseline for warned (but not restricted) users + notify them
-    all_quotas = await quota_dao.get_all()
-    warned_non_restricted = [q for q in all_quotas if not q.is_restricted and q.warned_at is not None]
-    for quota in warned_non_restricted:
-        tid = quota.user_telegram_id
-        if not dry_run:
-            try:
-                await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
-            except Exception as e:
-                logger.warning(f"[YandexQuota] Could not notify warned user {tid}: {e}")
-        quota.warned_at = None
-        quota.reset_baseline_bytes = 0
-        quota.period_start = new_period_start
-        await quota_dao.upsert(quota)
-    if warned_non_restricted:
         logger.info(
-            f"[YandexQuota] Monthly reset: cleared warnings and notified "
-            f"{len(warned_non_restricted)} non-restricted users"
+            f"[YandexQuota] {'[DRY-RUN] Would restore' if dry_run else 'Restoring'} "
+            f"Yandex access for user {tid}"
         )
 
+        if dry_run:
+            continue
+
+        try:
+            await remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
+            await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            logger.error(f"[YandexQuota] Failed to restore user {tid}: {e}")
+            keep_restricted_ids.append(tid)
+
+    for quota in warned_non_restricted:
+        tid = quota.user_telegram_id
+        if dry_run:
+            continue
+
+        try:
+            await bot.send_message(tid, monthly_reset_text, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            logger.warning(f"[YandexQuota] Could not notify warned user {tid}: {e}")
+
+    if dry_run:
+        logger.info("[YandexQuota] Monthly reset dry-run complete; no records were changed")
+        return
+
+    reset_count = await quota_dao.reset_monthly(
+        period_start=new_period_start,
+        keep_restricted_ids=keep_restricted_ids,
+    )
     await uow.commit()
-    logger.info("[YandexQuota] Monthly reset complete")
+
+    logger.info(
+        f"[YandexQuota] Monthly reset complete. Reset records: {reset_count}, "
+        f"kept restricted: {len(keep_restricted_ids)}"
+    )
