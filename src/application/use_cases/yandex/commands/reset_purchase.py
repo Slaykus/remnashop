@@ -64,16 +64,20 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
         used_bytes_before_reset = quota.used_bytes
         was_restricted = quota.is_restricted
 
-        # Restore squad access if user was restricted
-        if quota.is_restricted:
-            sub = await self.subscription_dao.get_current(user.telegram_id)
-            if sub and sub.user_remna_id:
-                try:
-                    await self.remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
-                except Exception as e:
-                    logger.error(
-                        f"[YandexQuota] Failed to restore squad for {user.telegram_id}: {e}"
-                    )
+        sub = await self.subscription_dao.get_current(user.telegram_id)
+        squad_restored = False
+        if sub and sub.user_remna_id:
+            try:
+                await self.remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
+                squad_restored = True
+            except Exception as e:
+                logger.error(f"[YandexQuota] Failed to restore squad for {user.telegram_id}: {e}")
+        else:
+            logger.warning(
+                f"[YandexQuota] No current subscription for paid reset user {user.telegram_id}"
+            )
+
+        if not was_restricted or squad_restored:
             quota.is_restricted = False
             quota.restricted_at = None
 

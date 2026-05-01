@@ -814,19 +814,22 @@ async def on_yandex_quota_reset(
     quota.reset_baseline_bytes += quota.used_bytes
     quota.used_bytes = 0
     quota.warned_at = None
-    quota.restricted_at = None
 
-    if was_restricted and config.yandex.enabled and config.yandex.squad_uuid:
+    if config.yandex.enabled and config.yandex.squad_uuid:
         sub = await subscription_dao.get_current(target_telegram_id)
+        squad_restored = False
         if sub and sub.user_remna_id:
             try:
                 await remnawave.update_user_squads(
                     sub.user_remna_id,
                     add_squad=UUID(config.yandex.squad_uuid),
                 )
+                squad_restored = True
             except Exception:
                 pass
-        quota.is_restricted = False
+        if not was_restricted or squad_restored:
+            quota.is_restricted = False
+            quota.restricted_at = None
 
     await yandex_quota_dao.upsert(quota)
     await uow.commit()

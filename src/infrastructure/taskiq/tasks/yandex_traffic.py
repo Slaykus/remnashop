@@ -327,6 +327,33 @@ async def reset_yandex_monthly(
         await _release_yandex_quota_lock(redis, token)
 
 
+@broker.task(retry_on_error=False)
+@inject(patch_module=True)
+async def restore_yandex_squad_for_active_users(
+    config: FromDishka[AppConfig],
+    remnawave: FromDishka[Remnawave],
+    subscription_dao: FromDishka[SubscriptionDao],
+    redis: FromDishka[Redis],
+) -> None:
+    token = await _acquire_yandex_quota_lock(
+        redis,
+        owner="restore_yandex_squad_for_active_users",
+        ttl_seconds=2 * 60 * 60,
+        wait_seconds=0,
+    )
+    if token is None:
+        return
+
+    try:
+        await _restore_yandex_squad_for_active_users(
+            config=config,
+            remnawave=remnawave,
+            subscription_dao=subscription_dao,
+        )
+    finally:
+        await _release_yandex_quota_lock(redis, token)
+
+
 async def _reset_yandex_monthly(
     config: AppConfig,
     remnawave: Remnawave,
@@ -398,4 +425,60 @@ async def _reset_yandex_monthly(
     logger.info(
         f"[YandexQuota] Monthly reset complete. Reset records: {reset_count}, "
         f"kept restricted: {len(keep_restricted_ids)}"
+    )
+
+
+async def _restore_yandex_squad_for_active_users(
+    config: AppConfig,
+    remnawave: Remnawave,
+    subscription_dao: SubscriptionDao,
+) -> None:
+    yandex = config.yandex
+
+    if not yandex.enabled:
+        logger.warning("[YandexQuota] Cannot restore Yandex squad: feature disabled")
+        return
+
+    squad_uuid = UUID(yandex.squad_uuid)  # type: ignore[arg-type]
+    active_subs = await subscription_dao.get_all_active()
+    active_subs = sorted(active_subs, key=lambda sub: sub.user_telegram_id or 0)
+
+    restored = 0
+    skipped = 0
+    failed = 0
+
+    logger.info(
+        f"[YandexQuota] Restoring Yandex squad '{squad_uuid}' for "
+        f"{len(active_subs)} active users"
+    )
+
+    for sub in active_subs:
+        if not sub.user_remna_id:
+            skipped += 1
+            logger.warning(
+                f"[YandexQuota] Skipping user {sub.user_telegram_id}: missing Remnawave UUID"
+            )
+            continue
+
+        if yandex.dry_run:
+            restored += 1
+            logger.info(
+                f"[YandexQuota] [DRY-RUN] Would restore Yandex squad for user "
+                f"{sub.user_telegram_id}"
+            )
+            continue
+
+        try:
+            await remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
+            restored += 1
+        except Exception as e:
+            failed += 1
+            logger.error(
+                f"[YandexQuota] Failed to restore Yandex squad for user "
+                f"{sub.user_telegram_id}: {e}"
+            )
+
+    logger.info(
+        f"[YandexQuota] Yandex squad restore complete. Restored: {restored}, "
+        f"skipped: {skipped}, failed: {failed}"
     )
