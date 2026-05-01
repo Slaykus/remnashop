@@ -148,8 +148,26 @@ async def _check_yandex_traffic(
     if dry_run:
         logger.info("[YandexQuota] DRY-RUN mode enabled - no changes will be made")
 
+    current_period_start = _month_start(now)
+    all_quotas = await quota_dao.get_all()
+    stale_period_count = sum(1 for quota in all_quotas if quota.period_start < current_period_start)
+    if stale_period_count:
+        logger.warning(
+            f"[YandexQuota] Found {stale_period_count} stale quota records before hourly "
+            "check; running monthly reset catch-up"
+        )
+        await _reset_yandex_monthly(
+            config=config,
+            remnawave=remnawave,
+            subscription_dao=subscription_dao,
+            quota_dao=quota_dao,
+            uow=uow,
+            bot=bot,
+            i18n=i18n,
+        )
+
     traffic: dict[str, int] = defaultdict(int)
-    month_start_iso = _month_start(now).isoformat()
+    month_start_iso = current_period_start.isoformat()
     now_iso = now.isoformat()
 
     for node_uuid in yandex.node_uuid_list:
