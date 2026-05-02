@@ -3,8 +3,8 @@ from .base import BaseConfig
 
 # Milestone tier definitions (referrals_needed -> discount_percent, prefix_emoji, prefix_name)
 MILESTONE_TIERS: list[tuple[int, int, str, str]] = [
-    (10, 25, "🌧️", "Дождь"),
-    (5, 15, "⛈️", "Шторм"),
+    (10, 25, "⛈️", "Шторм"),
+    (5, 15, "🌧️", "Дождь"),
     (3, 10, "☁️", "Облако"),
     (1, 5, "💧", "Капля"),
 ]

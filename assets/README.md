@@ -49,8 +49,10 @@ Banner filenames must correspond to the following predefined names, specified in
 
 * **`DEFAULT`**: The default banner, used when a specific banner is not found.
 * **`MENU`**: The main menu banner.
+* **`DEVICES`**: The devices management banner.
 * **`DASHBOARD`**: The dashboard banner.
 * **`SUBSCRIPTION`**: The subscription banner.
+* **`PROMOCODE`**: The promocode banner.
 * **`REFERRAL`**: The referral banner.
 
 ## Example file structure

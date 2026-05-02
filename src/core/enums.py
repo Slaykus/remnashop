@@ -140,6 +140,7 @@ class ReferralRewardStrategy(UpperStrEnum):
 class BannerName(StrEnum):
     DEFAULT = auto()
     MENU = auto()
+    DEVICES = auto()
     DASHBOARD = auto()
     SUBSCRIPTION = auto()
     PROMOCODE = auto()
