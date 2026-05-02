@@ -166,7 +166,7 @@ ntf-yandex =
     .reset-purchased = ✅ <i>Счётчик трафика 4G/LTE успешно сброшен!</i>
 
     .reset-purchased-system =
-        💳 <b>Платный сброс трафика Яндекс</b>
+        💳 <b>Платный сброс трафика 4G/LTE</b>
 
         Пользователь: <code>{ $telegram_id }</code> ({ $name }, @{ $username })
         Сумма: <b>{ $price } ₽</b>
@@ -177,7 +177,7 @@ ntf-yandex =
         }
 
     .reset-by-admin-system =
-        🛠 <b>Сброс трафика Яндекс администратором</b>
+        🛠 <b>Сброс трафика 4G/LTE администратором</b>
 
         Администратор: <code>{ $admin_telegram_id }</code> ({ $admin_name })
         Пользователь: <code>{ $target_telegram_id }</code> ({ $target_name }, @{ $target_username })

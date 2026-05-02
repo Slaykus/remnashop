@@ -166,7 +166,7 @@ ntf-yandex =
     .reset-purchased = ✅ <i>4G/LTE traffic counter has been reset!</i>
 
     .reset-purchased-system =
-        💳 <b>Paid Yandex traffic reset</b>
+        💳 <b>Paid 4G/LTE traffic reset</b>
 
         User: <code>{ $telegram_id }</code> ({ $name }, @{ $username })
         Amount: <b>{ $price } ₽</b>
@@ -177,7 +177,7 @@ ntf-yandex =
         }
 
     .reset-by-admin-system =
-        🛠 <b>Yandex traffic reset by administrator</b>
+        🛠 <b>4G/LTE traffic reset by administrator</b>
 
         Administrator: <code>{ $admin_telegram_id }</code> ({ $admin_name })
         User: <code>{ $target_telegram_id }</code> ({ $target_name }, @{ $target_username })
