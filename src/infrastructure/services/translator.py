@@ -33,7 +33,10 @@ class TranslatorRunnerImpl(TranslatorRunner):
         except KeyNotFoundError:
             if kwargs:
                 raise
-            logger.warning(f"Translation key '{key}' not found, falling back to the key itself")
+            if self._is_translation_key_like(key):
+                logger.warning(
+                    f"Translation key '{key}' not found, falling back to the key itself"
+                )
             text = key
         processed_text = self._postprocess(text)
 
@@ -91,6 +94,10 @@ class TranslatorRunnerImpl(TranslatorRunner):
 
         is_dict_style = isinstance(item, dict) and "key" in item
         return is_tuple_style or is_dict_style
+
+    def _is_translation_key_like(self, key: str) -> bool:
+        pattern = r"[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*"
+        return bool(re.fullmatch(pattern, key))
 
     def _postprocess(self, text: str) -> str:
         text = re.sub(
