@@ -6,8 +6,15 @@ from dishka.integrations.aiogram_dialog import inject
 
 from src.application.common.dao.ad_link import AdLinkDao
 from src.application.services import BotService
-from src.application.use_cases.ad_link.queries.list import GetAdLinkStats, GetAdLinks
+from src.application.use_cases.ad_link.queries.list import (
+    GetAdLinkStats,
+    GetAdLinks,
+    GetAdLinkPeriodStats,
+    GetAdLinkPeriodStatsInput,
+    GetAllAdLinksComparison,
+)
 from src.core.constants import INLINE_QUERY_PROMO_PREFIX, USER_KEY
+from src.telegram.charts import mini_bar
 
 
 @inject
@@ -154,3 +161,84 @@ async def promo_button_style_getter(
     dialog_manager: DialogManager, **kwargs: Any
 ) -> dict[str, Any]:
     return {"new_btn_label": dialog_manager.dialog_data.get("new_btn_label", "")}
+
+
+@inject
+async def analytics_getter(
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    get_ad_link_period_stats: FromDishka[GetAdLinkPeriodStats],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    user = dialog_manager.middleware_data[USER_KEY]
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    days: int = dialog_manager.dialog_data.get("analytics_period_days", 30)
+
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return {}
+
+    stats = await get_ad_link_period_stats(user, GetAdLinkPeriodStatsInput(link_id=link_id, days=days))
+
+    return {
+        "name": link.name,
+        "period_days": days,
+        "is_active_7": int(days == 7),
+        "is_active_30": int(days == 30),
+        "is_active_0": int(days == 0),
+        "unique_clicks": stats.unique_clicks,
+        "bonus_issued_count": stats.bonus_issued_count,
+        "trial_count": stats.trial_count,
+        "paid_count": stats.paid_count,
+        "revenue_rub": int(stats.revenue_rub),
+        "conversion_pct": round(
+            stats.paid_count / stats.unique_clicks * 100, 1
+        ) if stats.unique_clicks > 0 else 0.0,
+    }
+
+
+@inject
+async def comparison_getter(
+    dialog_manager: DialogManager,
+    get_all_comparison: FromDishka[GetAllAdLinksComparison],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    user = dialog_manager.middleware_data[USER_KEY]
+    sort: str = dialog_manager.dialog_data.get("comparison_sort", "revenue")
+
+    items = await get_all_comparison(user)
+
+    sort_key = {
+        "revenue": lambda x: float(x.revenue_rub),
+        "conversion": lambda x: x.conversion_pct,
+        "clicks": lambda x: float(x.unique_clicks),
+    }.get(sort, lambda x: float(x.revenue_rub))
+
+    sorted_items = sorted(items, key=sort_key, reverse=True)
+
+    if sorted_items:
+        max_val = max(sort_key(i) for i in sorted_items)
+    else:
+        max_val = 1.0
+
+    lines = []
+    for item in sorted_items:
+        val = sort_key(item)
+        bar = mini_bar(val, max_val)
+        status = "✅" if item.is_active else "❌"
+        if sort == "revenue":
+            metric_str = f"{int(item.revenue_rub)} ₽"
+        elif sort == "conversion":
+            metric_str = f"{item.conversion_pct}%"
+        else:
+            metric_str = str(item.unique_clicks)
+        lines.append(f"{status} {bar} {metric_str}  <b>{item.name[:20]}</b>")
+
+    return {
+        "comparison_text": "\n".join(lines) if lines else "—",
+        "comparison_sort": sort,
+        "is_sort_revenue": int(sort == "revenue"),
+        "is_sort_conversion": int(sort == "conversion"),
+        "is_sort_clicks": int(sort == "clicks"),
+        "count": len(items),
+    }

@@ -1373,8 +1373,8 @@ msg-advertising-view =
     • Discount: <b>{ $bonus_discount_pct }%</b>
 
     <b>Analytics:</b>
-    • Total clicks: <b>{ $clicks_count }</b>
-    • Unique: <b>{ $unique_clicks }</b>
+    • Visits: <b>{ $clicks_count }</b>
+    • Unique users: <b>{ $unique_clicks }</b>
     • Received bonus: <b>{ $bonus_issued_count }</b>
     • Activated trial: <b>{ $trial_count }</b>
     • Paid: <b>{ $paid_count }</b>
@@ -1443,3 +1443,23 @@ msg-advertising-promo-button-url =
 
 msg-advertising-promo-button-style =
     🎨 Choose button color for <b>{ $new_btn_label }</b>:
+
+msg-advertising-analytics =
+    📊 <b>Analytics — { $name }</b>
+
+    { $period_days ->
+    [0] Period: <b>All time</b>
+    *[other] Period: <b>{ $period_days } days</b>
+    }
+
+    • Unique users: <b>{ $unique_clicks }</b>
+    • Received bonus: <b>{ $bonus_issued_count }</b>
+    • Activated trial: <b>{ $trial_count }</b>
+    • Paid: <b>{ $paid_count }</b>
+    • Revenue: <b>{ $revenue_rub } ₽</b>
+    • Conversion: <b>{ $conversion_pct }%</b>
+
+msg-advertising-comparison =
+    📊 <b>Campaign comparison</b>  ({ $count } links)
+
+    { $comparison_text }

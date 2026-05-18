@@ -12,6 +12,8 @@ from src.telegram.states import DashboardRemnashop, RemnashopAdvertising
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 
 from .getters import (
+    analytics_getter,
+    comparison_getter,
     confirm_delete_getter,
     create_code_getter,
     create_name_getter,
@@ -40,7 +42,12 @@ from .handlers import (
     on_promo_set_style,
     on_promo_set_text,
     on_promo_use_ad_url,
+    on_send_comparison_chart,
+    on_send_funnel_chart,
     on_send_promo_preview,
+    on_send_trend_chart,
+    on_set_analytics_period,
+    on_set_comparison_sort,
     on_toggle_active,
 )
 
@@ -65,6 +72,11 @@ ad_list = Window(
             text=I18nFormat("btn-advertising.create"),
             id="create",
             state=RemnashopAdvertising.CREATE_NAME,
+        ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.comparison"),
+            id="comparison",
+            state=RemnashopAdvertising.COMPARISON,
         ),
     ),
     Row(
@@ -120,6 +132,11 @@ ad_view = Window(
             text=I18nFormat("btn-advertising.promo"),
             id="promo",
             state=RemnashopAdvertising.PROMO,
+        ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.analytics"),
+            id="analytics",
+            state=RemnashopAdvertising.ANALYTICS,
         ),
     ),
     Row(
@@ -440,6 +457,89 @@ ad_promo_button_style = Window(
     getter=promo_button_style_getter,
 )
 
+ad_analytics = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-analytics"),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.analytics-period-7"),
+            id="period_7",
+            on_click=on_set_analytics_period,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.analytics-period-30"),
+            id="period_30",
+            on_click=on_set_analytics_period,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.analytics-period-0"),
+            id="period_0",
+            on_click=on_set_analytics_period,
+        ),
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.analytics-trend"),
+            id="chart_trend",
+            on_click=on_send_trend_chart,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.analytics-funnel"),
+            id="chart_funnel",
+            on_click=on_send_funnel_chart,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.VIEW,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.ANALYTICS,
+    getter=analytics_getter,
+)
+
+ad_comparison = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-comparison"),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.comparison-sort-revenue"),
+            id="sort_revenue",
+            on_click=on_set_comparison_sort,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.comparison-sort-conversion"),
+            id="sort_conversion",
+            on_click=on_set_comparison_sort,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.comparison-sort-clicks"),
+            id="sort_clicks",
+            on_click=on_set_comparison_sort,
+        ),
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.comparison-chart"),
+            id="comparison_chart",
+            on_click=on_send_comparison_chart,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.LIST,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.COMPARISON,
+    getter=comparison_getter,
+)
+
 router = Dialog(
     ad_list,
     ad_view,
@@ -456,4 +556,6 @@ router = Dialog(
     ad_promo_button_label,
     ad_promo_button_url,
     ad_promo_button_style,
+    ad_analytics,
+    ad_comparison,
 )

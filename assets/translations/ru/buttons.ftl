@@ -525,3 +525,32 @@ btn-advertising =
     .promo-style-primary = 🔵 Синяя
     .promo-style-success = 🟢 Зелёная
     .promo-style-danger = 🔴 Красная
+    .analytics = 📊 Аналитика
+    .analytics-period-7 = { $is_active_7 ->
+    [1] ● 7 дней
+    *[0] ○ 7 дней
+    }
+    .analytics-period-30 = { $is_active_30 ->
+    [1] ● 30 дней
+    *[0] ○ 30 дней
+    }
+    .analytics-period-0 = { $is_active_0 ->
+    [1] ● Всё время
+    *[0] ○ Всё время
+    }
+    .analytics-trend = 📈 Тренд кликов
+    .analytics-funnel = 📊 Воронка
+    .comparison = 📊 Сравнить
+    .comparison-sort-revenue = { $is_sort_revenue ->
+    [1] ● Выручка
+    *[0] ○ Выручка
+    }
+    .comparison-sort-conversion = { $is_sort_conversion ->
+    [1] ● Конверсия
+    *[0] ○ Конверсия
+    }
+    .comparison-sort-clicks = { $is_sort_clicks ->
+    [1] ● Клики
+    *[0] ○ Клики
+    }
+    .comparison-chart = 📊 График

@@ -1,6 +1,13 @@
+from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 
-from src.application.dto.ad_link import AdLinkDto, AdLinkStatsDto, AdLinkUserDto
+from src.application.dto.ad_link import (
+    AdLinkComparisonItemDto,
+    AdLinkDailyClickDto,
+    AdLinkDto,
+    AdLinkStatsDto,
+    AdLinkUserDto,
+)
 
 
 @runtime_checkable
@@ -35,3 +42,13 @@ class AdLinkDao(Protocol):
     async def mark_bonus_issued(self, ad_link_id: int, user_telegram_id: int) -> None: ...
 
     async def get_stats(self, ad_link_id: int) -> AdLinkStatsDto: ...
+
+    async def get_stats_since(
+        self, ad_link_id: int, since_date: datetime
+    ) -> AdLinkStatsDto: ...
+
+    async def get_daily_clicks(
+        self, ad_link_id: int, since_date: datetime
+    ) -> list[AdLinkDailyClickDto]: ...
+
+    async def get_all_links_comparison(self) -> list[AdLinkComparisonItemDto]: ...

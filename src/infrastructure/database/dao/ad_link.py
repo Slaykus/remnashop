@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional, cast
 
@@ -10,7 +10,13 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao.ad_link import AdLinkDao
-from src.application.dto.ad_link import AdLinkDto, AdLinkStatsDto, AdLinkUserDto
+from src.application.dto.ad_link import (
+    AdLinkComparisonItemDto,
+    AdLinkDailyClickDto,
+    AdLinkDto,
+    AdLinkStatsDto,
+    AdLinkUserDto,
+)
 from src.infrastructure.database.models.ad_link import AdLink, AdLinkUser
 
 from .base import BaseDaoImpl
@@ -190,3 +196,112 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
             paid_count=int(row["paid_count"] or 0),
             revenue_rub=Decimal(str(row["revenue_rub"] or 0)),
         )
+
+    async def get_stats_since(self, ad_link_id: int, since_date: datetime) -> AdLinkStatsDto:
+        raw = await self.session.execute(
+            text(
+                """
+                SELECT
+                    COUNT(DISTINCT alu.user_telegram_id)
+                        AS unique_clicks,
+                    COUNT(DISTINCT alu.user_telegram_id)
+                        FILTER (WHERE alu.bonus_issued = TRUE)
+                        AS bonus_issued_count,
+                    COUNT(DISTINCT s.user_telegram_id)
+                        FILTER (WHERE s.is_trial = TRUE AND s.created_at >= alu.created_at)
+                        AS trial_count,
+                    COUNT(DISTINCT t.user_telegram_id)
+                        FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
+                        AS paid_count,
+                    COALESCE(
+                        SUM((t.pricing->>'final_amount')::NUMERIC)
+                            FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at),
+                        0
+                    ) AS revenue_rub
+                FROM ad_link_users alu
+                LEFT JOIN subscriptions s
+                    ON s.user_telegram_id = alu.user_telegram_id
+                LEFT JOIN transactions t
+                    ON t.user_telegram_id = alu.user_telegram_id
+                WHERE alu.ad_link_id = :ad_link_id
+                  AND alu.created_at >= :since_date
+                """,
+            ).bindparams(ad_link_id=ad_link_id, since_date=since_date)
+        )
+        row = raw.mappings().one()
+        return AdLinkStatsDto(
+            unique_clicks=int(row["unique_clicks"] or 0),
+            bonus_issued_count=int(row["bonus_issued_count"] or 0),
+            trial_count=int(row["trial_count"] or 0),
+            paid_count=int(row["paid_count"] or 0),
+            revenue_rub=Decimal(str(row["revenue_rub"] or 0)),
+        )
+
+    async def get_daily_clicks(
+        self, ad_link_id: int, since_date: datetime
+    ) -> list[AdLinkDailyClickDto]:
+        raw = await self.session.execute(
+            text(
+                """
+                SELECT
+                    (created_at AT TIME ZONE 'UTC')::date AS day,
+                    COUNT(DISTINCT user_telegram_id) AS unique_clicks
+                FROM ad_link_users
+                WHERE ad_link_id = :ad_link_id
+                  AND created_at >= :since_date
+                GROUP BY day
+                ORDER BY day ASC
+                """,
+            ).bindparams(ad_link_id=ad_link_id, since_date=since_date)
+        )
+        return [
+            AdLinkDailyClickDto(day=row["day"], unique_clicks=int(row["unique_clicks"]))
+            for row in raw.mappings().all()
+        ]
+
+    async def get_all_links_comparison(self) -> list[AdLinkComparisonItemDto]:
+        raw = await self.session.execute(
+            text(
+                """
+                SELECT
+                    al.id,
+                    al.name,
+                    al.code,
+                    al.is_active,
+                    al.clicks_count,
+                    COUNT(DISTINCT alu.user_telegram_id) AS unique_clicks,
+                    COUNT(DISTINCT t.user_telegram_id)
+                        FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
+                        AS paid_count,
+                    COALESCE(
+                        SUM((t.pricing->>'final_amount')::NUMERIC)
+                            FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at),
+                        0
+                    ) AS revenue_rub
+                FROM ad_links al
+                LEFT JOIN ad_link_users alu ON alu.ad_link_id = al.id
+                LEFT JOIN transactions t ON t.user_telegram_id = alu.user_telegram_id
+                GROUP BY al.id, al.name, al.code, al.is_active, al.clicks_count
+                ORDER BY revenue_rub DESC, unique_clicks DESC
+                """,
+            )
+        )
+        items = []
+        for row in raw.mappings().all():
+            unique = int(row["unique_clicks"] or 0)
+            paid = int(row["paid_count"] or 0)
+            conv = round(paid / unique * 100, 1) if unique > 0 else 0.0
+            items.append(
+                AdLinkComparisonItemDto(
+                    id=int(row["id"]),
+                    name=row["name"],
+                    code=row["code"],
+                    is_active=bool(row["is_active"]),
+                    clicks_count=int(row["clicks_count"] or 0),
+                    unique_clicks=unique,
+                    paid_count=paid,
+                    revenue_rub=Decimal(str(row["revenue_rub"] or 0)),
+                    conversion_pct=conv,
+                )
+            )
+        return items

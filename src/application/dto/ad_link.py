@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
@@ -39,3 +39,22 @@ class AdLinkStatsDto:
     trial_count: int = 0
     paid_count: int = 0
     revenue_rub: Decimal = field(default_factory=lambda: Decimal("0"))
+
+
+@dataclass
+class AdLinkDailyClickDto:
+    day: date
+    unique_clicks: int
+
+
+@dataclass
+class AdLinkComparisonItemDto:
+    id: int
+    name: str
+    code: str
+    is_active: bool
+    clicks_count: int
+    unique_clicks: int
+    paid_count: int
+    revenue_rub: Decimal
+    conversion_pct: float = 0.0

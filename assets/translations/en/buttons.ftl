@@ -516,3 +516,32 @@ btn-advertising =
     .promo-style-primary = 🔵 Blue
     .promo-style-success = 🟢 Green
     .promo-style-danger = 🔴 Red
+    .analytics = 📊 Analytics
+    .analytics-period-7 = { $is_active_7 ->
+    [1] ● 7 days
+    *[0] ○ 7 days
+    }
+    .analytics-period-30 = { $is_active_30 ->
+    [1] ● 30 days
+    *[0] ○ 30 days
+    }
+    .analytics-period-0 = { $is_active_0 ->
+    [1] ● All time
+    *[0] ○ All time
+    }
+    .analytics-trend = 📈 Click trend
+    .analytics-funnel = 📊 Funnel
+    .comparison = 📊 Compare
+    .comparison-sort-revenue = { $is_sort_revenue ->
+    [1] ● Revenue
+    *[0] ○ Revenue
+    }
+    .comparison-sort-conversion = { $is_sort_conversion ->
+    [1] ● Conversion
+    *[0] ○ Conversion
+    }
+    .comparison-sort-clicks = { $is_sort_clicks ->
+    [1] ● Clicks
+    *[0] ○ Clicks
+    }
+    .comparison-chart = 📊 Chart

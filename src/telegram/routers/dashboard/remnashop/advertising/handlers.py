@@ -9,6 +9,8 @@ from aiogram_dialog.widgets.kbd import Button
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
+from aiogram.types import BufferedInputFile
+
 from src.application.common import Notifier
 from src.application.common.dao.ad_link import AdLinkDao
 from src.application.dto import UserDto
@@ -22,7 +24,20 @@ from src.application.use_cases.ad_link.commands.crud import (
     UpdateAdLink,
     UpdateAdLinkDto,
 )
+from src.application.use_cases.ad_link.queries.list import (
+    GetAdLinkDailyStats,
+    GetAdLinkDailyStatsInput,
+    GetAdLinkPeriodStats,
+    GetAdLinkPeriodStatsInput,
+    GetAllAdLinksComparison,
+)
 from src.core.constants import USER_KEY
+from src.telegram.charts import (
+    build_comparison_chart,
+    build_daily_clicks_chart,
+    build_funnel_chart,
+    render_chart,
+)
 from src.telegram.states import RemnashopAdvertising
 from src.telegram.utils import is_double_click
 
@@ -443,6 +458,121 @@ async def on_delete_promo_button(
         buttons.pop(index)
     link.promo_buttons = buttons
     await update_ad_link(user, UpdateAdLinkDto(link=link))
+
+
+# ── Analytics handlers ────────────────────────────────────────────────────────
+
+
+async def on_set_analytics_period(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    period_map = {"period_7": 7, "period_30": 30, "period_0": 0}
+    days = period_map.get(widget.widget_id, 30)
+    dialog_manager.dialog_data["analytics_period_days"] = days
+
+
+@inject
+async def on_send_trend_chart(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    get_ad_link_daily_stats: FromDishka[GetAdLinkDailyStats],
+    ad_link_dao: FromDishka[AdLinkDao],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    days: int = dialog_manager.dialog_data.get("analytics_period_days", 30)
+
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link or not callback.message:
+        return
+
+    days_data = await get_ad_link_daily_stats(
+        user, GetAdLinkDailyStatsInput(link_id=link_id, days=days)
+    )
+    if not days_data:
+        await callback.answer("Нет данных за выбранный период", show_alert=False)
+        return
+
+    config = build_daily_clicks_chart(link.name, days_data)
+    png = await render_chart(config)
+    await callback.message.answer_photo(
+        photo=BufferedInputFile(png, filename="trend.png"),
+        caption=f"📈 Тренд кликов — {link.name}",
+    )
+
+
+@inject
+async def on_send_funnel_chart(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    get_ad_link_period_stats: FromDishka[GetAdLinkPeriodStats],
+    ad_link_dao: FromDishka[AdLinkDao],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    days: int = dialog_manager.dialog_data.get("analytics_period_days", 30)
+
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link or not callback.message:
+        return
+
+    stats = await get_ad_link_period_stats(
+        user, GetAdLinkPeriodStatsInput(link_id=link_id, days=days)
+    )
+    config = build_funnel_chart(link.name, stats)
+    png = await render_chart(config)
+    await callback.message.answer_photo(
+        photo=BufferedInputFile(png, filename="funnel.png"),
+        caption=f"📊 Воронка конверсии — {link.name}",
+    )
+
+
+# ── Comparison handlers ────────────────────────────────────────────────────────
+
+
+async def on_set_comparison_sort(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    sort_map = {"sort_revenue": "revenue", "sort_conversion": "conversion", "sort_clicks": "clicks"}
+    dialog_manager.dialog_data["comparison_sort"] = sort_map.get(widget.widget_id, "revenue")
+
+
+@inject
+async def on_send_comparison_chart(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    get_all_comparison: FromDishka[GetAllAdLinksComparison],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    sort: str = dialog_manager.dialog_data.get("comparison_sort", "revenue")
+
+    if not callback.message:
+        return
+
+    items = await get_all_comparison(user)
+    if not items:
+        await callback.answer("Нет данных", show_alert=False)
+        return
+
+    config = build_comparison_chart(items, sort)
+    png = await render_chart(config, width=800, height=max(300, len(items) * 40))
+    metric_label = {"revenue": "Выручка", "conversion": "Конверсия", "clicks": "Клики"}.get(sort, sort)
+    await callback.message.answer_photo(
+        photo=BufferedInputFile(png, filename="comparison.png"),
+        caption=f"📊 Сравнение кампаний — {metric_label}",
+    )
 
 
 @inject

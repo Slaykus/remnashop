@@ -1403,8 +1403,8 @@ msg-advertising-view =
     • Скидка: <b>{ $bonus_discount_pct }%</b>
 
     <b>Аналитика:</b>
-    • Всего кликов: <b>{ $clicks_count }</b>
-    • Уникальных: <b>{ $unique_clicks }</b>
+    • Переходов: <b>{ $clicks_count }</b>
+    • Уник. пользователей: <b>{ $unique_clicks }</b>
     • Получили бонус: <b>{ $bonus_issued_count }</b>
     • Активировали пробный: <b>{ $trial_count }</b>
     • Оплатили: <b>{ $paid_count }</b>
@@ -1473,3 +1473,23 @@ msg-advertising-promo-button-url =
 
 msg-advertising-promo-button-style =
     🎨 Выберите цвет кнопки <b>{ $new_btn_label }</b>:
+
+msg-advertising-analytics =
+    📊 <b>Аналитика — { $name }</b>
+
+    { $period_days ->
+    [0] Период: <b>Всё время</b>
+    *[other] Период: <b>{ $period_days } дней</b>
+    }
+
+    • Уник. пользователей: <b>{ $unique_clicks }</b>
+    • Получили бонус: <b>{ $bonus_issued_count }</b>
+    • Активировали пробный: <b>{ $trial_count }</b>
+    • Оплатили: <b>{ $paid_count }</b>
+    • Выручка: <b>{ $revenue_rub } ₽</b>
+    • Конверсия: <b>{ $conversion_pct }%</b>
+
+msg-advertising-comparison =
+    📊 <b>Сравнение кампаний</b>  ({ $count } ссылок)
+
+    { $comparison_text }

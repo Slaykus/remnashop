@@ -133,6 +133,8 @@ class RemnashopAdvertising(StatesGroup):
     PROMO_BUTTON_LABEL = State()
     PROMO_BUTTON_URL = State()
     PROMO_BUTTON_STYLE = State()
+    ANALYTICS = State()
+    COMPARISON = State()
 
 
 class RemnashopReferral(StatesGroup):
