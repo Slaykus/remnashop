@@ -1,16 +1,16 @@
 """
-Yandex node traffic quota enforcement.
+Node traffic quota enforcement.
 
 Architecture:
-- Hourly: check per-user traffic on Yandex nodes via BandwidthStats API
+- Hourly: check per-user traffic on monitored nodes via BandwidthStats API
   - Warn at 80% -> send Telegram notification
-  - Block at 100% -> remove Yandex squad from user's active_internal_squads
+  - Block at 100% -> remove node squad from user's active_internal_squads
   - Circuit breaker: abort if >CIRCUIT_BREAKER_PCT% users would be restricted
 - Monthly (1st of month 00:00): reset quota, restore squad access for restricted users
 
 Safety:
-- YANDEX_DRY_RUN=true by default - logs what would happen but makes no changes
-- Feature disabled entirely when YANDEX_SQUAD_UUID is not set
+- NODE_QUOTA_DRY_RUN=true by default - logs what would happen but makes no changes
+- Feature disabled entirely when NODE_QUOTA_SQUAD_UUID is not set
 """
 
 import asyncio
@@ -28,20 +28,20 @@ from remnapy import RemnawaveSDK
 
 from src.application.common import Remnawave, TranslatorRunner
 from src.application.common.dao import SubscriptionDao
-from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.dao.node_quota import NodeQuotaDao
 from src.application.common.uow import UnitOfWork
-from src.application.dto.yandex_quota import UserYandexQuotaDto
+from src.application.dto.node_quota import UserNodeQuotaDto
 from src.core.config import AppConfig
 from src.infrastructure.taskiq.broker import broker
 
-YANDEX_QUOTA_LOCK_KEY = "yandex_quota:task_lock"
+NODE_QUOTA_LOCK_KEY = "node_quota:task_lock"
 
 
 def _month_start(dt: datetime) -> datetime:
     return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-async def _acquire_yandex_quota_lock(
+async def _acquire_node_quota_lock(
     redis: Redis,
     *,
     owner: str,
@@ -53,27 +53,27 @@ async def _acquire_yandex_quota_lock(
 
     while True:
         acquired = await redis.set(
-            name=YANDEX_QUOTA_LOCK_KEY,
+            name=NODE_QUOTA_LOCK_KEY,
             value=token,
             ex=ttl_seconds,
             nx=True,
         )
         if acquired:
             logger.debug(
-                f"[YandexQuota] Acquired task lock '{YANDEX_QUOTA_LOCK_KEY}' for '{owner}'"
+                f"[NodeQuota] Acquired task lock '{NODE_QUOTA_LOCK_KEY}' for '{owner}'"
             )
             return token
 
         if asyncio.get_running_loop().time() >= deadline:
             logger.warning(
-                f"[YandexQuota] Task '{owner}' skipped: another Yandex quota task is running"
+                f"[NodeQuota] Task '{owner}' skipped: another node quota task is running"
             )
             return None
 
         await asyncio.sleep(1)
 
 
-async def _release_yandex_quota_lock(redis: Redis, token: str) -> None:
+async def _release_node_quota_lock(redis: Redis, token: str) -> None:
     script = """
     if redis.call("get", KEYS[1]) == ARGV[1] then
         return redis.call("del", KEYS[1])
@@ -81,28 +81,28 @@ async def _release_yandex_quota_lock(redis: Redis, token: str) -> None:
     return 0
     """
     try:
-        await redis.eval(script, 1, YANDEX_QUOTA_LOCK_KEY, token)
-        logger.debug(f"[YandexQuota] Released task lock '{YANDEX_QUOTA_LOCK_KEY}'")
+        await redis.eval(script, 1, NODE_QUOTA_LOCK_KEY, token)
+        logger.debug(f"[NodeQuota] Released task lock '{NODE_QUOTA_LOCK_KEY}'")
     except Exception as e:
-        logger.error(f"[YandexQuota] Failed to release task lock: {e}")
+        logger.error(f"[NodeQuota] Failed to release task lock: {e}")
 
 
 @broker.task(schedule=[{"cron": "5 * * * *"}], retry_on_error=False)
 @inject(patch_module=True)
-async def check_yandex_traffic(
+async def check_node_traffic(
     config: FromDishka[AppConfig],
     sdk: FromDishka[RemnawaveSDK],
     remnawave: FromDishka[Remnawave],
     subscription_dao: FromDishka[SubscriptionDao],
-    quota_dao: FromDishka[YandexQuotaDao],
+    quota_dao: FromDishka[NodeQuotaDao],
     uow: FromDishka[UnitOfWork],
     bot: FromDishka[Bot],
     i18n: FromDishka[TranslatorRunner],
     redis: FromDishka[Redis],
 ) -> None:
-    token = await _acquire_yandex_quota_lock(
+    token = await _acquire_node_quota_lock(
         redis,
-        owner="check_yandex_traffic",
+        owner="check_node_traffic",
         ttl_seconds=55 * 60,
         wait_seconds=0,
     )
@@ -110,7 +110,7 @@ async def check_yandex_traffic(
         return
 
     try:
-        await _check_yandex_traffic(
+        await _check_node_traffic(
             config=config,
             sdk=sdk,
             remnawave=remnawave,
@@ -121,42 +121,42 @@ async def check_yandex_traffic(
             i18n=i18n,
         )
     finally:
-        await _release_yandex_quota_lock(redis, token)
+        await _release_node_quota_lock(redis, token)
 
 
-async def _check_yandex_traffic(
+async def _check_node_traffic(
     config: AppConfig,
     sdk: RemnawaveSDK,
     remnawave: Remnawave,
     subscription_dao: SubscriptionDao,
-    quota_dao: YandexQuotaDao,
+    quota_dao: NodeQuotaDao,
     uow: UnitOfWork,
     bot: Bot,
     i18n: TranslatorRunner,
 ) -> None:
-    yandex = config.yandex
+    node_quota = config.node_quota
 
-    if not yandex.enabled:
-        logger.debug("[YandexQuota] Feature disabled (YANDEX_SQUAD_UUID not set)")
+    if not node_quota.enabled:
+        logger.debug("[NodeQuota] Feature disabled (NODE_QUOTA_SQUAD_UUID not set)")
         return
 
     now = datetime.now(timezone.utc)
-    limit_bytes = yandex.monthly_limit_gb * 1024**3
-    squad_uuid = UUID(yandex.squad_uuid)  # type: ignore[arg-type]
-    dry_run = yandex.dry_run
+    limit_bytes = node_quota.monthly_limit_gb * 1024**3
+    squad_uuid = UUID(node_quota.squad_uuid)  # type: ignore[arg-type]
+    dry_run = node_quota.dry_run
 
     if dry_run:
-        logger.info("[YandexQuota] DRY-RUN mode enabled - no changes will be made")
+        logger.info("[NodeQuota] DRY-RUN mode enabled - no changes will be made")
 
     current_period_start = _month_start(now)
     all_quotas = await quota_dao.get_all()
     stale_period_count = sum(1 for quota in all_quotas if quota.period_start < current_period_start)
     if stale_period_count:
         logger.warning(
-            f"[YandexQuota] Found {stale_period_count} stale quota records before hourly "
+            f"[NodeQuota] Found {stale_period_count} stale quota records before hourly "
             "check; running monthly reset catch-up"
         )
-        await _reset_yandex_monthly(
+        await _reset_node_monthly(
             config=config,
             remnawave=remnawave,
             subscription_dao=subscription_dao,
@@ -168,28 +168,28 @@ async def _check_yandex_traffic(
     month_start_iso = current_period_start.isoformat()
     now_iso = now.isoformat()
 
-    for node_uuid in yandex.node_uuid_list:
+    for node_uuid_str in node_quota.node_uuid_list:
         try:
             result = await sdk.bandwidthstats.get_node_users_usage_legacy_stats(
-                uuid=node_uuid,
+                uuid=node_uuid_str,
                 start=month_start_iso,
                 end=now_iso,
             )
             for item in result.response:
                 traffic[str(item.user_uuid)] += item.total
             logger.info(
-                f"[YandexQuota] Node {node_uuid}: got stats for {len(result.response)} users, "
+                f"[NodeQuota] Node {node_uuid_str}: got stats for {len(result.response)} users, "
                 f"total traffic: {sum(i.total for i in result.response) / 1024**3:.2f} GB"
             )
         except Exception as e:
-            logger.error(f"[YandexQuota] Failed to get stats for node {node_uuid}: {e}")
+            logger.error(f"[NodeQuota] Failed to get stats for node {node_uuid_str}: {e}")
             return
 
     active_subs = await subscription_dao.get_all_active()
     active_subs = sorted(active_subs, key=lambda sub: sub.user_telegram_id or 0)
 
     if not active_subs:
-        logger.debug("[YandexQuota] No active subscriptions, nothing to check")
+        logger.debug("[NodeQuota] No active subscriptions, nothing to check")
         return
 
     would_restrict = sum(
@@ -197,9 +197,9 @@ async def _check_yandex_traffic(
     )
     if would_restrict > 0:
         pct = would_restrict / len(active_subs) * 100
-        if pct > yandex.circuit_breaker_pct:
+        if pct > node_quota.circuit_breaker_pct:
             logger.error(
-                f"[YandexQuota] Circuit breaker: {would_restrict}/{len(active_subs)} "
+                f"[NodeQuota] Circuit breaker: {would_restrict}/{len(active_subs)} "
                 f"users ({pct:.1f}%) exceed quota. Aborting."
             )
             try:
@@ -207,14 +207,14 @@ async def _check_yandex_traffic(
                 if owner_id:
                     await bot.send_message(
                         owner_id,
-                        "⚠️ <b>Сработал circuit breaker для Яндекс-квоты</b>\n\n"
+                        "⚠️ <b>Сработал circuit breaker для квоты трафика нод</b>\n\n"
                         f"{would_restrict} из {len(active_subs)} активных пользователей "
-                        "превышают лимит. Проверьте статистику трафика Яндекса перед "
+                        "превышают лимит. Проверьте статистику трафика перед "
                         "продолжением ограничений.",
                         parse_mode=ParseMode.HTML,
                     )
             except Exception as e:
-                logger.error(f"[YandexQuota] Failed to notify admin: {e}")
+                logger.error(f"[NodeQuota] Failed to notify admin: {e}")
             return
 
     warn_threshold = int(limit_bytes * 0.8)
@@ -225,7 +225,7 @@ async def _check_yandex_traffic(
 
         quota = await quota_dao.get_by_telegram_id(tid)
         if quota is None:
-            quota = UserYandexQuotaDto(
+            quota = UserNodeQuotaDto(
                 user_telegram_id=tid,
                 period_start=_month_start(now),
             )
@@ -235,11 +235,11 @@ async def _check_yandex_traffic(
         quota.last_checked_at = now
 
         used_gb = effective_traffic / 1024**3
-        limit_gb = yandex.monthly_limit_gb
+        limit_gb = node_quota.monthly_limit_gb
 
         if effective_traffic >= warn_threshold and quota.warned_at is None:
             logger.info(
-                f"[YandexQuota] {'[DRY-RUN] Would warn' if dry_run else 'Warning'} "
+                f"[NodeQuota] {'[DRY-RUN] Would warn' if dry_run else 'Warning'} "
                 f"user {tid} ({used_gb:.1f} GB / {limit_gb} GB)"
             )
             if not dry_run:
@@ -247,20 +247,20 @@ async def _check_yandex_traffic(
                     await bot.send_message(
                         tid,
                         i18n.get(
-                            "ntf-yandex.warn",
+                            "ntf-node-quota.warn",
                             used_gb=f"{used_gb:.1f}",
                             limit_gb=str(limit_gb),
                         ),
                         parse_mode=ParseMode.HTML,
                     )
                 except Exception as e:
-                    logger.warning(f"[YandexQuota] Could not warn user {tid}: {e}")
+                    logger.warning(f"[NodeQuota] Could not warn user {tid}: {e}")
                 else:
                     quota.warned_at = now
 
         if effective_traffic > limit_bytes and not quota.is_restricted:
             logger.info(
-                f"[YandexQuota] {'[DRY-RUN] Would restrict' if dry_run else 'Restricting'} "
+                f"[NodeQuota] {'[DRY-RUN] Would restrict' if dry_run else 'Restricting'} "
                 f"user {tid} ({used_gb:.1f} GB / {limit_gb} GB)"
             )
             if not dry_run:
@@ -272,16 +272,16 @@ async def _check_yandex_traffic(
                     await bot.send_message(
                         tid,
                         i18n.get(
-                            "ntf-yandex.limited",
+                            "ntf-node-quota.limited",
                             limit_gb=str(limit_gb),
-                            reset_price=str(yandex.reset_price_rub),
+                            reset_price=str(node_quota.reset_price_rub),
                         ),
                         parse_mode=ParseMode.HTML,
                     )
                     quota.is_restricted = True
                     quota.restricted_at = now
                 except Exception as e:
-                    logger.error(f"[YandexQuota] Failed to restrict user {tid}: {e}")
+                    logger.error(f"[NodeQuota] Failed to restrict user {tid}: {e}")
                     continue
 
         if not dry_run:
@@ -290,33 +290,33 @@ async def _check_yandex_traffic(
     if not dry_run:
         await uow.commit()
     logger.info(
-        f"[YandexQuota] Check complete. Active: {len(active_subs)}, "
+        f"[NodeQuota] Check complete. Active: {len(active_subs)}, "
         f"Over quota: {would_restrict}{'  [DRY-RUN]' if dry_run else ''}"
     )
 
 
 @broker.task(schedule=[{"cron": "0 0 1 * *"}], retry_on_error=False)
 @inject(patch_module=True)
-async def reset_yandex_monthly(
+async def reset_node_monthly(
     config: FromDishka[AppConfig],
     remnawave: FromDishka[Remnawave],
     subscription_dao: FromDishka[SubscriptionDao],
-    quota_dao: FromDishka[YandexQuotaDao],
+    quota_dao: FromDishka[NodeQuotaDao],
     uow: FromDishka[UnitOfWork],
     redis: FromDishka[Redis],
 ) -> None:
-    token = await _acquire_yandex_quota_lock(
+    token = await _acquire_node_quota_lock(
         redis,
-        owner="reset_yandex_monthly",
+        owner="reset_node_monthly",
         ttl_seconds=2 * 60 * 60,
         wait_seconds=5 * 60,
     )
     if token is None:
-        logger.error("[YandexQuota] Monthly reset could not acquire lock")
+        logger.error("[NodeQuota] Monthly reset could not acquire lock")
         return
 
     try:
-        await _reset_yandex_monthly(
+        await _reset_node_monthly(
             config=config,
             remnawave=remnawave,
             subscription_dao=subscription_dao,
@@ -324,20 +324,20 @@ async def reset_yandex_monthly(
             uow=uow,
         )
     finally:
-        await _release_yandex_quota_lock(redis, token)
+        await _release_node_quota_lock(redis, token)
 
 
 @broker.task(retry_on_error=False)
 @inject(patch_module=True)
-async def restore_yandex_squad_for_active_users(
+async def restore_node_squad_for_active_users(
     config: FromDishka[AppConfig],
     remnawave: FromDishka[Remnawave],
     subscription_dao: FromDishka[SubscriptionDao],
     redis: FromDishka[Redis],
 ) -> None:
-    token = await _acquire_yandex_quota_lock(
+    token = await _acquire_node_quota_lock(
         redis,
-        owner="restore_yandex_squad_for_active_users",
+        owner="restore_node_squad_for_active_users",
         ttl_seconds=2 * 60 * 60,
         wait_seconds=0,
     )
@@ -345,40 +345,40 @@ async def restore_yandex_squad_for_active_users(
         return
 
     try:
-        await _restore_yandex_squad_for_active_users(
+        await _restore_node_squad_for_active_users(
             config=config,
             remnawave=remnawave,
             subscription_dao=subscription_dao,
         )
     finally:
-        await _release_yandex_quota_lock(redis, token)
+        await _release_node_quota_lock(redis, token)
 
 
-async def _reset_yandex_monthly(
+async def _reset_node_monthly(
     config: AppConfig,
     remnawave: Remnawave,
     subscription_dao: SubscriptionDao,
-    quota_dao: YandexQuotaDao,
+    quota_dao: NodeQuotaDao,
     uow: UnitOfWork,
 ) -> None:
-    yandex = config.yandex
+    node_quota = config.node_quota
 
-    if not yandex.enabled:
-        logger.debug("[YandexQuota] Monthly reset: feature disabled")
+    if not node_quota.enabled:
+        logger.debug("[NodeQuota] Monthly reset: feature disabled")
         return
 
-    squad_uuid = UUID(yandex.squad_uuid)  # type: ignore[arg-type]
-    dry_run = yandex.dry_run
+    squad_uuid = UUID(node_quota.squad_uuid)  # type: ignore[arg-type]
+    dry_run = node_quota.dry_run
     now = datetime.now(timezone.utc)
     new_period_start = _month_start(now)
 
     if dry_run:
-        logger.info("[YandexQuota] Monthly reset: DRY-RUN mode enabled")
+        logger.info("[NodeQuota] Monthly reset: DRY-RUN mode enabled")
 
     all_quotas = await quota_dao.get_all()
     restricted = [quota for quota in all_quotas if quota.is_restricted]
     logger.info(
-        f"[YandexQuota] Monthly reset: {len(all_quotas)} quota records, "
+        f"[NodeQuota] Monthly reset: {len(all_quotas)} quota records, "
         f"{len(restricted)} restricted users to restore"
     )
 
@@ -393,14 +393,14 @@ async def _reset_yandex_monthly(
 
         if not sub or not sub.user_remna_id:
             logger.warning(
-                f"[YandexQuota] No current subscription for restricted user {tid}; "
+                f"[NodeQuota] No current subscription for restricted user {tid}; "
                 "quota will be reset locally"
             )
             continue
 
         logger.info(
-            f"[YandexQuota] {'[DRY-RUN] Would restore' if dry_run else 'Restoring'} "
-            f"Yandex access for user {tid}"
+            f"[NodeQuota] {'[DRY-RUN] Would restore' if dry_run else 'Restoring'} "
+            f"node squad access for user {tid}"
         )
 
         if dry_run:
@@ -409,11 +409,11 @@ async def _reset_yandex_monthly(
         try:
             await remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
         except Exception as e:
-            logger.error(f"[YandexQuota] Failed to restore user {tid}: {e}")
+            logger.error(f"[NodeQuota] Failed to restore user {tid}: {e}")
             keep_restricted_ids.append(tid)
 
     if dry_run:
-        logger.info("[YandexQuota] Monthly reset dry-run complete; no records were changed")
+        logger.info("[NodeQuota] Monthly reset dry-run complete; no records were changed")
         return
 
     reset_count = await quota_dao.reset_monthly(
@@ -423,23 +423,23 @@ async def _reset_yandex_monthly(
     await uow.commit()
 
     logger.info(
-        f"[YandexQuota] Monthly reset complete. Reset records: {reset_count}, "
+        f"[NodeQuota] Monthly reset complete. Reset records: {reset_count}, "
         f"kept restricted: {len(keep_restricted_ids)}"
     )
 
 
-async def _restore_yandex_squad_for_active_users(
+async def _restore_node_squad_for_active_users(
     config: AppConfig,
     remnawave: Remnawave,
     subscription_dao: SubscriptionDao,
 ) -> None:
-    yandex = config.yandex
+    node_quota = config.node_quota
 
-    if not yandex.enabled:
-        logger.warning("[YandexQuota] Cannot restore Yandex squad: feature disabled")
+    if not node_quota.enabled:
+        logger.warning("[NodeQuota] Cannot restore node squad: feature disabled")
         return
 
-    squad_uuid = UUID(yandex.squad_uuid)  # type: ignore[arg-type]
+    squad_uuid = UUID(node_quota.squad_uuid)  # type: ignore[arg-type]
     active_subs = await subscription_dao.get_all_active()
     active_subs = sorted(active_subs, key=lambda sub: sub.user_telegram_id or 0)
 
@@ -448,7 +448,7 @@ async def _restore_yandex_squad_for_active_users(
     failed = 0
 
     logger.info(
-        f"[YandexQuota] Restoring Yandex squad '{squad_uuid}' for "
+        f"[NodeQuota] Restoring node squad '{squad_uuid}' for "
         f"{len(active_subs)} active users"
     )
 
@@ -456,14 +456,14 @@ async def _restore_yandex_squad_for_active_users(
         if not sub.user_remna_id:
             skipped += 1
             logger.warning(
-                f"[YandexQuota] Skipping user {sub.user_telegram_id}: missing Remnawave UUID"
+                f"[NodeQuota] Skipping user {sub.user_telegram_id}: missing Remnawave UUID"
             )
             continue
 
-        if yandex.dry_run:
+        if node_quota.dry_run:
             restored += 1
             logger.info(
-                f"[YandexQuota] [DRY-RUN] Would restore Yandex squad for user "
+                f"[NodeQuota] [DRY-RUN] Would restore node squad for user "
                 f"{sub.user_telegram_id}"
             )
             continue
@@ -474,11 +474,11 @@ async def _restore_yandex_squad_for_active_users(
         except Exception as e:
             failed += 1
             logger.error(
-                f"[YandexQuota] Failed to restore Yandex squad for user "
+                f"[NodeQuota] Failed to restore node squad for user "
                 f"{sub.user_telegram_id}: {e}"
             )
 
     logger.info(
-        f"[YandexQuota] Yandex squad restore complete. Restored: {restored}, "
+        f"[NodeQuota] Node squad restore complete. Restored: {restored}, "
         f"skipped: {skipped}, failed: {failed}"
     )

@@ -108,7 +108,7 @@ class DashboardUser(StatesGroup):
     SYNC_WAITING = State()
     GIVE_SUBSCRIPTION = State()
     SUBSCRIPTION_DURATION = State()
-    YANDEX_QUOTA = State()
+    NODE_QUOTA = State()
 
 
 class DashboardRemnashop(StatesGroup):

@@ -21,7 +21,7 @@ from remnapy import RemnawaveSDK
 from src.application.common import Remnawave
 from decimal import Decimal
 
-from src.application.common.dao import PlanDao, PaymentGatewayDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, YandexQuotaDao
+from src.application.common.dao import PlanDao, PaymentGatewayDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
 from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
@@ -575,11 +575,11 @@ async def migrate_telegram(
 
 
 # ---------------------------------------------------------------------------
-# Yandex quota
+# Node quota
 # ---------------------------------------------------------------------------
 
 
-class YandexQuotaResponse(BaseModel):
+class NodeQuotaResponse(BaseModel):
     enabled: bool
     limit_gb: float
     used_gb: float
@@ -590,18 +590,18 @@ class YandexQuotaResponse(BaseModel):
 
 
 @router.get(
-    "/yandex-quota/{telegram_id}",
-    response_model=YandexQuotaResponse,
+    "/node-quota/{telegram_id}",
+    response_model=NodeQuotaResponse,
     dependencies=[Depends(verify_internal_key)],
 )
 @inject
-async def get_yandex_quota(
+async def get_node_quota(
     telegram_id: int,
-    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
     config: FromDishka[AppConfig],
-) -> YandexQuotaResponse:
-    if not config.yandex.enabled:
-        return YandexQuotaResponse(
+) -> NodeQuotaResponse:
+    if not config.node_quota.enabled:
+        return NodeQuotaResponse(
             enabled=False,
             limit_gb=0,
             used_gb=0,
@@ -610,12 +610,12 @@ async def get_yandex_quota(
             is_restricted=False,
             period_start=None,
         )
-    quota = await yandex_quota_dao.get_by_telegram_id(telegram_id)
-    limit_gb = float(config.yandex.monthly_limit_gb)
+    quota = await node_quota_dao.get_by_telegram_id(telegram_id)
+    limit_gb = float(config.node_quota.monthly_limit_gb)
     used_bytes = quota.used_bytes if quota else 0
     used_gb = round(used_bytes / 1024**3, 2)
     free_gb = max(round(limit_gb - used_gb, 2), 0)
-    return YandexQuotaResponse(
+    return NodeQuotaResponse(
         enabled=True,
         limit_gb=limit_gb,
         used_gb=used_gb,

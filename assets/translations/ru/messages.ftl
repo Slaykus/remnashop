@@ -645,14 +645,14 @@ msg-user-subscription-internal-squads =
 
     Выберите, какие внутренние группы будут присвоены этому пользователю.
 
-msg-user-yandex-quota =
+msg-user-node-quota =
     <b>🔴 Сервер для 4G/LTE</b>
 
     <blockquote>
     • <b>Нода</b>: 🇷🇺🔴 4G/LTE | Не для Wi-Fi
-    • <b>Лимит</b>: { $yandex_limit_gb } ГБ / мес
-    • <b>Использовано</b>: { $yandex_used_gb } ГБ ({ $yandex_pct }%)
-    • <b>Свободно</b>: { $yandex_free_gb } ГБ
+    • <b>Лимит</b>: { $node_quota_limit_gb } ГБ / мес
+    • <b>Использовано</b>: { $node_quota_used_gb } ГБ ({ $node_quota_pct }%)
+    • <b>Свободно</b>: { $node_quota_free_gb } ГБ
     • <b>Период</b>: с { $period_start }
     • <b>Статус</b>: { $is_restricted ->
     [1] 🚫 Ограничен
@@ -1149,15 +1149,15 @@ msg-subscription-main =
     *[0] { empty }
     }
 
-    { $yandex_quota_enabled ->
+    { $node_quota_enabled ->
     [1]
     <b>🔴 Сервер для 4G/LTE:</b>
     <blockquote>
-    { $yandex_is_restricted ->
+    { $node_quota_is_restricted ->
     [1] • 🚫 Доступ ограничен до 1-го числа следующего месяца
     *[0]
-    • <b>Использовано</b>: { $yandex_used_gb } / { $yandex_limit_gb } ГБ
-    • <b>Свободно</b>: { $yandex_free_gb } ГБ
+    • <b>Использовано</b>: { $node_quota_used_gb } / { $node_quota_limit_gb } ГБ
+    • <b>Свободно</b>: { $node_quota_free_gb } ГБ
     }
     </blockquote>
     *[0] { empty }
@@ -1168,7 +1168,15 @@ msg-subscription-traffic-reset-confirm =
 
     Сбросьте счётчик использованного трафика на сервере 4G/LTE.
 
-    <b>Стоимость:</b> { $price } ₽
+    <b>Использовано:</b> { $tr_used_gb } из { $tr_limit_gb } ГБ ({ $tr_used_pct }%)
+    <b>Свободно:</b> { $tr_free_gb } ГБ
+
+    { $tr_show_warning ->
+    [1]
+    ⚠️ <b>У вас ещё остался неизрасходованный трафик.</b> Сброс счётчика выгоден только при исчерпании лимита. Платёж будет списан в любом случае.
+
+    *[0] { "" }
+    }<b>Стоимость:</b> { $price } ₽
 
     После успешной оплаты счётчик будет немедленно обнулён, и вы снова получите доступ к полному лимиту.
 

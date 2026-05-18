@@ -53,7 +53,7 @@ from src.application.use_cases.subscription.commands.purchase import (
     PurchaseSubscription,
     PurchaseSubscriptionDto,
 )
-from src.application.use_cases.yandex.commands.reset_purchase import (
+from src.application.use_cases.node_quota.commands.reset_purchase import (
     PurchaseTrafficReset,
     PurchaseTrafficResetDto,
 )

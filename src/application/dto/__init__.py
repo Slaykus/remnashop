@@ -33,7 +33,7 @@ from .statistics import (
 from .subscription import RemnaSubscriptionDto, SubscriptionDto
 from .transaction import PriceDetailsDto, TransactionDto
 from .user import TempUserDto, UserDto
-from .yandex_quota import UserYandexQuotaDto
+from .node_quota import UserNodeQuotaDto
 
 __all__ = [
     "BaseDto",
@@ -76,5 +76,5 @@ __all__ = [
     "TransactionDto",
     "TempUserDto",
     "UserDto",
-    "UserYandexQuotaDto",
+    "UserNodeQuotaDto",
 ]

@@ -13,10 +13,10 @@ from loguru import logger
 
 from src.application.common import Notifier, Redirect, Remnawave
 from src.application.common.dao import PlanDao, SubscriptionDao, TransactionDao, UserDao
-from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.dao.node_quota import NodeQuotaDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import MessagePayloadDto, UserDto
-from src.application.dto.yandex_quota import UserYandexQuotaDto
+from src.application.dto.node_quota import UserNodeQuotaDto
 from src.core.config import AppConfig
 from src.application.use_cases.plan.commands.access import (
     ToggleUserPlanAccess,
@@ -750,18 +750,18 @@ async def on_subscription_duration_select(
 
 
 @inject
-async def on_yandex_quota_test_notify(
+async def on_node_quota_test_notify(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
     config: FromDishka[AppConfig],
-    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
 ) -> None:
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
-    yandex = config.yandex
-    limit_gb = yandex.monthly_limit_gb
+    nq = config.node_quota
+    limit_gb = nq.monthly_limit_gb
 
-    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    quota = await node_quota_dao.get_by_telegram_id(target_telegram_id)
     used_bytes = quota.used_bytes if quota else 0
     used_gb = round(used_bytes / 1024**3, 1)
 
@@ -780,18 +780,18 @@ async def on_yandex_quota_test_notify(
         )
         await callback.answer("✅ Тестовое уведомление отправлено")
     except Exception as e:
-        logger.error(f"[YandexQuota] Test notify failed for {target_telegram_id}: {e}")
+        logger.error(f"[NodeQuota] Test notify failed for {target_telegram_id}: {e}")
         await callback.answer(f"❌ Ошибка: {e}")
 
 
 @inject
-async def on_yandex_quota_reset(
+async def on_node_quota_reset(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
     config: FromDishka[AppConfig],
     remnawave: FromDishka[Remnawave],
-    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
     subscription_dao: FromDishka[SubscriptionDao],
     uow: FromDishka[UnitOfWork],
     notifier: FromDishka[Notifier],
@@ -801,9 +801,9 @@ async def on_yandex_quota_reset(
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
     now = datetime.now(timezone.utc)
 
-    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    quota = await node_quota_dao.get_by_telegram_id(target_telegram_id)
     if quota is None:
-        quota = UserYandexQuotaDto(
+        quota = UserNodeQuotaDto(
             user_telegram_id=target_telegram_id,
             period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
         )
@@ -814,14 +814,14 @@ async def on_yandex_quota_reset(
     quota.used_bytes = 0
     quota.warned_at = None
 
-    if config.yandex.enabled and config.yandex.squad_uuid:
+    if config.node_quota.enabled and config.node_quota.squad_uuid:
         sub = await subscription_dao.get_current(target_telegram_id)
         squad_restored = False
         if sub and sub.user_remna_id:
             try:
                 await remnawave.update_user_squads(
                     sub.user_remna_id,
-                    add_squad=UUID(config.yandex.squad_uuid),
+                    add_squad=UUID(config.node_quota.squad_uuid),
                 )
                 squad_restored = True
             except Exception:
@@ -830,7 +830,7 @@ async def on_yandex_quota_reset(
             quota.is_restricted = False
             quota.restricted_at = None
 
-    await yandex_quota_dao.upsert(quota)
+    await node_quota_dao.upsert(quota)
     await uow.commit()
 
     target_user = await user_dao.get_by_telegram_id(target_telegram_id)
@@ -838,7 +838,7 @@ async def on_yandex_quota_reset(
     target_username = target_user.username if target_user and target_user.username else "-"
     await notifier.notify_admins(
         MessagePayloadDto(
-            i18n_key="ntf-yandex.reset-by-admin-system",
+            i18n_key="ntf-node-quota.reset-by-admin-system",
             i18n_kwargs={
                 "admin_telegram_id": user.telegram_id,
                 "admin_name": user.name,
@@ -857,28 +857,28 @@ async def on_yandex_quota_reset(
 
 
 @inject
-async def on_yandex_quota_toggle_restrict(
+async def on_node_quota_toggle_restrict(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
     config: FromDishka[AppConfig],
     remnawave: FromDishka[Remnawave],
-    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
     subscription_dao: FromDishka[SubscriptionDao],
     uow: FromDishka[UnitOfWork],
 ) -> None:
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
     now = datetime.now(timezone.utc)
 
-    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    quota = await node_quota_dao.get_by_telegram_id(target_telegram_id)
     if quota is None:
-        quota = UserYandexQuotaDto(
+        quota = UserNodeQuotaDto(
             user_telegram_id=target_telegram_id,
             period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
         )
 
     sub = await subscription_dao.get_current(target_telegram_id)
-    squad_uuid = UUID(config.yandex.squad_uuid) if config.yandex.squad_uuid else None
+    squad_uuid = UUID(config.node_quota.squad_uuid) if config.node_quota.squad_uuid else None
 
     if quota.is_restricted:
         if squad_uuid and sub and sub.user_remna_id:
@@ -899,5 +899,5 @@ async def on_yandex_quota_toggle_restrict(
         quota.restricted_at = now
         await callback.answer("🚫 Доступ ограничен")
 
-    await yandex_quota_dao.upsert(quota)
+    await node_quota_dao.upsert(quota)
     await uow.commit()

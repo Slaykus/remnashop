@@ -6,11 +6,11 @@ from loguru import logger
 
 from src.application.common import Interactor, Notifier, Remnawave
 from src.application.common.dao import SubscriptionDao
-from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.dao.node_quota import NodeQuotaDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
 from src.application.dto.message_payload import MessagePayloadDto
-from src.application.dto.yandex_quota import UserYandexQuotaDto
+from src.application.dto.node_quota import UserNodeQuotaDto
 from src.core.config import AppConfig
 from src.core.enums import Role
 
@@ -27,7 +27,7 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
         self,
         uow: UnitOfWork,
         config: AppConfig,
-        quota_dao: YandexQuotaDao,
+        quota_dao: NodeQuotaDao,
         subscription_dao: SubscriptionDao,
         remnawave: Remnawave,
         notifier: Notifier,
@@ -41,21 +41,21 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
 
     async def _execute(self, actor: UserDto, data: PurchaseTrafficResetDto) -> None:
         user = data.user
-        yandex = self.config.yandex
+        node_quota = self.config.node_quota
 
-        if not yandex.enabled or not yandex.squad_uuid:
+        if not node_quota.enabled or not node_quota.squad_uuid:
             logger.warning(
-                f"[YandexQuota] Traffic reset purchased by {user.telegram_id} "
+                f"[NodeQuota] Traffic reset purchased by {user.telegram_id} "
                 "but feature disabled"
             )
             return
 
         now = datetime.now(timezone.utc)
-        squad_uuid = UUID(yandex.squad_uuid)
+        squad_uuid = UUID(node_quota.squad_uuid)
 
         quota = await self.quota_dao.get_by_telegram_id(user.telegram_id)
         if quota is None:
-            quota = UserYandexQuotaDto(
+            quota = UserNodeQuotaDto(
                 user_telegram_id=user.telegram_id,
                 period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
             )
@@ -70,10 +70,10 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
                 await self.remnawave.update_user_squads(sub.user_remna_id, add_squad=squad_uuid)
                 squad_restored = True
             except Exception as e:
-                logger.error(f"[YandexQuota] Failed to restore squad for {user.telegram_id}: {e}")
+                logger.error(f"[NodeQuota] Failed to restore squad for {user.telegram_id}: {e}")
         else:
             logger.warning(
-                f"[YandexQuota] No current subscription for paid reset user {user.telegram_id}"
+                f"[NodeQuota] No current subscription for paid reset user {user.telegram_id}"
             )
 
         if not was_restricted or squad_restored:
@@ -88,23 +88,23 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
         await self.uow.commit()
 
         logger.info(
-            f"[YandexQuota] Traffic reset purchased by user {user.telegram_id}, "
+            f"[NodeQuota] Traffic reset purchased by user {user.telegram_id}, "
             f"new baseline={quota.reset_baseline_bytes}"
         )
 
         await self.notifier.notify_user(
             user,
-            payload=MessagePayloadDto(i18n_key="ntf-yandex.reset-purchased", delete_after=None),
+            payload=MessagePayloadDto(i18n_key="ntf-node-quota.reset-purchased", delete_after=None),
         )
 
         await self.notifier.notify_admins(
             MessagePayloadDto(
-                i18n_key="ntf-yandex.reset-purchased-system",
+                i18n_key="ntf-node-quota.reset-purchased-system",
                 i18n_kwargs={
                     "telegram_id": user.telegram_id,
                     "name": user.name,
                     "username": user.username or "-",
-                    "price": yandex.reset_price_rub,
+                    "price": node_quota.reset_price_rub,
                     "used_gb": f"{used_bytes_before_reset / 1024**3:.1f}",
                     "was_restricted": int(was_restricted),
                 },

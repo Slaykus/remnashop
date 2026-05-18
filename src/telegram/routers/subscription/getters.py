@@ -8,7 +8,7 @@ from loguru import logger
 
 from src.application.common import TranslatorRunner
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
-from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.dao.node_quota import NodeQuotaDao
 from src.core.enums import Currency
 from src.application.dto import PlanDto, PriceDetailsDto, UserDto
 from src.application.services import PricingService
@@ -31,7 +31,7 @@ async def subscription_getter(
     user: UserDto,
     config: AppConfig,
     subscription_dao: FromDishka[SubscriptionDao],
-    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     current_subscription = await subscription_dao.get_current(user.telegram_id)
@@ -42,9 +42,9 @@ async def subscription_getter(
         "has_active_subscription": has_active,
         "has_current_subscription": int(bool(current_subscription)),
         "is_not_unlimited": not is_unlimited,
-        "yandex_quota_enabled": 0,
-        "yandex_reset_available": 0,
-        "yandex_reset_price": 0,
+        "node_quota_enabled": 0,
+        "node_quota_reset_available": 0,
+        "node_quota_reset_price": 0,
         "traffic_limit": None,
         "device_limit": None,
         "expire_time": None,
@@ -57,22 +57,22 @@ async def subscription_getter(
             "expire_time": i18n_format_expire_time(current_subscription.expire_at),
         })
 
-    yandex = config.yandex
-    if yandex.enabled:
-        quota = await yandex_quota_dao.get_by_telegram_id(user.telegram_id)
-        limit_gb = yandex.monthly_limit_gb
+    nq = config.node_quota
+    if nq.enabled:
+        quota = await node_quota_dao.get_by_telegram_id(user.telegram_id)
+        limit_gb = nq.monthly_limit_gb
         used_bytes = quota.used_bytes if quota else 0
         used_gb = round(used_bytes / 1024**3, 1)
         free_gb = max(round(limit_gb - used_gb, 1), 0)
         is_restricted = quota.is_restricted if quota else False
         result.update({
-            "yandex_quota_enabled": 1,
-            "yandex_used_gb": used_gb,
-            "yandex_limit_gb": limit_gb,
-            "yandex_free_gb": free_gb,
-            "yandex_is_restricted": 1 if is_restricted else 0,
-            "yandex_reset_available": 1 if current_subscription else 0,
-            "yandex_reset_price": yandex.reset_price_rub,
+            "node_quota_enabled": 1,
+            "node_quota_used_gb": used_gb,
+            "node_quota_limit_gb": limit_gb,
+            "node_quota_free_gb": free_gb,
+            "node_quota_is_restricted": 1 if is_restricted else 0,
+            "node_quota_reset_available": 1 if current_subscription else 0,
+            "node_quota_reset_price": nq.reset_price_rub,
         })
 
     return result
@@ -365,12 +365,15 @@ async def success_payment_getter(
 @inject
 async def traffic_reset_getter(
     dialog_manager: DialogManager,
+    user: UserDto,
     config: AppConfig,
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
+    nq = config.node_quota
     gateways = await payment_gateway_dao.get_active()
-    price_rub = config.yandex.reset_price_rub
+    price_rub = nq.reset_price_rub
     rub_gateways = [
         {
             "gateway_type": gw.type,
@@ -381,9 +384,25 @@ async def traffic_reset_getter(
         if gw.currency == Currency.RUB
     ]
     tr_url = dialog_manager.dialog_data.get("tr_url")
+
+    quota = await node_quota_dao.get_by_telegram_id(user.telegram_id)
+    limit_gb = nq.monthly_limit_gb
+    used_bytes = quota.used_bytes if quota else 0
+    used_gb = round(used_bytes / 1024**3, 1)
+    free_gb = max(round(limit_gb - used_gb, 1), 0)
+    used_pct = min(int(used_gb / limit_gb * 100), 100) if limit_gb > 0 else 0
+    is_restricted = quota.is_restricted if quota else False
+    # show warning if less than 80% used and not yet restricted
+    show_warning = int(used_pct < 80 and not is_restricted)
+
     return {
         "price": price_rub,
         "tr_gateways": rub_gateways,
         "tr_url": tr_url or "",
         "tr_url_has": 1 if tr_url else 0,
+        "tr_used_gb": used_gb,
+        "tr_free_gb": free_gb,
+        "tr_limit_gb": limit_gb,
+        "tr_used_pct": used_pct,
+        "tr_show_warning": show_warning,
     }

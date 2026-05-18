@@ -7,7 +7,7 @@ from .settings import Settings
 from .subscription import Subscription
 from .transaction import Transaction
 from .user import User
-from .yandex_quota import UserYandexQuota
+from .node_quota import UserNodeQuota
 
 __all__ = [
     "BaseSql",
@@ -23,5 +23,5 @@ __all__ = [
     "Subscription",
     "Transaction",
     "User",
-    "UserYandexQuota",
+    "UserNodeQuota",
 ]

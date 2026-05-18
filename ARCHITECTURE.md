@@ -2,7 +2,7 @@
 
 This repository is the Telegram bot backend for Rain VPN. It is a fork of
 Remnashop, integrated with RemnaWave through `remnapy`, with local Rain-specific
-extensions for the web personal cabinet, Yandex traffic quota, Moy Nalog
+extensions for the web personal cabinet, node traffic quota, Moy Nalog
 receipts, personal discounts, and referral milestones.
 
 ## Runtime Shape
@@ -88,7 +88,7 @@ SQLAlchemy or aiogram, unless the existing use case already does so.
 5. Webhook schedules `handle_payment_transaction_task`.
 6. `ProcessPayment` marks transaction status and dispatches:
    - normal plan: `PurchaseSubscription`;
-   - Yandex traffic reset: `PurchaseTrafficReset`;
+   - node traffic reset: `PurchaseTrafficReset`;
    - test/free payment: direct handling.
 7. `PurchaseSubscription` creates/updates RemnaWave user, updates local
    subscription, resets one-time `purchase_discount`, redirects user to success
@@ -125,7 +125,7 @@ It supports the Rain web cabinet:
 - referral stats;
 - node listing;
 - personal discount updates;
-- Yandex quota lookup;
+- node quota lookup;
 - web payment creation with external `return_url`.
 
 This endpoint is a major Rain-specific integration point and should be treated
@@ -150,7 +150,7 @@ Core tables:
 - `payment_gateways`: active gateway configs, encrypted sensitive settings.
 - `referrals`, `referral_rewards`: referral graph and issued/pending rewards.
 - `broadcasts`, `broadcast_messages`: admin broadcast lifecycle.
-- `user_yandex_quota`: Rain-specific Yandex node quota state.
+- `user_node_quota`: Rain-specific node traffic quota state.
 
 Postgres JSONB snapshots are used intentionally for settings, transaction
 pricing/plan snapshots, and subscription plan snapshots. Adaptix handles most
@@ -220,7 +220,7 @@ Scheduled/background tasks live in `src/infrastructure/taskiq/tasks`.
 - `notifications.py`: notify waitlisted users when payments are restored.
 - `update.py`: check upstream Remnashop releases through GitHub API.
 - `receipts.py`: call Moy Nalog receipt service.
-- `yandex_traffic.py`: hourly quota enforcement and monthly reset for Yandex
+- `node_traffic.py`: hourly quota enforcement and monthly reset for monitored nodes
   nodes.
 
 Taskiq worker command in compose imports tasks with pattern
@@ -229,9 +229,9 @@ Taskiq worker command in compose imports tasks with pattern
 ## Rain-Specific Features
 
 - Internal cabinet API in `src/web/endpoints/internal.py`.
-- Yandex quota:
-  - config in `src/core/config/yandex.py`;
-  - model/DAO/DTO for `user_yandex_quota`;
+- Node quota:
+  - config in `src/core/config/node_quota.py`;
+  - model/DAO/DTO for `user_node_quota`;
   - hourly/monthly Taskiq jobs;
   - purchase type `TRAFFIC_RESET`;
   - subscription dialog traffic-reset flow;

@@ -7,7 +7,7 @@ from src.application.common.dao import SubscriptionDao
 from src.core.config import AppConfig
 from src.core.logger import setup_logger
 from src.infrastructure.di import create_taskiq_container
-from src.infrastructure.taskiq.tasks.yandex_traffic import _restore_yandex_squad_for_active_users
+from src.infrastructure.taskiq.tasks.node_traffic import _restore_node_squad_for_active_users
 from src.telegram.dispatcher import get_bg_manager_factory, get_dispatcher, setup_dispatcher
 
 
@@ -24,7 +24,7 @@ async def main() -> None:
         async with container(scope=Scope.REQUEST) as request_container:
             remnawave = await request_container.get(Remnawave)
             subscription_dao = await request_container.get(SubscriptionDao)
-            await _restore_yandex_squad_for_active_users(
+            await _restore_node_squad_for_active_users(
                 config=config,
                 remnawave=remnawave,
                 subscription_dao=subscription_dao,

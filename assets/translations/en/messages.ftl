@@ -626,14 +626,14 @@ msg-user-subscription-internal-squads =
 
     Select which internal groups will be assigned to this user.
 
-msg-user-yandex-quota =
+msg-user-node-quota =
     <b>🔴 4G/LTE Server</b>
 
     <blockquote>
     • <b>Node</b>: 🇷🇺🔴 4G/LTE | Not for Wi-Fi
-    • <b>Limit</b>: { $yandex_limit_gb } GB / month
-    • <b>Used</b>: { $yandex_used_gb } GB ({ $yandex_pct }%)
-    • <b>Free</b>: { $yandex_free_gb } GB
+    • <b>Limit</b>: { $node_quota_limit_gb } GB / month
+    • <b>Used</b>: { $node_quota_used_gb } GB ({ $node_quota_pct }%)
+    • <b>Free</b>: { $node_quota_free_gb } GB
     • <b>Period</b>: since { $period_start }
     • <b>Status</b>: { $is_restricted ->
     [1] 🚫 Restricted
@@ -1130,15 +1130,15 @@ msg-subscription-main =
     *[0] { empty }
     }
 
-    { $yandex_quota_enabled ->
+    { $node_quota_enabled ->
     [1]
     <b>🔴 4G/LTE Server:</b>
     <blockquote>
-    { $yandex_is_restricted ->
+    { $node_quota_is_restricted ->
     [1] • 🚫 Access restricted until the 1st of next month
     *[0]
-    • <b>Used</b>: { $yandex_used_gb } / { $yandex_limit_gb } GB
-    • <b>Free</b>: { $yandex_free_gb } GB
+    • <b>Used</b>: { $node_quota_used_gb } / { $node_quota_limit_gb } GB
+    • <b>Free</b>: { $node_quota_free_gb } GB
     }
     </blockquote>
     *[0] { empty }
@@ -1149,7 +1149,15 @@ msg-subscription-traffic-reset-confirm =
 
     Reset your used traffic counter for the 4G/LTE server.
 
-    <b>Cost:</b> { $price } ₽
+    <b>Used:</b> { $tr_used_gb } of { $tr_limit_gb } GB ({ $tr_used_pct }%)
+    <b>Free:</b> { $tr_free_gb } GB
+
+    { $tr_show_warning ->
+    [1]
+    ⚠️ <b>You still have unused traffic remaining.</b> Resetting the counter is only worthwhile when your limit is exhausted. The payment will be charged regardless.
+
+    *[0] { "" }
+    }<b>Cost:</b> { $price } ₽
 
     After successful payment, your counter will be reset immediately and you will regain access to your full monthly limit.
 

@@ -57,10 +57,10 @@ subscription = Window(
     ),
     Row(
         Button(
-            text=I18nFormat("btn-subscription.traffic-reset", price=F["yandex_reset_price"]),
+            text=I18nFormat("btn-subscription.traffic-reset", price=F["node_quota_reset_price"]),
             id="traffic_reset",
             on_click=on_traffic_reset_click,
-            when=F["yandex_reset_available"],
+            when=F["node_quota_reset_available"],
         ),
     ),
     # Row(

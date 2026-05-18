@@ -8,7 +8,7 @@ from .transaction import TransactionDao
 from .user import UserDao
 from .waitlist import WaitlistDao
 from .webhook import WebhookDao
-from .yandex_quota import YandexQuotaDao
+from .node_quota import NodeQuotaDao
 
 __all__ = [
     "BroadcastDao",
@@ -21,5 +21,5 @@ __all__ = [
     "UserDao",
     "WaitlistDao",
     "WebhookDao",
-    "YandexQuotaDao",
+    "NodeQuotaDao",
 ]

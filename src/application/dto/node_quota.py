@@ -6,7 +6,7 @@ from .base import BaseDto
 
 
 @dataclass(kw_only=True)
-class UserYandexQuotaDto(BaseDto):
+class UserNodeQuotaDto(BaseDto):
     user_telegram_id: int
     is_restricted: bool = False
     period_start: datetime

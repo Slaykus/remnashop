@@ -12,7 +12,7 @@ from src.application.use_cases.settings import SETTINGS_USE_CASES
 from src.application.use_cases.statistics import STATISTICS_USE_CASES
 from src.application.use_cases.subscription import SUBSCRIPTION_USE_CASES
 from src.application.use_cases.user import USER_USE_CASES
-from src.application.use_cases.yandex import YANDEX_USE_CASES
+from src.application.use_cases.node_quota import NODE_QUOTA_USE_CASES
 
 
 class UseCasesProvider(Provider):
@@ -31,5 +31,5 @@ class UseCasesProvider(Provider):
         *SUBSCRIPTION_USE_CASES,
         *USER_USE_CASES,
         *STATISTICS_USE_CASES,
-        *YANDEX_USE_CASES,
+        *NODE_QUOTA_USE_CASES,
     )

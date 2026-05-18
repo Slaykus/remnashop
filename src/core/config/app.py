@@ -18,7 +18,7 @@ from .redis import RedisConfig
 from .remnawave import RemnawaveConfig
 from .validators import validate_not_change_me
 from .referral_milestones import ReferralMilestonesConfig
-from .yandex import YandexConfig
+from .node_quota import NodeQuotaConfig
 
 
 class AppConfig(BaseConfig, env_prefix="APP_"):
@@ -44,7 +44,7 @@ class AppConfig(BaseConfig, env_prefix="APP_"):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     build: BuildConfig = Field(default_factory=BuildConfig)
     log: LogConfig = Field(default_factory=LogConfig)
-    yandex: YandexConfig = Field(default_factory=YandexConfig)
+    node_quota: NodeQuotaConfig = Field(default_factory=NodeQuotaConfig)
     referral_milestones: ReferralMilestonesConfig = Field(default_factory=ReferralMilestonesConfig)
 
     @property

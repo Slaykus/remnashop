@@ -3,10 +3,10 @@ from typing import Optional
 from .base import BaseConfig
 
 
-class YandexConfig(BaseConfig, env_prefix="YANDEX_"):
+class NodeQuotaConfig(BaseConfig, env_prefix="NODE_QUOTA_"):
     squad_uuid: Optional[str] = None  # if None, entire feature is disabled
-    node_uuids: str = ""              # comma-separated UUIDs of Yandex nodes
-    monthly_limit_gb: int = 50
+    node_uuids: str = ""              # comma-separated UUIDs of monitored nodes
+    monthly_limit_gb: int = 100
     reset_price_rub: int = 50
     dry_run: bool = True              # MUST be True by default — safe mode
     circuit_breaker_pct: int = 20    # abort if >N% users would be restricted

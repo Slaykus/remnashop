@@ -16,7 +16,7 @@ from src.application.common.dao import (
     TransactionDao,
     UserDao,
 )
-from src.application.common.dao.yandex_quota import YandexQuotaDao
+from src.application.common.dao.node_quota import NodeQuotaDao
 from src.core.config import AppConfig
 from src.application.dto import PlanDurationDto, RemnaSubscriptionDto, SubscriptionDto, UserDto
 from src.application.use_cases.statistics.queries.users import GetUserStatistics
@@ -138,7 +138,7 @@ async def subscription_getter(
         "plan_device_limit": i18n_format_device_limit(subscription.plan_snapshot.device_limit),
         "plan_duration": i18n_format_days(subscription.plan_snapshot.duration),
         "can_edit": user_profile_subscription.can_edit,
-        "yandex_enabled": config.yandex.enabled,
+        "node_quota_enabled": config.node_quota.enabled,
     }
 
 
@@ -623,17 +623,17 @@ async def sync_getter(  # noqa: C901
 
 
 @inject
-async def yandex_quota_getter(
+async def node_quota_getter(
     dialog_manager: DialogManager,
     user: UserDto,
     config: AppConfig,
-    yandex_quota_dao: FromDishka[YandexQuotaDao],
+    node_quota_dao: FromDishka[NodeQuotaDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     target_telegram_id: int = dialog_manager.dialog_data[TARGET_TELEGRAM_ID]
-    quota = await yandex_quota_dao.get_by_telegram_id(target_telegram_id)
+    quota = await node_quota_dao.get_by_telegram_id(target_telegram_id)
 
-    limit_gb = config.yandex.monthly_limit_gb
+    limit_gb = config.node_quota.monthly_limit_gb
     used_bytes = quota.used_bytes if quota else 0
     used_gb = round(used_bytes / 1024**3, 1)
     free_gb = max(round(limit_gb - used_gb, 1), 0)
@@ -647,10 +647,10 @@ async def yandex_quota_getter(
     )
 
     return {
-        "yandex_limit_gb": limit_gb,
-        "yandex_used_gb": used_gb,
-        "yandex_free_gb": free_gb,
-        "yandex_pct": pct,
+        "node_quota_limit_gb": limit_gb,
+        "node_quota_used_gb": used_gb,
+        "node_quota_free_gb": free_gb,
+        "node_quota_pct": pct,
         "is_restricted": 1 if is_restricted else 0,
         "period_start": period_start,
         "restricted_at": restricted_at if restricted_at != "0" else "0",

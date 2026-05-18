@@ -450,7 +450,7 @@ async def on_traffic_reset_gateway_select(
     create_payment: FromDishka[CreatePayment],
 ) -> None:
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
-    price_rub = config.yandex.reset_price_rub
+    price_rub = config.node_quota.reset_price_rub
     pricing = PriceDetailsDto(
         final_amount=Decimal(price_rub),
         original_amount=Decimal(price_rub),

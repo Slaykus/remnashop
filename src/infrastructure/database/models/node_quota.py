@@ -8,8 +8,8 @@ from .base import BaseSql
 from .timestamp import TimestampMixin
 
 
-class UserYandexQuota(BaseSql, TimestampMixin):
-    __tablename__ = "user_yandex_quota"
+class UserNodeQuota(BaseSql, TimestampMixin):
+    __tablename__ = "user_node_quota"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_telegram_id: Mapped[int] = mapped_column(

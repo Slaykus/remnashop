@@ -44,13 +44,13 @@ from .getters import (
     transaction_getter,
     transactions_getter,
     user_getter,
-    yandex_quota_getter,
+    node_quota_getter,
 )
 from .handlers import (
     on_active_toggle,
     on_block_toggle,
     on_current_subscription,
-    on_yandex_quota_test_notify,
+    on_node_quota_test_notify,
     on_device_delete,
     on_device_limit_input,
     on_device_limit_select,
@@ -83,8 +83,8 @@ from .handlers import (
     on_transactions,
     on_trial_toggle,
     on_user_select,
-    on_yandex_quota_reset,
-    on_yandex_quota_toggle_restrict,
+    on_node_quota_reset,
+    on_node_quota_toggle_restrict,
 )
 
 user = Window(
@@ -225,11 +225,11 @@ subscription = Window(
     ),
     Row(
         SwitchTo(
-            text=I18nFormat("btn-user.yandex-quota"),
-            id="yandex_quota",
-            state=DashboardUser.YANDEX_QUOTA,
+            text=I18nFormat("btn-user.node-quota"),
+            id="node_quota",
+            state=DashboardUser.NODE_QUOTA,
         ),
-        when=F["yandex_enabled"],
+        when=F["node_quota_enabled"],
     ),
     Row(
         Button(
@@ -823,37 +823,37 @@ give_access = Window(
     getter=give_access_getter,
 )
 
-yandex_quota = Window(
+node_quota = Window(
     Banner(BannerName.DASHBOARD),
-    I18nFormat("msg-user-yandex-quota"),
+    I18nFormat("msg-user-node-quota"),
     Row(
         Button(
-            text=I18nFormat("btn-user.yandex-quota-reset"),
-            id="yq_reset",
-            on_click=on_yandex_quota_reset,
+            text=I18nFormat("btn-user.node-quota-reset"),
+            id="nq_reset",
+            on_click=on_node_quota_reset,
         ),
         when=F["can_edit"],
     ),
     Row(
         Button(
-            text=I18nFormat("btn-user.yandex-quota-unrestrict"),
-            id="yq_unrestrict",
-            on_click=on_yandex_quota_toggle_restrict,
+            text=I18nFormat("btn-user.node-quota-unrestrict"),
+            id="nq_unrestrict",
+            on_click=on_node_quota_toggle_restrict,
             when=F["is_restricted"],
         ),
         Button(
-            text=I18nFormat("btn-user.yandex-quota-restrict"),
-            id="yq_restrict",
-            on_click=on_yandex_quota_toggle_restrict,
+            text=I18nFormat("btn-user.node-quota-restrict"),
+            id="nq_restrict",
+            on_click=on_node_quota_toggle_restrict,
             when=~F["is_restricted"],
         ),
         when=F["can_edit"],
     ),
     Row(
         Button(
-            text=I18nFormat("btn-user.yandex-quota-test-notify"),
-            id="yq_test_notify",
-            on_click=on_yandex_quota_test_notify,
+            text=I18nFormat("btn-user.node-quota-test-notify"),
+            id="nq_test_notify",
+            on_click=on_node_quota_test_notify,
         ),
         when=F["can_edit"],
     ),
@@ -865,8 +865,8 @@ yandex_quota = Window(
         ),
     ),
     IgnoreUpdate(),
-    state=DashboardUser.YANDEX_QUOTA,
-    getter=yandex_quota_getter,
+    state=DashboardUser.NODE_QUOTA,
+    getter=node_quota_getter,
 )
 
 role = Window(
@@ -919,5 +919,5 @@ router = Dialog(
     points,
     give_access,
     role,
-    yandex_quota,
+    node_quota,
 )

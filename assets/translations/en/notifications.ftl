@@ -162,7 +162,7 @@ ntf-devices =
     .all-deleted = ✅ <i>All devices deleted.</i>
     .reissued = ✅ <i>Subscription reissued successfully.</i>
 
-ntf-yandex =
+ntf-node-quota =
     .reset-purchased = ✅ <i>4G/LTE traffic counter has been reset!</i>
 
     .reset-purchased-system =
