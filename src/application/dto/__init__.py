@@ -34,6 +34,7 @@ from .subscription import RemnaSubscriptionDto, SubscriptionDto
 from .transaction import PriceDetailsDto, TransactionDto
 from .user import TempUserDto, UserDto
 from .node_quota import UserNodeQuotaDto
+from .ad_link import AdLinkDto, AdLinkUserDto, AdLinkStatsDto
 
 __all__ = [
     "BaseDto",
@@ -77,4 +78,7 @@ __all__ = [
     "TempUserDto",
     "UserDto",
     "UserNodeQuotaDto",
+    "AdLinkDto",
+    "AdLinkUserDto",
+    "AdLinkStatsDto",
 ]

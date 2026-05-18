@@ -8,6 +8,7 @@ from loguru import logger
 
 from src.application.common import Notifier
 from src.application.dto import UserDto
+from src.application.use_cases.ad_link.commands.process_click import ProcessAdClick, ProcessAdClickDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlanByCode
 from src.core.constants import GOTO_PREFIX, PAYMENT_PREFIX, TARGET_TELEGRAM_ID
 from src.core.enums import Deeplink
@@ -107,6 +108,18 @@ async def on_goto_plan(
         mode=StartMode.RESET_STACK,
         show_mode=ShowMode.DELETE_AND_SEND,
     )
+
+
+@inject
+@router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.AD))
+async def on_goto_ad(
+    message: Message,
+    command: CommandObject,
+    user: UserDto,
+    process_ad_click: FromDishka[ProcessAdClick],
+) -> None:
+    code = (command.args or "").removeprefix(Deeplink.AD.with_underscore)
+    await process_ad_click(user, ProcessAdClickDto(code=code))
 
 
 @router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.INVITE))

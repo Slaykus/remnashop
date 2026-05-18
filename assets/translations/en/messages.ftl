@@ -1349,3 +1349,58 @@ msg-promocode-configurator =
     </blockquote>
 
     Select a field to change.
+
+# Advertising
+msg-advertising-list =
+    🎯 <b>Ad Links</b>
+
+    { $count ->
+    [0] No links yet. Create the first one.
+    *[other] Total links: <b>{ $count }</b>
+    }
+
+msg-advertising-view =
+    🎯 <b>{ $name }</b>  { $is_active ->
+    [1] ✅ Active
+    *[0] ❌ Inactive
+    }
+    Code: <code>{ $code }</code>
+    Link: <code>{ $deep_link }</code>
+
+    <b>Bonuses on click:</b>
+    • Points: <b>{ $bonus_points }</b>
+    • Days: <b>{ $bonus_days }</b>
+    • Discount: <b>{ $bonus_discount_pct }%</b>
+
+    <b>Analytics:</b>
+    • Total clicks: <b>{ $clicks_count }</b>
+    • Unique: <b>{ $unique_clicks }</b>
+    • Received bonus: <b>{ $bonus_issued_count }</b>
+    • Activated trial: <b>{ $trial_count }</b>
+    • Paid: <b>{ $paid_count }</b>
+    • Revenue: <b>{ $revenue_rub } ₽</b>
+
+msg-advertising-create-name =
+    ✏️ Enter the link name (for your reference):
+
+msg-advertising-create-code =
+    🔗 Enter the link code (letters and digits only, no spaces):
+
+    <i>Name: { $create_name }</i>
+
+msg-advertising-edit-name =
+    ✏️ Enter a new name:
+
+msg-advertising-edit-bonus-points =
+    🎯 Enter the number of bonus points (0 — no bonus):
+
+msg-advertising-edit-bonus-days =
+    📅 Enter the number of bonus days (0 — no bonus):
+
+msg-advertising-edit-bonus-discount =
+    💸 Enter the discount % from 0 to 100 (0 — no discount):
+
+msg-advertising-confirm-delete =
+    ⚠️ Delete link <b>{ $delete_name }</b>?
+
+    All analytics data will be lost.

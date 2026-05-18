@@ -8,6 +8,7 @@ from .subscription import Subscription
 from .transaction import Transaction
 from .user import User
 from .node_quota import UserNodeQuota
+from .ad_link import AdLink, AdLinkUser
 
 __all__ = [
     "BaseSql",
@@ -24,4 +25,6 @@ __all__ = [
     "Transaction",
     "User",
     "UserNodeQuota",
+    "AdLink",
+    "AdLinkUser",
 ]

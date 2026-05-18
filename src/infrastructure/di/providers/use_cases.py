@@ -13,6 +13,7 @@ from src.application.use_cases.statistics import STATISTICS_USE_CASES
 from src.application.use_cases.subscription import SUBSCRIPTION_USE_CASES
 from src.application.use_cases.user import USER_USE_CASES
 from src.application.use_cases.node_quota import NODE_QUOTA_USE_CASES
+from src.application.use_cases.ad_link import AD_LINK_USE_CASES
 
 
 class UseCasesProvider(Provider):
@@ -32,4 +33,5 @@ class UseCasesProvider(Provider):
         *USER_USE_CASES,
         *STATISTICS_USE_CASES,
         *NODE_QUOTA_USE_CASES,
+        *AD_LINK_USE_CASES,
     )

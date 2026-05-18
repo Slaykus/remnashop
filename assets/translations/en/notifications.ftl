@@ -199,3 +199,22 @@ ntf-node-quota =
             [0] { "" }
             *[other]  You can also <b>reset the counter early</b> for { $reset_price } ₽ in the Subscription section.
         }
+
+ntf-ad =
+    .bonus-received =
+        🎁 <b>You received a bonus for following the ad link!</b>
+        { $bonus_points ->
+        [0] { "" }
+        *[other]
+         • +{ $bonus_points } points
+        }{ $bonus_days ->
+        [0] { "" }
+        *[other]
+         • +{ $bonus_days } days added to your subscription
+        }{ $bonus_discount_pct ->
+        [0] { "" }
+        *[other]
+         • { $bonus_discount_pct }% discount on your next purchase
+        }
+
+    .code-invalid = ⚠️ <i>Ad link not found or unavailable.</i>

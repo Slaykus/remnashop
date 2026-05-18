@@ -489,3 +489,16 @@ btn-promocode =
     [1] 🟢
     *[0] 🔴
     } Status
+
+btn-advertising =
+    .create = ➕ Create link
+    .toggle-active = { $is_active ->
+    [1] 🔴 Deactivate
+    *[0] 🟢 Activate
+    }
+    .edit-name = ✏️ Name
+    .bonus-points = 🎯 Points: { $bonus_points }
+    .bonus-days = 📅 Days: { $bonus_days }
+    .bonus-discount = 💸 Discount: { $bonus_discount_pct }%
+    .delete = 🗑 Delete
+    .delete-confirm = ✅ Confirm deletion

@@ -199,3 +199,22 @@ ntf-node-quota =
             [0] { "" }
             *[other]  Вы также можете <b>сбросить счётчик досрочно</b> за { $reset_price } ₽ в разделе «Подписка».
         }
+
+ntf-ad =
+    .bonus-received =
+        🎁 <b>Вам начислен бонус за переход по рекламной ссылке!</b>
+        { $bonus_points ->
+        [0] { "" }
+        *[other]
+         • +{ $bonus_points } баллов
+        }{ $bonus_days ->
+        [0] { "" }
+        *[other]
+         • +{ $bonus_days } дней к подписке
+        }{ $bonus_discount_pct ->
+        [0] { "" }
+        *[other]
+         • Скидка { $bonus_discount_pct }% на следующую покупку
+        }
+
+    .code-invalid = ⚠️ <i>Рекламная ссылка не найдена или недоступна.</i>

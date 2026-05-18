@@ -117,6 +117,18 @@ class DashboardRemnashop(StatesGroup):
     ADVERTISING = State()
 
 
+class RemnashopAdvertising(StatesGroup):
+    LIST = State()
+    VIEW = State()
+    CREATE_NAME = State()
+    CREATE_CODE = State()
+    EDIT_NAME = State()
+    EDIT_BONUS_POINTS = State()
+    EDIT_BONUS_DAYS = State()
+    EDIT_BONUS_DISCOUNT = State()
+    CONFIRM_DELETE = State()
+
+
 class RemnashopReferral(StatesGroup):
     MAIN = State()
     LEVEL = State()

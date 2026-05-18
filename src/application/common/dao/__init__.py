@@ -9,6 +9,7 @@ from .user import UserDao
 from .waitlist import WaitlistDao
 from .webhook import WebhookDao
 from .node_quota import NodeQuotaDao
+from .ad_link import AdLinkDao
 
 __all__ = [
     "BroadcastDao",
@@ -22,4 +23,5 @@ __all__ = [
     "WaitlistDao",
     "WebhookDao",
     "NodeQuotaDao",
+    "AdLinkDao",
 ]

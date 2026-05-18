@@ -16,6 +16,7 @@ class Deeplink(StrEnum):
     REFERRAL = "ref"
     PLAN = "plan"
     INVITE = "invite"
+    AD = "ad"
 
     def build_url(self, base_url: str, data: Optional[str]) -> str:
         if not data:

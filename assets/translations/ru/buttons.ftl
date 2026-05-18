@@ -499,3 +499,15 @@ btn-promocode =
     [1] 🟢
     *[0] 🔴
     } Статус
+btn-advertising =
+    .create = ➕ Создать ссылку
+    .toggle-active = { $is_active ->
+    [1] 🔴 Деактивировать
+    *[0] 🟢 Активировать
+    }
+    .edit-name = ✏️ Название
+    .bonus-points = 🎯 Баллы: { $bonus_points }
+    .bonus-days = 📅 Дней: { $bonus_days }
+    .bonus-discount = 💸 Скидка: { $bonus_discount_pct }%
+    .delete = 🗑 Удалить
+    .delete-confirm = ✅ Подтвердить удаление

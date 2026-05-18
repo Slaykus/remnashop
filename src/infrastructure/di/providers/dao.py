@@ -12,6 +12,7 @@ from src.application.common.dao import (
     WaitlistDao,
     WebhookDao,
     NodeQuotaDao,
+    AdLinkDao,
 )
 from src.infrastructure.database.dao import (
     BroadcastDaoImpl,
@@ -25,6 +26,7 @@ from src.infrastructure.database.dao import (
     WaitlistDaoImpl,
     WebhookDaoImpl,
     NodeQuotaDaoImpl,
+    AdLinkDaoImpl,
 )
 
 
@@ -40,6 +42,7 @@ class DaoProvider(Provider):
     transaction = provide(source=TransactionDaoImpl, provides=TransactionDao)
     user = provide(source=UserDaoImpl, provides=UserDao)
     node_quota = provide(source=NodeQuotaDaoImpl, provides=NodeQuotaDao)
+    ad_link = provide(source=AdLinkDaoImpl, provides=AdLinkDao)
 
     webhook = provide(source=WebhookDaoImpl, provides=WebhookDao, scope=Scope.APP)
     waitlist = provide(source=WaitlistDaoImpl, provides=WaitlistDao, scope=Scope.APP)

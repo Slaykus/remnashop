@@ -1379,3 +1379,58 @@ msg-promocode-configurator =
     </blockquote>
 
     Выберите пункт для изменения.
+
+# Advertising
+msg-advertising-list =
+    🎯 <b>Рекламные ссылки</b>
+
+    { $count ->
+    [0] Ссылок пока нет. Создайте первую.
+    *[other] Всего ссылок: <b>{ $count }</b>
+    }
+
+msg-advertising-view =
+    🎯 <b>{ $name }</b>  { $is_active ->
+    [1] ✅ Активна
+    *[0] ❌ Неактивна
+    }
+    Код: <code>{ $code }</code>
+    Ссылка: <code>{ $deep_link }</code>
+
+    <b>Бонусы при переходе:</b>
+    • Баллы: <b>{ $bonus_points }</b>
+    • Дней: <b>{ $bonus_days }</b>
+    • Скидка: <b>{ $bonus_discount_pct }%</b>
+
+    <b>Аналитика:</b>
+    • Всего кликов: <b>{ $clicks_count }</b>
+    • Уникальных: <b>{ $unique_clicks }</b>
+    • Получили бонус: <b>{ $bonus_issued_count }</b>
+    • Активировали пробный: <b>{ $trial_count }</b>
+    • Оплатили: <b>{ $paid_count }</b>
+    • Выручка: <b>{ $revenue_rub } ₽</b>
+
+msg-advertising-create-name =
+    ✏️ Введите название ссылки (для вашего удобства):
+
+msg-advertising-create-code =
+    🔗 Введите код ссылки (только буквы и цифры, без пробелов):
+
+    <i>Название: { $create_name }</i>
+
+msg-advertising-edit-name =
+    ✏️ Введите новое название:
+
+msg-advertising-edit-bonus-points =
+    🎯 Введите количество баллов (0 — без бонуса):
+
+msg-advertising-edit-bonus-days =
+    📅 Введите количество дней (0 — без бонуса):
+
+msg-advertising-edit-bonus-discount =
+    💸 Введите размер скидки % от 0 до 100 (0 — без скидки):
+
+msg-advertising-confirm-delete =
+    ⚠️ Удалить ссылку <b>{ $delete_name }</b>?
+
+    Вся аналитика будет потеряна.
