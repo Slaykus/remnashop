@@ -1,6 +1,6 @@
 from aiogram_dialog import Dialog, StartMode, Window
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, SwitchTo
+from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
@@ -53,7 +53,7 @@ ad_list = Window(
         ),
     ),
     Row(
-        SwitchTo(
+        Start(
             text=I18nFormat("btn-back.general"),
             id="back",
             state=DashboardRemnashop.MAIN,
