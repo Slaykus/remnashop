@@ -124,12 +124,24 @@ async def promo_getter(
         "inline_query": f"{INLINE_QUERY_PROMO_PREFIX}{link.code}",
         "promo_text_preview": (link.promo_text or "—")[:300],
         "promo_has_text": int(bool(link.promo_text)),
+        "promo_has_photo": int(bool(link.promo_photo_id)),
         "promo_buttons_info": "\n".join(lines) if lines else "—",
         "promo_btn_count": btn_count,
         "promo_btn_1_label": buttons[0]["label"] if btn_count >= 1 else "",
         "promo_btn_2_label": buttons[1]["label"] if btn_count >= 2 else "",
         "promo_btn_3_label": buttons[2]["label"] if btn_count >= 3 else "",
     }
+
+
+@inject
+async def promo_photo_getter(
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    return {"promo_has_photo": int(bool(link and link.promo_photo_id))}
 
 
 async def promo_button_url_getter(

@@ -1,6 +1,6 @@
 from typing import Any
 
-from aiogram.enums import ButtonStyle
+from aiogram.enums import ButtonStyle, ContentType
 from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram_dialog import DialogManager, ShowMode
@@ -259,6 +259,51 @@ async def on_delete_confirm(
 
 
 @inject
+async def on_promo_set_photo(
+    message: Message,
+    widget: MessageInput,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    update_ad_link: FromDishka[UpdateAdLink],
+    notifier: FromDishka[Notifier],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    if not message.photo:
+        await notifier.notify_user(
+            user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)
+        )
+        return
+    file_id = message.photo[-1].file_id
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return
+    link.promo_photo_id = file_id
+    await update_ad_link(user, UpdateAdLinkDto(link=link))
+    await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
+
+
+@inject
+async def on_promo_remove_photo(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    update_ad_link: FromDishka[UpdateAdLink],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return
+    link.promo_photo_id = None
+    await update_ad_link(user, UpdateAdLinkDto(link=link))
+    await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
+
+
+@inject
 async def on_promo_set_text(
     message: Message,
     widget: MessageInput,
@@ -430,9 +475,19 @@ async def on_send_promo_preview(
         else:
             builder.row(InlineKeyboardButton(text=btn["label"], url=url))
 
-    if callback.message:
+    if not callback.message:
+        return
+    markup = builder.as_markup() if link.promo_buttons else None
+    if link.promo_photo_id:
+        await callback.message.answer_photo(
+            photo=link.promo_photo_id,
+            caption=link.promo_text,
+            parse_mode="HTML",
+            reply_markup=markup,
+        )
+    else:
         await callback.message.answer(
             link.promo_text,
             parse_mode="HTML",
-            reply_markup=builder.as_markup() if link.promo_buttons else None,
+            reply_markup=markup,
         )

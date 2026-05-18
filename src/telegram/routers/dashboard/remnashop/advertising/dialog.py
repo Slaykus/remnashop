@@ -1,4 +1,4 @@
-from aiogram.enums import ButtonStyle
+from aiogram.enums import ButtonStyle, ContentType
 from aiogram_dialog import Dialog, StartMode, Window
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
@@ -20,6 +20,7 @@ from .getters import (
     promo_button_style_getter,
     promo_button_url_getter,
     promo_getter,
+    promo_photo_getter,
     view_getter,
 )
 from .handlers import (
@@ -34,6 +35,8 @@ from .handlers import (
     on_link_select,
     on_promo_button_label_input,
     on_promo_button_url_input,
+    on_promo_remove_photo,
+    on_promo_set_photo,
     on_promo_set_style,
     on_promo_set_text,
     on_promo_use_ad_url,
@@ -265,6 +268,13 @@ ad_promo = Window(
             state=RemnashopAdvertising.EDIT_PROMO_TEXT,
         ),
         SwitchTo(
+            text=I18nFormat("btn-advertising.promo-photo"),
+            id="promo_photo",
+            state=RemnashopAdvertising.EDIT_PROMO_PHOTO,
+        ),
+    ),
+    Row(
+        SwitchTo(
             text=I18nFormat("btn-advertising.promo-add-button"),
             id="promo_add_btn",
             state=RemnashopAdvertising.PROMO_BUTTON_LABEL,
@@ -325,6 +335,30 @@ ad_edit_promo_text = Window(
     IgnoreUpdate(),
     state=RemnashopAdvertising.EDIT_PROMO_TEXT,
     getter=edit_getter,
+)
+
+ad_edit_promo_photo = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-edit-photo"),
+    MessageInput(func=on_promo_set_photo, content_types=[ContentType.PHOTO]),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.promo-remove-photo"),
+            id="remove_photo",
+            on_click=on_promo_remove_photo,
+            when=F["promo_has_photo"],
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.EDIT_PROMO_PHOTO,
+    getter=promo_photo_getter,
 )
 
 ad_promo_button_label = Window(
@@ -418,6 +452,7 @@ router = Dialog(
     ad_confirm_delete,
     ad_promo,
     ad_edit_promo_text,
+    ad_edit_promo_photo,
     ad_promo_button_label,
     ad_promo_button_url,
     ad_promo_button_style,

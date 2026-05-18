@@ -513,6 +513,11 @@ btn-advertising =
     .delete-confirm = ✅ Подтвердить удаление
     .promo = ✉️ Promo-сообщение
     .promo-edit-text = ✏️ Изменить текст
+    .promo-photo = { $promo_has_photo ->
+    [1] 📷 Изменить фото
+    *[0] 📷 Добавить фото
+    }
+    .promo-remove-photo = 🗑 Удалить фото
     .promo-add-button = ➕ Добавить кнопку
     .promo-use-ad-url = 🔗 Использовать ссылку бота
     .promo-preview = 👁 Отправить мне превью

@@ -86,6 +86,7 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                 bonus_days=dto.bonus_days,
                 bonus_discount_pct=dto.bonus_discount_pct,
                 promo_text=dto.promo_text,
+                promo_photo_id=dto.promo_photo_id,
                 promo_buttons=dto.promo_buttons,
                 updated_at=now,
             )

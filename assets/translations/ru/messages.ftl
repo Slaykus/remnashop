@@ -1439,6 +1439,10 @@ msg-advertising-promo =
     ✉️ <b>Promo-сообщение</b> — { $name }
     Отправить: введите <code>@vpnrain_bot { $inline_query }</code> в любом чате
 
+    <b>Фото:</b> { $promo_has_photo ->
+    [1] ✅ Загружено
+    *[0] ❌ Нет
+    }
     <b>Текст:</b>
     { $promo_text_preview }
 
@@ -1447,6 +1451,14 @@ msg-advertising-promo =
 
 msg-advertising-promo-edit-text =
     ✏️ Введите текст promo-сообщения (поддерживается HTML):
+
+msg-advertising-promo-edit-photo =
+    📷 Отправьте фото для promo-сообщения.
+
+    { $promo_has_photo ->
+    [1] <i>Текущее фото будет заменено.</i>
+    *[0] { "" }
+    }
 
 msg-advertising-promo-button-label =
     ✏️ Введите текст кнопки (до 100 символов):

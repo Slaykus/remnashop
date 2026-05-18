@@ -1409,6 +1409,10 @@ msg-advertising-promo =
     ✉️ <b>Promo message</b> — { $name }
     Share: type <code>@vpnrain_bot { $inline_query }</code> in any chat
 
+    <b>Photo:</b> { $promo_has_photo ->
+    [1] ✅ Uploaded
+    *[0] ❌ None
+    }
     <b>Text:</b>
     { $promo_text_preview }
 
@@ -1417,6 +1421,14 @@ msg-advertising-promo =
 
 msg-advertising-promo-edit-text =
     ✏️ Enter the promo message text (HTML supported):
+
+msg-advertising-promo-edit-photo =
+    📷 Send a photo for the promo message.
+
+    { $promo_has_photo ->
+    [1] <i>The current photo will be replaced.</i>
+    *[0] { "" }
+    }
 
 msg-advertising-promo-button-label =
     ✏️ Enter button label (up to 100 characters):

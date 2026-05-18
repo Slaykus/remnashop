@@ -21,6 +21,7 @@ class AdLink(BaseSql, TimestampMixin):
     bonus_discount_pct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     clicks_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     promo_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    promo_photo_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     promo_buttons: Mapped[list[Any]] = mapped_column(PgJSONB, nullable=False, server_default="[]", default=list)
 
 

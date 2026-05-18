@@ -6,6 +6,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineQuery,
     InlineQueryResultArticle,
+    InlineQueryResultCachedPhoto,
     InlineQueryResultUnion,
     InputTextMessageContent,
 )
@@ -143,16 +144,29 @@ async def handle_promo_inline_query(
             builder.row(InlineKeyboardButton(text=btn["label"], url=url))
 
     result_id = hashlib.md5(f"promo_{link.id}".encode()).hexdigest()
-    results: list[InlineQueryResultUnion] = [
-        InlineQueryResultArticle(
-            id=result_id,
-            title=f"Promo: {link.name}",
-            description=(link.promo_text or "")[:100],
-            input_message_content=InputTextMessageContent(
-                message_text=link.promo_text,
+    markup = builder.as_markup() if link.promo_buttons else None
+
+    if link.promo_photo_id:
+        results: list[InlineQueryResultUnion] = [
+            InlineQueryResultCachedPhoto(
+                id=result_id,
+                photo_file_id=link.promo_photo_id,
+                caption=link.promo_text,
                 parse_mode="HTML",
-            ),
-            reply_markup=builder.as_markup() if link.promo_buttons else None,
-        )
-    ]
+                reply_markup=markup,
+            )
+        ]
+    else:
+        results = [
+            InlineQueryResultArticle(
+                id=result_id,
+                title=f"Promo: {link.name}",
+                description=(link.promo_text or "")[:100],
+                input_message_content=InputTextMessageContent(
+                    message_text=link.promo_text,
+                    parse_mode="HTML",
+                ),
+                reply_markup=markup,
+            )
+        ]
     await inline_query.answer(results, cache_time=0, is_personal=True)

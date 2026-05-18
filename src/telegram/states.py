@@ -129,6 +129,7 @@ class RemnashopAdvertising(StatesGroup):
     CONFIRM_DELETE = State()
     PROMO = State()
     EDIT_PROMO_TEXT = State()
+    EDIT_PROMO_PHOTO = State()
     PROMO_BUTTON_LABEL = State()
     PROMO_BUTTON_URL = State()
     PROMO_BUTTON_STYLE = State()

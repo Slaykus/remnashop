@@ -504,6 +504,11 @@ btn-advertising =
     .delete-confirm = ✅ Confirm deletion
     .promo = ✉️ Promo message
     .promo-edit-text = ✏️ Edit text
+    .promo-photo = { $promo_has_photo ->
+    [1] 📷 Change photo
+    *[0] 📷 Add photo
+    }
+    .promo-remove-photo = 🗑 Remove photo
     .promo-add-button = ➕ Add button
     .promo-use-ad-url = 🔗 Use bot link
     .promo-preview = 👁 Send me preview
