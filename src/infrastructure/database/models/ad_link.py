@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Any, Optional
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB as PgJSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import BaseSql
@@ -18,6 +20,8 @@ class AdLink(BaseSql, TimestampMixin):
     bonus_days: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     bonus_discount_pct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     clicks_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    promo_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    promo_buttons: Mapped[list[Any]] = mapped_column(PgJSONB, nullable=False, server_default="[]", default=list)
 
 
 class AdLinkUser(BaseSql):

@@ -1,6 +1,8 @@
+from aiogram.enums import ButtonStyle
 from aiogram_dialog import Dialog, StartMode, Window
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
+from aiogram_dialog.widgets.style import Style
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
@@ -15,17 +17,27 @@ from .getters import (
     create_name_getter,
     edit_getter,
     list_getter,
+    promo_button_style_getter,
+    promo_button_url_getter,
+    promo_getter,
     view_getter,
 )
 from .handlers import (
     on_create_code_input,
     on_create_name_input,
     on_delete_confirm,
+    on_delete_promo_button,
     on_edit_bonus_days_input,
     on_edit_bonus_discount_input,
     on_edit_bonus_points_input,
     on_edit_name_input,
     on_link_select,
+    on_promo_button_label_input,
+    on_promo_button_url_input,
+    on_promo_set_style,
+    on_promo_set_text,
+    on_promo_use_ad_url,
+    on_send_promo_preview,
     on_toggle_active,
 )
 
@@ -98,6 +110,13 @@ ad_view = Window(
             text=I18nFormat("btn-advertising.bonus-discount"),
             id="edit_bonus_discount",
             state=RemnashopAdvertising.EDIT_BONUS_DISCOUNT,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.promo"),
+            id="promo",
+            state=RemnashopAdvertising.PROMO,
         ),
     ),
     Row(
@@ -236,6 +255,157 @@ ad_confirm_delete = Window(
     getter=confirm_delete_getter,
 )
 
+ad_promo = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo"),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.promo-edit-text"),
+            id="promo_edit_text",
+            state=RemnashopAdvertising.EDIT_PROMO_TEXT,
+        ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.promo-add-button"),
+            id="promo_add_btn",
+            state=RemnashopAdvertising.PROMO_BUTTON_LABEL,
+            when=F["promo_btn_count"] < 3,
+        ),
+    ),
+    Row(
+        Button(
+            text=Format("🗑 {promo_btn_1_label}"),
+            id="del_btn_0",
+            on_click=on_delete_promo_button,
+            when=F["promo_btn_count"] >= 1,
+        ),
+        Button(
+            text=Format("🗑 {promo_btn_2_label}"),
+            id="del_btn_1",
+            on_click=on_delete_promo_button,
+            when=F["promo_btn_count"] >= 2,
+        ),
+        Button(
+            text=Format("🗑 {promo_btn_3_label}"),
+            id="del_btn_2",
+            on_click=on_delete_promo_button,
+            when=F["promo_btn_count"] >= 3,
+        ),
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.promo-preview"),
+            id="promo_preview",
+            on_click=on_send_promo_preview,
+            when=F["promo_has_text"],
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.VIEW,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PROMO,
+    getter=promo_getter,
+)
+
+ad_edit_promo_text = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-edit-text"),
+    MessageInput(func=on_promo_set_text),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.EDIT_PROMO_TEXT,
+    getter=edit_getter,
+)
+
+ad_promo_button_label = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-button-label"),
+    MessageInput(func=on_promo_button_label_input),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PROMO_BUTTON_LABEL,
+    getter=edit_getter,
+)
+
+ad_promo_button_url = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-button-url"),
+    MessageInput(func=on_promo_button_url_input),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.promo-use-ad-url"),
+            id="use_ad_url",
+            on_click=on_promo_use_ad_url,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO_BUTTON_LABEL,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PROMO_BUTTON_URL,
+    getter=promo_button_url_getter,
+)
+
+ad_promo_button_style = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-button-style"),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.promo-style-default"),
+            id="style_default",
+            on_click=on_promo_set_style,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.promo-style-primary"),
+            id="style_primary",
+            on_click=on_promo_set_style,
+            style=Style(ButtonStyle.PRIMARY),
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.promo-style-success"),
+            id="style_success",
+            on_click=on_promo_set_style,
+            style=Style(ButtonStyle.SUCCESS),
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.promo-style-danger"),
+            id="style_danger",
+            on_click=on_promo_set_style,
+            style=Style(ButtonStyle.DANGER),
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO_BUTTON_URL,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PROMO_BUTTON_STYLE,
+    getter=promo_button_style_getter,
+)
+
 router = Dialog(
     ad_list,
     ad_view,
@@ -246,4 +416,9 @@ router = Dialog(
     ad_edit_bonus_days,
     ad_edit_bonus_discount,
     ad_confirm_delete,
+    ad_promo,
+    ad_edit_promo_text,
+    ad_promo_button_label,
+    ad_promo_button_url,
+    ad_promo_button_style,
 )

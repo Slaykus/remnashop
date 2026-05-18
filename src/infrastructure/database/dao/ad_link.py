@@ -85,6 +85,8 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                 bonus_points=dto.bonus_points,
                 bonus_days=dto.bonus_days,
                 bonus_discount_pct=dto.bonus_discount_pct,
+                promo_text=dto.promo_text,
+                promo_buttons=dto.promo_buttons,
                 updated_at=now,
             )
             .returning(AdLink)
@@ -160,14 +162,14 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                         FILTER (WHERE alu.bonus_issued = TRUE)
                         AS bonus_issued_count,
                     COUNT(DISTINCT s.user_telegram_id)
-                        FILTER (WHERE s.is_trial = TRUE)
+                        FILTER (WHERE s.is_trial = TRUE AND s.created_at >= alu.created_at)
                         AS trial_count,
                     COUNT(DISTINCT t.user_telegram_id)
-                        FILTER (WHERE t.status = 'COMPLETED')
+                        FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
                         AS paid_count,
                     COALESCE(
                         SUM((t.pricing->>'final_amount')::NUMERIC)
-                            FILTER (WHERE t.status = 'COMPLETED'),
+                            FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at),
                         0
                     ) AS revenue_rub
                 FROM ad_link_users alu

@@ -1434,3 +1434,30 @@ msg-advertising-confirm-delete =
     ⚠️ Удалить ссылку <b>{ $delete_name }</b>?
 
     Вся аналитика будет потеряна.
+
+msg-advertising-promo =
+    ✉️ <b>Promo-сообщение</b> — { $name }
+    Отправить: введите <code>@vpnrain_bot { $inline_query }</code> в любом чате
+
+    <b>Текст:</b>
+    { $promo_text_preview }
+
+    <b>Кнопки:</b>
+    { $promo_buttons_info }
+
+msg-advertising-promo-edit-text =
+    ✏️ Введите текст promo-сообщения (поддерживается HTML):
+
+msg-advertising-promo-button-label =
+    ✏️ Введите текст кнопки (до 100 символов):
+
+    <i>Можно использовать эмодзи, например: 🟢 Попробовать</i>
+
+msg-advertising-promo-button-url =
+    🔗 Введите URL для кнопки <b>{ $new_btn_label }</b>:
+
+    <i>Должен начинаться с https://
+    Или нажмите кнопку ниже, чтобы использовать ссылку бота.</i>
+
+msg-advertising-promo-button-style =
+    🎨 Выберите цвет кнопки <b>{ $new_btn_label }</b>:

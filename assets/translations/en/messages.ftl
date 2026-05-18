@@ -1404,3 +1404,30 @@ msg-advertising-confirm-delete =
     ⚠️ Delete link <b>{ $delete_name }</b>?
 
     All analytics data will be lost.
+
+msg-advertising-promo =
+    ✉️ <b>Promo message</b> — { $name }
+    Share: type <code>@vpnrain_bot { $inline_query }</code> in any chat
+
+    <b>Text:</b>
+    { $promo_text_preview }
+
+    <b>Buttons:</b>
+    { $promo_buttons_info }
+
+msg-advertising-promo-edit-text =
+    ✏️ Enter the promo message text (HTML supported):
+
+msg-advertising-promo-button-label =
+    ✏️ Enter button label (up to 100 characters):
+
+    <i>Emoji are supported, e.g.: 🟢 Try for free</i>
+
+msg-advertising-promo-button-url =
+    🔗 Enter the URL for button <b>{ $new_btn_label }</b>:
+
+    <i>Must start with https://
+    Or tap the button below to use the bot link.</i>
+
+msg-advertising-promo-button-style =
+    🎨 Choose button color for <b>{ $new_btn_label }</b>:

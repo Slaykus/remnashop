@@ -7,7 +7,7 @@ from dishka.integrations.aiogram_dialog import inject
 from src.application.common.dao.ad_link import AdLinkDao
 from src.application.services import BotService
 from src.application.use_cases.ad_link.queries.list import GetAdLinkStats, GetAdLinks
-from src.core.constants import USER_KEY
+from src.core.constants import INLINE_QUERY_PROMO_PREFIX, USER_KEY
 
 
 @inject
@@ -90,3 +90,55 @@ async def confirm_delete_getter(
     dialog_manager: DialogManager, **kwargs: Any
 ) -> dict[str, Any]:
     return {"delete_name": dialog_manager.dialog_data.get("delete_name", "")}
+
+
+_STYLE_EMOJI = {"default": "⚪", "primary": "🔵", "success": "🟢", "danger": "🔴"}
+
+
+@inject
+async def promo_getter(
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    bot_service: FromDishka[BotService],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return {}
+
+    deep_link = await bot_service.get_ad_url(link.code)
+    buttons = link.promo_buttons or []
+
+    lines = []
+    for i, btn in enumerate(buttons, 1):
+        emoji = _STYLE_EMOJI.get(btn.get("style", "default"), "⚪")
+        url = btn.get("url") or deep_link
+        url_short = "→ ссылка бота" if url == deep_link else f"→ {url[:30]}"
+        lines.append(f"{i}. {emoji} {btn['label']} {url_short}")
+
+    btn_count = len(buttons)
+    return {
+        "name": link.name,
+        "code": link.code,
+        "inline_query": f"{INLINE_QUERY_PROMO_PREFIX}{link.code}",
+        "promo_text_preview": (link.promo_text or "—")[:300],
+        "promo_has_text": int(bool(link.promo_text)),
+        "promo_buttons_info": "\n".join(lines) if lines else "—",
+        "promo_btn_count": btn_count,
+        "promo_btn_1_label": buttons[0]["label"] if btn_count >= 1 else "",
+        "promo_btn_2_label": buttons[1]["label"] if btn_count >= 2 else "",
+        "promo_btn_3_label": buttons[2]["label"] if btn_count >= 3 else "",
+    }
+
+
+async def promo_button_url_getter(
+    dialog_manager: DialogManager, **kwargs: Any
+) -> dict[str, Any]:
+    return {"new_btn_label": dialog_manager.dialog_data.get("new_btn_label", "")}
+
+
+async def promo_button_style_getter(
+    dialog_manager: DialogManager, **kwargs: Any
+) -> dict[str, Any]:
+    return {"new_btn_label": dialog_manager.dialog_data.get("new_btn_label", "")}

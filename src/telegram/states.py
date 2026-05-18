@@ -127,6 +127,11 @@ class RemnashopAdvertising(StatesGroup):
     EDIT_BONUS_DAYS = State()
     EDIT_BONUS_DISCOUNT = State()
     CONFIRM_DELETE = State()
+    PROMO = State()
+    EDIT_PROMO_TEXT = State()
+    PROMO_BUTTON_LABEL = State()
+    PROMO_BUTTON_URL = State()
+    PROMO_BUTTON_STYLE = State()
 
 
 class RemnashopReferral(StatesGroup):

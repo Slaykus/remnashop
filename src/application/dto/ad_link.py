@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
 from .base import BaseDto
 
@@ -16,6 +16,8 @@ class AdLinkDto(BaseDto):
     bonus_days: int = 0
     bonus_discount_pct: int = 0
     clicks_count: int = 0
+    promo_text: Optional[str] = field(default=None)
+    promo_buttons: list[Any] = field(default_factory=list)
     created_at: Optional[datetime] = field(default=None)
     updated_at: Optional[datetime] = field(default=None)
 
