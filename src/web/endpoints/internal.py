@@ -28,6 +28,8 @@ from src.application.dto import UserDto
 from src.application.dto.plan import PlanSnapshotDto
 from src.application.dto.transaction import PriceDetailsDto
 from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
+from src.application.use_cases.remnawave.commands.management import DeleteUserDeviceDto, DeleteUserDevice, ReissueSubscription
+from src.application.use_cases.user.queries.plans import GetAvailablePlans, GetAvailableTrial
 from src.application.use_cases.subscription import AddSubscriptionDuration
 from src.application.use_cases.subscription.commands.management import AddSubscriptionDurationDto
 from src.application.use_cases.subscription.commands.purchase import ActivateFreePlan, ActivateFreePlanDto
@@ -101,7 +103,15 @@ class PlanResponse(BaseModel):
     type: str
     traffic_limit: int
     device_limit: int
+    availability: str
+    allowed_user_ids: list[int]
     durations: list[PlanDurationResponse]
+
+
+class DeviceResponse(BaseModel):
+    hwid: str
+    platform: str | None
+    device_model: str | None
 
 
 class TransactionResponse(BaseModel):
@@ -239,6 +249,59 @@ async def get_plans(
                 type=p.type.value.lower(),
                 traffic_limit=p.traffic_limit,
                 device_limit=p.device_limit,
+                availability=p.availability.value.lower(),
+                allowed_user_ids=p.allowed_user_ids or [],
+                durations=durations,
+            )
+        )
+    return result
+
+
+@router.get(
+    "/users/{telegram_id}/plans",
+    response_model=list[PlanResponse],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_user_plans(
+    telegram_id: int,
+    user_dao: FromDishka[UserDao],
+    get_available_plans: FromDishka[GetAvailablePlans],
+    get_available_trial: FromDishka[GetAvailableTrial],
+) -> list[PlanResponse]:
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    regular = await get_available_plans.system(user)
+    trial = await get_available_trial.system(user)
+    plans = ([trial] if trial else []) + (regular or [])
+
+    result = []
+    for p in plans:
+        durations = [
+            PlanDurationResponse(
+                id=d.id or 0,
+                days=d.days,
+                prices=[
+                    PlanPriceResponse(
+                        currency=pr.currency.value,
+                        price=str(pr.price),
+                    )
+                    for pr in d.prices
+                ],
+            )
+            for d in p.durations
+        ]
+        result.append(
+            PlanResponse(
+                id=p.id or 0,
+                name=p.name,
+                type=p.type.value.lower(),
+                traffic_limit=p.traffic_limit,
+                device_limit=p.device_limit,
+                availability=p.availability.value.lower(),
+                allowed_user_ids=p.allowed_user_ids or [],
                 durations=durations,
             )
         )
@@ -433,6 +496,72 @@ async def activate_free_plan(
         expire_at=sub.expire_at,
         days_left=_days_left(sub.expire_at),
     )
+
+
+@router.get(
+    "/subscriptions/{telegram_id}/devices",
+    response_model=list[DeviceResponse],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_user_devices(
+    telegram_id: int,
+    subscription_dao: FromDishka[SubscriptionDao],
+    remnawave: FromDishka[Remnawave],
+) -> list[DeviceResponse]:
+    sub = await subscription_dao.get_current(telegram_id)
+    if not sub or not sub.user_remna_id:
+        raise HTTPException(status_code=404, detail="No active subscription found")
+    devices = await remnawave.get_devices(sub.user_remna_id)
+    return [
+        DeviceResponse(
+            hwid=d.hwid,
+            platform=getattr(d, "platform", None),
+            device_model=getattr(d, "device_model", None),
+        )
+        for d in (devices or [])
+    ]
+
+
+@router.delete(
+    "/subscriptions/{telegram_id}/devices/{hwid}",
+    status_code=204,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def delete_user_device(
+    telegram_id: int,
+    hwid: str,
+    delete_device: FromDishka[DeleteUserDevice],
+    user_dao: FromDishka[UserDao],
+) -> None:
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        await delete_device.system(DeleteUserDeviceDto(telegram_id=telegram_id, hwid=hwid))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post(
+    "/subscriptions/{telegram_id}/reissue",
+    status_code=204,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def reissue_subscription(
+    telegram_id: int,
+    reissue: FromDishka[ReissueSubscription],
+    user_dao: FromDishka[UserDao],
+) -> None:
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        await reissue(user, None)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 class CreateUserRequest(BaseModel):

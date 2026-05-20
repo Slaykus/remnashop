@@ -51,10 +51,14 @@ else
 fi
 
 # Always sync translations from defaults to pick up any code updates
-echo "Syncing translations from defaults"
-mkdir -p "$ASSETS_CONTAINER_PATH/translations"
-cp -r "$ASSETS_DEFAULT_PATH/translations/." "$ASSETS_CONTAINER_PATH/translations/"
-echo "Translations synced"
+if [ -d "$ASSETS_DEFAULT_PATH/translations" ]; then
+    echo "Syncing translations from defaults"
+    mkdir -p "$ASSETS_CONTAINER_PATH/translations"
+    cp -r "$ASSETS_DEFAULT_PATH/translations/." "$ASSETS_CONTAINER_PATH/translations/"
+    echo "Translations synced"
+else
+    echo "No default translations to sync (local dev mode)"
+fi
 
 
 # Patch remnapy: make all CustomRemarksDto list fields optional for older panel versions
