@@ -197,7 +197,17 @@ event-user =
 
     { hdr-hwid }
     { frg-user-hwid }
-    
+
+
+event-blacklist =
+    .registration-attempt =
+    #BlacklistRegistrationAttemptEvent
+
+    <b>🚫 Событие: Попытка регистрации из чёрного списка!</b>
+
+    { hdr-user }
+    { frg-user-info }
+
 
 event-subscription =
     .trial =

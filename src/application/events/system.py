@@ -287,6 +287,26 @@ class UserRegisteredEvent(UserEvent):
 
 
 @dataclass(frozen=True, kw_only=True)
+class BlacklistRegistrationAttemptEvent(UserEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.BLACKLIST_ATTEMPT,
+        init=False,
+    )
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={**asdict(self)},
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
+    @property
+    def event_key(self) -> str:
+        return "event-blacklist.registration-attempt"
+
+
+@dataclass(frozen=True, kw_only=True)
 class UserFirstConnectionEvent(UserEvent):
     notification_type: NotificationType = field(
         default=SystemNotificationType.USER_FIRST_CONNECTION,

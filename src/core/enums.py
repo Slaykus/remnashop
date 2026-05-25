@@ -229,6 +229,7 @@ class SystemNotificationType(UpperStrEnum):
     BOT_UPDATE = auto()
     #
     USER_REGISTERED = auto()
+    BLACKLIST_ATTEMPT = auto()
     SUBSCRIPTION = auto()
     PROMOCODE_ACTIVATED = auto()
     TRIAL_ACTIVATED = auto()

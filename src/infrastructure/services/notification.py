@@ -39,6 +39,7 @@ from src.application.dto import (
 from src.application.events import ErrorEvent, NotificationErrorEvent, SystemEvent
 from src.application.events.base import BaseEvent, UserEvent
 from src.application.events.system import (
+    BlacklistRegistrationAttemptEvent,
     BotUpdateEvent,
     RemnashopWelcomeEvent,
     SubscriptionRevokedEvent,
@@ -132,6 +133,8 @@ class NotificationService(Notifier):
             return get_remnashop_update_keyboard()
         if isinstance(event, UserRegisteredEvent):
             return get_user_keyboard(event.telegram_id, event.referrer_telegram_id)
+        if isinstance(event, BlacklistRegistrationAttemptEvent):
+            return get_user_keyboard(event.telegram_id)
         if isinstance(
             event,
             (

@@ -7,7 +7,7 @@ from src.application.common import Cryptographer, EventPublisher, Interactor
 from src.application.common.dao import SettingsDao, UserDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
-from src.application.events import UserRegisteredEvent
+from src.application.events import BlacklistRegistrationAttemptEvent, UserRegisteredEvent
 from src.application.use_cases.referral.commands.attachment import AttachReferral, AttachReferralDto
 from src.core.config import AppConfig
 from src.core.enums import Locale, Role
@@ -84,6 +84,15 @@ class GetOrCreateUser(Interactor[GetOrCreateUserDto, Optional[UserDto]]):
 
         if is_blocked:
             logger.warning(f"New user '{user.remna_name}' created as blocked (found in blacklist)")
+            await self.event_publisher.publish(
+                BlacklistRegistrationAttemptEvent(
+                    user_id=user.id,
+                    telegram_id=user.telegram_id,
+                    username=user.username,
+                    name=user.name,
+                    email=user.email,
+                )
+            )
             return user
 
         referrer = None
