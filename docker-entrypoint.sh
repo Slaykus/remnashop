@@ -3,31 +3,10 @@ set -e
 
 ASSETS_CONTAINER_PATH="/opt/remnashop/assets"
 ASSETS_DEFAULT_PATH="/opt/remnashop/assets.default"
-ASSETS_BACKUP_PATH="${ASSETS_CONTAINER_PATH}/.bak"
 
 UVICORN_RELOAD_ARGS=""
 
 echo "Starting asset initialization"
-
-# --- Migration: detect legacy translation files (non-custom.ftl) ---
-LEGACY_FTL=$(find "${ASSETS_CONTAINER_PATH}/translations" -name "*.ftl" ! -name "custom.ftl" 2>/dev/null | head -1)
-
-if [ -n "$LEGACY_FTL" ]; then
-    echo "Legacy translation files detected — backing up and migrating to custom.ftl-only layout"
-
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_FILENAME="translations_legacy_${TIMESTAMP}.tar.gz"
-    mkdir -p "$ASSETS_BACKUP_PATH"
-
-    tar -czf "$ASSETS_BACKUP_PATH/$BACKUP_FILENAME" \
-        -C "$ASSETS_CONTAINER_PATH" translations/ 2>/dev/null && \
-        echo "Backup created: ${ASSETS_BACKUP_PATH}/${BACKUP_FILENAME}" || \
-        echo "Warning: backup failed, continuing anyway"
-
-    # Remove all .ftl files except custom.ftl
-    find "${ASSETS_CONTAINER_PATH}/translations" -name "*.ftl" ! -name "custom.ftl" -delete
-    echo "Legacy .ftl files removed. Move your custom keys into translations/{locale}/custom.ftl and restart."
-fi
 
 # --- First run: copy default banners if user banners dir is empty ---
 USER_BANNERS="${ASSETS_CONTAINER_PATH}/banners"

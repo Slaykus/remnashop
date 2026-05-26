@@ -5,7 +5,6 @@ RUN apk add --no-cache git postgresql-client
 
 COPY pyproject.toml .
 COPY uv.lock .
-COPY ./assets /opt/remnashop/assets.default
 COPY docker-entrypoint.sh .
 
 RUN pip install --no-cache-dir uv && uv sync --frozen
