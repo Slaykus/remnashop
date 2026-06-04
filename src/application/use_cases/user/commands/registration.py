@@ -74,19 +74,26 @@ class GetOrCreateUser(Interactor[GetOrCreateUserDto, Optional[UserDto]]):
             settings = await self.settings_dao.get()
             is_blocked = data.telegram_id in settings.blacklist.blocked_ids
 
-            new_referral_code = await self.cryptographer.generate_unique_code(
-                self.user_dao.get_by_referral_code
-            )
-
             ad_link_id = await self._resolve_ad_link_id(data.ad_link_code)
-            user_dto = self._create_user_dto(
-                data,
-                referral_code=new_referral_code,
-                is_blocked=is_blocked,
-                ad_link_id=ad_link_id,
-                role=role,
+
+            async def persist(referral_code: str) -> UserDto:
+                return await self.user_dao.create(
+                    self._create_user_dto(
+                        data,
+                        referral_code=referral_code,
+                        is_blocked=is_blocked,
+                        ad_link_id=ad_link_id,
+                        role=role,
+                    )
+                )
+
+            user = await self.uow.persist_with_unique_code(
+                generate=lambda: self.cryptographer.generate_unique_code(
+                    self.user_dao.get_by_referral_code
+                ),
+                persist=persist,
+                column="referral_code",
             )
-            user = await self.user_dao.create(user_dto)
 
             if is_owner:
                 old_owners = await self.user_dao.filter_by_role([Role.OWNER])

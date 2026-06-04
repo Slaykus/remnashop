@@ -17,12 +17,6 @@ class GetBroadcastAudienceCountDto:
 
 
 class HasAvailableBroadcastPlans(Interactor[None, bool]):
-    """Whether there are non-trial plans to target a PLAN broadcast at.
-
-    Kept separate from GetBroadcastAudienceCount so that `count` always means an
-    audience size, never "are there plans".
-    """
-
     required_permission = Permission.BROADCAST
 
     def __init__(self, plan_dao: PlanDao) -> None:

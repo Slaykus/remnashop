@@ -30,21 +30,33 @@ class CreateAdLink(Interactor[CreateAdLinkDto, AdLinkDto]):
         self.cryptographer = cryptographer
 
     async def _execute(self, actor: UserDto, data: CreateAdLinkDto) -> AdLinkDto:
-        if data.code:
-            existing = await self.ad_link_dao.get_by_code(data.code)
-            if existing:
-                raise ValueError(f"Ad link with code '{data.code}' already exists")
-            code = data.code
-        else:
-            code = await self.cryptographer.generate_unique_code(self.ad_link_dao.get_by_code)
-
-        link = AdLinkDto(name=data.name, code=code, is_active=True)
-
         async with self.uow:
-            created = await self.ad_link_dao.create(link)
+            if data.code:
+                existing = await self.ad_link_dao.get_by_code(data.code)
+                if existing:
+                    raise ValueError(f"Ad link with code '{data.code}' already exists")
+                created = await self.ad_link_dao.create(
+                    AdLinkDto(name=data.name, code=data.code, is_active=True)
+                )
+            else:
+
+                async def persist(code: str) -> AdLinkDto:
+                    return await self.ad_link_dao.create(
+                        AdLinkDto(name=data.name, code=code, is_active=True)
+                    )
+
+                created = await self.uow.persist_with_unique_code(
+                    generate=lambda: self.cryptographer.generate_unique_code(
+                        self.ad_link_dao.get_by_code
+                    ),
+                    persist=persist,
+                    column="code",
+                )
             await self.uow.commit()
 
-        logger.info(f"Ad link '{data.name}' created with code '{code}' by {actor.remna_name}")
+        logger.info(
+            f"Ad link '{data.name}' created with code '{created.code}' by {actor.remna_name}"
+        )
         return created
 
 

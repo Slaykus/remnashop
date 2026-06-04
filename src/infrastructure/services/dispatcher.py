@@ -22,7 +22,4 @@ class BroadcastDispatcherImpl:
     async def delete(self, broadcast: BroadcastDto) -> None:
         from src.infrastructure.taskiq.tasks.broadcast import delete_broadcast_task  # noqa: PLC0415
 
-        # Fire-and-forget: the task finalizes status/counters and notifies on completion.
-        # Never block the caller (handler) waiting for the result — deletion can take
-        # minutes and would expire the callback query.
         await delete_broadcast_task.kiq(broadcast)  # type: ignore[call-overload]

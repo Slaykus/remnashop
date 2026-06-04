@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Optional
 
 from loguru import logger
 
@@ -179,10 +180,17 @@ class ResetUserReferralCode(Interactor[int, None]):
                 )
                 raise PermissionDeniedError()
 
-            target_user.referral_code = await self.cryptographer.generate_unique_code(
-                self.user_dao.get_by_referral_code
+            async def persist(referral_code: str) -> Optional[UserDto]:
+                target_user.referral_code = referral_code
+                return await self.user_dao.update(target_user)
+
+            await self.uow.persist_with_unique_code(
+                generate=lambda: self.cryptographer.generate_unique_code(
+                    self.user_dao.get_by_referral_code
+                ),
+                persist=persist,
+                column="referral_code",
             )
-            await self.user_dao.update(target_user)
             await self.uow.commit()
 
         logger.info(f"{actor.log} Reset referral code for user '{user_id}'")
@@ -215,12 +223,20 @@ class ResetOwnReferralCode(Interactor[None, None]):
             if datetime_now() < available_at:
                 raise CooldownError(available_at)
 
+        actor.referral_code_reset_at = datetime_now()
+
+        async def persist(referral_code: str) -> Optional[UserDto]:
+            actor.referral_code = referral_code
+            return await self.user_dao.update(actor)
+
         async with self.uow:
-            actor.referral_code = await self.cryptographer.generate_unique_code(
-                self.user_dao.get_by_referral_code
+            await self.uow.persist_with_unique_code(
+                generate=lambda: self.cryptographer.generate_unique_code(
+                    self.user_dao.get_by_referral_code
+                ),
+                persist=persist,
+                column="referral_code",
             )
-            actor.referral_code_reset_at = datetime_now()
-            await self.user_dao.update(actor)
             await self.uow.commit()
 
         logger.info(f"{actor.log} Reset own referral code")

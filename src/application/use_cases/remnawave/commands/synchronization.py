@@ -48,11 +48,18 @@ class SyncRemnaUser(Interactor[SyncRemnaUserDto, bool]):
 
             if not user and data.creating:
                 logger.debug(f"User '{remna_user.uuid}' not found in bot, creating new user")
-                referral_code = await self.cryptographer.generate_unique_code(
-                    self.user_dao.get_by_referral_code
-                )
-                user = await self.user_dao.create(
-                    self._create_user_dto(data.remna_user, referral_code)
+
+                async def persist(referral_code: str) -> UserDto:
+                    return await self.user_dao.create(
+                        self._create_user_dto(data.remna_user, referral_code)
+                    )
+
+                user = await self.uow.persist_with_unique_code(
+                    generate=lambda: self.cryptographer.generate_unique_code(
+                        self.user_dao.get_by_referral_code
+                    ),
+                    persist=persist,
+                    column="referral_code",
                 )
 
             if not user:

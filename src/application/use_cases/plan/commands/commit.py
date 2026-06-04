@@ -20,7 +20,6 @@ class CommitPlanResultDto:
 
 
 def _validate_and_prepare_plan(actor: UserDto, plan: PlanDto) -> None:
-    """Validate invariants and normalize limits/allowed-lists in place."""
     if not plan.internal_squads:
         logger.warning(f"{actor.log} Commit failed: squads list is empty")
         raise SquadsEmptyError()
@@ -67,10 +66,17 @@ class CommitPlan(Interactor[PlanDto, CommitPlanResultDto]):
                 logger.warning(f"{actor.log} Plan name '{plan.name}' already exists")
                 raise PlanNameAlreadyExistsError()
 
-            plan.public_code = await self.cryptographer.generate_unique_code(
-                self.plan_dao.get_by_public_code, length=8
+            async def persist(code: str) -> PlanDto:
+                plan.public_code = code
+                return await self.plan_dao.create(plan)
+
+            new_plan = await self.uow.persist_with_unique_code(
+                generate=lambda: self.cryptographer.generate_unique_code(
+                    self.plan_dao.get_by_public_code, length=8
+                ),
+                persist=persist,
+                column="public_code",
             )
-            new_plan = await self.plan_dao.create(plan)
             await self.uow.commit()
 
         logger.info(f"{actor.log} Created new plan '{new_plan.name}'")
@@ -96,10 +102,17 @@ class CommitPlansBatch(Interactor[list[PlanDto], list[CommitPlanResultDto]]):
                     logger.warning(f"{actor.log} Plan name '{plan.name}' already exists")
                     raise PlanNameAlreadyExistsError()
 
-                plan.public_code = await self.cryptographer.generate_unique_code(
-                    self.plan_dao.get_by_public_code, length=8
+                async def persist(code: str, plan: PlanDto = plan) -> PlanDto:
+                    plan.public_code = code
+                    return await self.plan_dao.create(plan)
+
+                created = await self.uow.persist_with_unique_code(
+                    generate=lambda: self.cryptographer.generate_unique_code(
+                        self.plan_dao.get_by_public_code, length=8
+                    ),
+                    persist=persist,
+                    column="public_code",
                 )
-                created = await self.plan_dao.create(plan)
                 results.append(CommitPlanResultDto(created, is_created=True))
 
             await self.uow.commit()

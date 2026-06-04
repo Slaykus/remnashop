@@ -38,17 +38,24 @@ class RegisterWebUser(Interactor[RegisterWebUserDto, UserDto]):
 
     async def _execute(self, actor: UserDto, data: RegisterWebUserDto) -> UserDto:
         new_user = data.user
-        new_user.referral_code = await self.cryptographer.generate_unique_code(
-            self.user_dao.get_by_referral_code
-        )
 
         if new_user.telegram_id is not None:
             settings = await self.settings_dao.get()
             if new_user.telegram_id in settings.blacklist.blocked_ids:
                 new_user.is_blocked = True
 
+        async def persist(referral_code: str) -> UserDto:
+            new_user.referral_code = referral_code
+            return await self.user_dao.create(new_user)
+
         async with self.uow:
-            created = await self.user_dao.create(new_user)
+            created = await self.uow.persist_with_unique_code(
+                generate=lambda: self.cryptographer.generate_unique_code(
+                    self.user_dao.get_by_referral_code
+                ),
+                persist=persist,
+                column="referral_code",
+            )
             await self.uow.commit()
 
         if created.is_blocked:

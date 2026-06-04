@@ -13,7 +13,6 @@ from src.application.use_cases.importer.queries.xui import ExportUsersFromXui
 
 
 def _safe_tmp_path(file_name: str) -> Path:
-    """Sanitize file_name to prevent path traversal, return safe /tmp path."""
     safe_name = Path(file_name).name or f"import_{uuid4().hex}"
     return Path("/tmp") / safe_name
 

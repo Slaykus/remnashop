@@ -169,7 +169,6 @@ async def _finalize_broadcast_deletion(
     total: int,
     deleted: int,
 ) -> None:
-    """Mark the broadcast DELETED and notify admins — only on successful completion."""
     await finish_broadcast.system(
         FinishBroadcastDto(task_id=broadcast.task_id, status=BroadcastStatus.DELETED)
     )
