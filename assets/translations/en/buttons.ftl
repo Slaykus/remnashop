@@ -461,7 +461,10 @@ btn-subscription =
     .renew = 🔄 Renew subscription
     .change = 🔃 Change plan
     .promocode = 🎟 Activate promo code
-    .payment-method = { gateway-type } | { $price } { $currency }
+    .payment-method = { gateway-type } | { $final_amount ->
+    [0] 🎁
+    *[HAS] { $final_amount }{ $currency }
+    }
     .pay = 💳 Pay
     .get = 🎁 Get for free
     .back-plans = ⬅️ Back to plan selection

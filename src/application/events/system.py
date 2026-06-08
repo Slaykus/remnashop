@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
+from html import escape as html_escape
 from typing import Any, Optional
 from uuid import UUID
 
@@ -69,6 +70,10 @@ class ErrorEvent(BaseEvent, BuildInfoDto):
     ) -> "MessagePayloadDto":
         data = self.__dict__.copy()
         data.pop("exception", None)
+        # Escape HTML in user-supplied fields — names like <$--ILYA--$> break Telegram HTML parser
+        for field_name in ("name", "username"):
+            if data.get(field_name):
+                data[field_name] = html_escape(str(data[field_name]))
 
         return MessagePayloadDto(
             i18n_key=self.event_key,
