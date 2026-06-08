@@ -83,24 +83,38 @@ class AdLinkDaoImpl(AdLinkDao):
             or 0
         )
 
-        conversions = (
-            await self.session.scalar(
-                select(func.count(distinct(User.id)))
-                .join(Transaction, Transaction.user_id == User.id)
-                .where(
-                    User.ad_link_id == link_id,
-                    Transaction.status == TransactionStatus.COMPLETED,
-                )
-            )
-            or 0
-        )
-
         trials = (
             await self.session.scalar(
                 select(func.count(User.id)).where(
                     User.ad_link_id == link_id,
                     User.is_trial_available.is_(False),
                 )
+            )
+            or 0
+        )
+
+        # Users with at least one paid purchase (final_amount > 0).
+        paid_buyers_filter = (
+            User.ad_link_id == link_id,
+            Transaction.status == TransactionStatus.COMPLETED,
+            Transaction.pricing["final_amount"].as_float() > 0,
+        )
+
+        buyers = (
+            await self.session.scalar(
+                select(func.count(distinct(User.id)))
+                .join(Transaction, Transaction.user_id == User.id)
+                .where(*paid_buyers_filter)
+            )
+            or 0
+        )
+
+        # Buyers who also activated their trial.
+        trial_buyers = (
+            await self.session.scalar(
+                select(func.count(distinct(User.id)))
+                .join(Transaction, Transaction.user_id == User.id)
+                .where(*paid_buyers_filter, User.is_trial_available.is_(False))
             )
             or 0
         )
@@ -126,7 +140,8 @@ class AdLinkDaoImpl(AdLinkDao):
 
         return AdLinkStatsDto(
             registrations=registrations,
-            conversions=conversions,
             trials=trials,
+            buyers=buyers,
+            trial_buyers=trial_buyers,
             revenue=revenue,
         )

@@ -165,7 +165,7 @@ class RemnawaveImpl(Remnawave):
             logger.debug(f"RemnaUser '{uuid}' not found in panel")
             return None
 
-    async def get_user_by_telegram_id(self, telegram_id: int) -> list[UserResponseDto]:
+    async def get_users_by_telegram_id(self, telegram_id: int) -> list[UserResponseDto]:
         response = await self.sdk.users.get_users_by_telegram_id(telegram_id)
         logger.debug(f"Fetched {len(response.root)} RemnaUsers for telegram_id '{telegram_id}'")
         return response.root

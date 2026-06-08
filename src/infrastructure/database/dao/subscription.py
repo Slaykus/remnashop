@@ -41,6 +41,7 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
     async def create(self, subscription: SubscriptionDto, user_id: int) -> SubscriptionDto:
         subscription_data = self.retort.dump(subscription)
         subscription_data.pop("id", None)
+        subscription_data.pop("user_id", None)
         db_subscription = Subscription(**subscription_data, user_id=user_id)
 
         self.session.add(db_subscription)

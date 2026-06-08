@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
-from src.core.enums import PaymentGatewayType
+from src.core.enums import PaymentGatewayType, PromocodeRewardType
 
 
 @dataclass(frozen=True)
@@ -93,6 +93,23 @@ class PromocodeStatisticsDto:
     issued_subscriptions: int
     issued_personal_discounts: int
     issued_purchase_discounts: int
+
+
+@dataclass(frozen=True)
+class PromocodeDetailStatisticsDto:
+    code: str
+    reward_type: PromocodeRewardType
+    reward: Optional[int]
+    plan_snapshot: Optional[dict[str, Any]]
+    is_active: bool
+    is_reusable: bool
+    created_at: datetime
+    expires_at: Optional[datetime]
+    max_activations: Optional[int]
+    total_activations: int
+    activations_today: int
+    activations_week: int
+    activations_month: int
 
 
 @dataclass(frozen=True)

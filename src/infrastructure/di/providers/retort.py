@@ -6,7 +6,6 @@ from adaptix import (
     P,
     Retort,
     as_is_dumper,
-    as_is_loader,
     dumper,
     loader,
     name_mapping,
@@ -68,7 +67,10 @@ class RetortProvider(Provider):
                 dumper(P[MessagePayloadDto].reply_markup, lambda x: x.model_dump() if x else None),
                 dumper(P[MessagePayloadDto].media_type, lambda x: MediaType(x) if x else None),
                 #
-                as_is_loader(datetime),
+                loader(
+                    datetime,
+                    lambda x: x if isinstance(x, datetime) else datetime.fromisoformat(x),
+                ),
                 as_is_dumper(datetime),
                 name_mapping(extra_in=ExtraSkip()),
                 #

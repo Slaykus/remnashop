@@ -437,6 +437,7 @@ async def referrals_getter(
     return {
         "referrals": [
             {
+                "id": r.referred.id,
                 "telegram_id": r.referred.telegram_id,
                 "name": r.referred.name,
             }

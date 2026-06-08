@@ -5,16 +5,32 @@ from src.core.enums import BannerName
 from src.telegram.keyboards import main_menu_button
 from src.telegram.states import Dashboard, DashboardStatistics
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
-from src.telegram.widgets.kbd import Column, Row, Select, Start, StubScroll, SwitchTo
+from src.telegram.widgets.kbd import (
+    Button,
+    Column,
+    ListGroup,
+    Row,
+    Select,
+    Start,
+    StubScroll,
+    SwitchTo,
+)
 
 from .getters import (
+    promocode_detail_getter,
     promocodes_getter,
     referrals_getter,
     subscriptions_getter,
     transactions_getter,
     users_getter,
 )
-from .handlers import on_gateway_select, on_plan_select
+from .handlers import (
+    on_gateway_select,
+    on_plan_select,
+    on_promo_stat_page_next,
+    on_promo_stat_page_prev,
+    on_promo_stat_select,
+)
 
 statistics = Window(
     Banner(BannerName.DASHBOARD),
@@ -143,6 +159,36 @@ transactions = Window(
 promocodes = Window(
     Banner(BannerName.DASHBOARD),
     I18nFormat("msg-statistics-promocodes"),
+    ListGroup(
+        Row(
+            Button(
+                text=I18nFormat(
+                    "btn-promocodes.item",
+                    code=F["item"]["code"],
+                    promocode_type=F["item"]["reward_type"],
+                ),
+                id="promo_stat_item",
+                on_click=on_promo_stat_select,
+            ),
+        ),
+        id="promo_stat_list",
+        item_id_getter=lambda item: item["id"],
+        items="promos",
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-common.prev"),
+            id="promo_stat_prev",
+            on_click=on_promo_stat_page_prev,
+            when=F["has_prev"],
+        ),
+        Button(
+            text=I18nFormat("btn-common.next"),
+            id="promo_stat_next",
+            on_click=on_promo_stat_page_next,
+            when=F["has_next"],
+        ),
+    ),
     Row(
         SwitchTo(
             text=I18nFormat("btn-back.general"),
@@ -154,6 +200,22 @@ promocodes = Window(
     IgnoreUpdate(),
     state=DashboardStatistics.PROMOCODES,
     getter=promocodes_getter,
+)
+
+promocode_detail = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-statistics-promocode-detail"),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=DashboardStatistics.PROMOCODES,
+        ),
+        *main_menu_button,
+    ),
+    IgnoreUpdate(),
+    state=DashboardStatistics.PROMOCODE_DETAIL,
+    getter=promocode_detail_getter,
 )
 
 referrals = Window(
@@ -178,5 +240,6 @@ router = Dialog(
     subscriptions,
     transactions,
     promocodes,
+    promocode_detail,
     referrals,
 )

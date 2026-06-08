@@ -63,7 +63,7 @@ async def getter_configurator(
             code="",
             is_active=True,
             reward_type=PromocodeRewardType.DURATION,
-            reward=0,  # DURATION default: unlimited (permanent) subscription
+            reward=None,  # reward unset until the admin enters a value
             availability=PromocodeAvailability.ALL,
         )
         dialog_manager.dialog_data[PromocodeDto.__name__] = retort.dump(promo)
@@ -77,6 +77,7 @@ async def getter_configurator(
     return {
         "is_edit": dialog_manager.dialog_data.get("is_edit", False),
         "is_active": int(promo.is_active),
+        "is_reusable": int(promo.is_reusable),
         "code": promo.code or "—",
         "reward": _reward_display(promo, i18n),
         "promocode_type": promo.reward_type.value,
@@ -167,10 +168,10 @@ async def getter_code(
 ) -> dict[str, Any]:
     raw = dialog_manager.dialog_data.get(PromocodeDto.__name__)
     if not raw:
-        return {"code": "0"}
+        return {"code": 0}
     promo = retort.load(raw, PromocodeDto)
     return {
-        "code": promo.code or "0",
+        "code": promo.code or 0,
     }
 
 
@@ -184,10 +185,10 @@ async def getter_reward(
     raw = dialog_manager.dialog_data.get(PromocodeDto.__name__)
     promo = retort.load(raw, PromocodeDto) if raw else None
     promocode_type = promo.reward_type.value if promo else ""
-    # "0" is the sentinel for "not set" (-> [0] branch shows nothing); a real reward is
-    # rendered via the shared fragment (never "0"), so the [HAS] branch shows it.
+    # Numeric 0 is the sentinel for "not set" (-> [0] branch shows nothing). A real reward
+    # is a pre-rendered string (never numeric 0), so it falls to the [HAS] branch as-is.
     if promo is None or promo.reward is None:
-        return {"reward": "0", "promocode_type": promocode_type}
+        return {"reward": 0, "promocode_type": promocode_type}
     return {
         "reward": _reward_display(promo, i18n),
         "promocode_type": promocode_type,
@@ -202,13 +203,13 @@ async def getter_expires(
 ) -> dict[str, Any]:
     raw = dialog_manager.dialog_data.get(PromocodeDto.__name__)
     if not raw:
-        return {"has_expires": False, "expires": "0"}
+        return {"has_expires": False, "expires": 0}
     promo = retort.load(raw, PromocodeDto)
     return {
         "has_expires": promo.expires_at is not None,
         "expires": promo.expires_at.strftime("%d.%m.%Y %H:%M")
         if promo.expires_at is not None
-        else "0",
+        else 0,
     }
 
 
@@ -220,9 +221,9 @@ async def getter_max_activations(
 ) -> dict[str, Any]:
     raw = dialog_manager.dialog_data.get(PromocodeDto.__name__)
     if not raw:
-        return {"has_max_activations": False, "max_activations": "0"}
+        return {"has_max_activations": False, "max_activations": 0}
     promo = retort.load(raw, PromocodeDto)
     return {
         "has_max_activations": promo.max_activations is not None,
-        "max_activations": str(promo.max_activations) if promo.max_activations is not None else "0",
+        "max_activations": str(promo.max_activations) if promo.max_activations is not None else 0,
     }

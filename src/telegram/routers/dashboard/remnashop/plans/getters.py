@@ -7,7 +7,7 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from remnapy.enums.users import TrafficLimitStrategy
 
-from src.application.common import BotService, Remnawave
+from src.application.common import BotService, Remnawave, TranslatorRunner
 from src.application.common.dao import PlanDao
 from src.application.dto import PlanDto, PlanDurationDto, PlanPriceDto
 from src.core.enums import Currency, PlanAvailability, PlanType
@@ -64,12 +64,14 @@ async def configurator_getter(
     dialog_manager: DialogManager,
     bot_service: FromDishka[BotService],
     retort: FromDishka[Retort],
+    i18n: FromDishka[TranslatorRunner],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
 
     if raw_plan is None:
         plan = PlanDto(
+            name=i18n.get("plan-default-name"),
             durations=[
                 PlanDurationDto(
                     days=7,

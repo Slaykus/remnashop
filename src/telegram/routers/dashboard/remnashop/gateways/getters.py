@@ -35,10 +35,10 @@ async def gateways_getter(
 @inject
 async def gateway_getter(
     dialog_manager: DialogManager,
-    config: FromDishka[AppConfig],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
+    config: AppConfig = kwargs["config"]
     gateway_id = dialog_manager.dialog_data["gateway_id"]
     gateway = await payment_gateway_dao.get_by_id(gateway_id)
 

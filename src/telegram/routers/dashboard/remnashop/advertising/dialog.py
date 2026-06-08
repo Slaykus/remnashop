@@ -67,6 +67,14 @@ configurator = Window(
     Banner(BannerName.DASHBOARD),
     I18nFormat("msg-ad-link-configurator"),
     Row(
+        SwitchTo(
+            text=I18nFormat("btn-ad-links.stats"),
+            id="stats",
+            state=RemnashopAdvertising.STATS,
+            when=F["is_edit"],
+        ),
+    ),
+    Row(
         Button(
             text=I18nFormat("btn-ad-links.active-toggle", is_active=F["is_active"]),
             id="active_toggle",
@@ -91,14 +99,6 @@ configurator = Window(
             copy_text=Format("{link_url}"),
         ),
         when=F["code"] != "0",
-    ),
-    Row(
-        SwitchTo(
-            text=I18nFormat("btn-ad-links.stats"),
-            id="stats",
-            state=RemnashopAdvertising.STATS,
-            when=F["is_edit"],
-        ),
     ),
     Row(
         Button(
@@ -182,9 +182,10 @@ stats = Window(
         "msg-ad-link-stats",
         name=F["name"],
         registrations=F["registrations"],
-        conversions=F["conversions"],
-        conversion_rate=F["conversion_rate"],
         trials=F["trials"],
+        buyers=F["buyers"],
+        reg_to_buy_rate=F["reg_to_buy_rate"],
+        trial_to_buy_rate=F["trial_to_buy_rate"],
         revenue_lines=F["revenue_lines"],
     ),
     Row(

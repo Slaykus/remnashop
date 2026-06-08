@@ -42,7 +42,7 @@ async def configurator_getter(
     link_url = await bot_service.get_ad_link_url(link.code) if link.code else ""
 
     return {
-        "name": link.name or "0",
+        "name": link.name,
         "code": link.code or "0",
         "is_active": int(link.is_active),
         "is_edit": is_edit,
@@ -58,7 +58,7 @@ async def name_getter(
 ) -> dict[str, Any]:
     raw = dialog_manager.dialog_data.get(AdLinkDto.__name__)
     link = retort.load(raw, AdLinkDto) if raw else AdLinkDto(name="", code="")
-    return {"name": link.name or "0"}
+    return {"name": link.name}
 
 
 @inject
@@ -85,15 +85,19 @@ async def stats_getter(
     stats = await get_stats(user, link.id)
 
     revenue_lines = (
-        "\n".join(f"    • {currency}: {amount:.2f}" for currency, amount in stats.revenue.items())
-        or "    • —"
+        "\n".join(
+            f"• <b>Доход ({currency})</b>: {amount:.2f}"
+            for currency, amount in stats.revenue.items()
+        )
+        or "• <b>Доход</b>: —"
     )
 
     return {
         "name": link.name,
         "registrations": stats.registrations,
-        "conversions": stats.conversions,
-        "conversion_rate": stats.conversion_rate,
         "trials": stats.trials,
+        "buyers": stats.buyers,
+        "reg_to_buy_rate": stats.reg_to_buy_rate,
+        "trial_to_buy_rate": stats.trial_to_buy_rate,
         "revenue_lines": revenue_lines,
     }

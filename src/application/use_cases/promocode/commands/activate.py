@@ -79,7 +79,9 @@ class ActivatePromocode(Interactor[ActivatePromocodeDto, PromocodeDto]):
                 activated_at=datetime_now(),
             )
             await self.promocode_dao.create_activation(
-                activation, max_activations=promo.max_activations
+                activation,
+                max_activations=promo.max_activations,
+                is_reusable=promo.is_reusable,
             )
 
             await self._persist_reward(user, pending)
@@ -88,6 +90,7 @@ class ActivatePromocode(Interactor[ActivatePromocodeDto, PromocodeDto]):
         logger.info(f"{actor.log} Activated promocode '{promo.code}'")
 
         event = PromocodeActivatedEvent(
+            user_id=user.id,
             telegram_id=user.telegram_id,
             username=user.username,
             name=user.name,
@@ -172,15 +175,21 @@ class ActivatePromocode(Interactor[ActivatePromocodeDto, PromocodeDto]):
         promo: PromocodeDto,
         subscription: Optional[SubscriptionDto],
     ) -> _PendingReward:
-        if not subscription or not promo.reward:
+        if not subscription or promo.reward is None:
             return _PendingReward()
-        subscription.traffic_limit = subscription.traffic_limit + promo.reward
+        if promo.reward == 0:
+            # 0 GB means an unlimited traffic limit.
+            subscription.traffic_limit = 0
+            log_detail = "unlimited"
+        else:
+            subscription.traffic_limit = subscription.traffic_limit + promo.reward
+            log_detail = f"+{promo.reward} GB"
         await self.remnawave.update_user(
             user=user,
             uuid=subscription.user_remna_id,
             subscription=subscription,
         )
-        logger.info(f"{actor.log} TRAFFIC reward: +{promo.reward} GB applied")
+        logger.info(f"{actor.log} TRAFFIC reward: {log_detail} applied")
         return _PendingReward(subscription_update=subscription)
 
     async def _apply_devices(
@@ -218,12 +227,24 @@ class ActivatePromocode(Interactor[ActivatePromocodeDto, PromocodeDto]):
             return _PendingReward()
         plan = self.retort.load(promo.plan_snapshot, PlanSnapshotDto)
         if subscription:
-            await self.remnawave.update_user(
+            updated = await self.remnawave.update_user(
                 user=user,
                 uuid=subscription.user_remna_id,
                 plan=plan,
                 reset_traffic=True,
             )
+            # Keep the local subscription in sync with the new plan pushed to the
+            # panel; otherwise the DB keeps stale limits/expiry and later updates
+            # would overwrite the panel with outdated values.
+            subscription.status = SubscriptionStatus(updated.status)
+            subscription.traffic_limit = plan.traffic_limit
+            subscription.device_limit = plan.device_limit
+            subscription.traffic_limit_strategy = plan.traffic_limit_strategy
+            subscription.tag = plan.tag
+            subscription.internal_squads = plan.internal_squads
+            subscription.external_squad = plan.external_squad
+            subscription.expire_at = updated.expire_at
+            subscription.url = updated.subscription_url
             subscription.plan_snapshot = plan
             logger.info(f"{actor.log} SUBSCRIPTION reward applied")
             return _PendingReward(subscription_update=subscription)

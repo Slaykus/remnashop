@@ -6,7 +6,7 @@ from aiogram_dialog.widgets.kbd import Button
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
-from src.application.common import Notifier
+from src.application.common import Notifier, TranslatorRunner
 from src.application.dto import AdLinkDto
 from src.application.use_cases.ad_link.commands.manage import (
     CreateAdLink,
@@ -28,11 +28,12 @@ async def on_link_create(
     widget: Button,
     dialog_manager: DialogManager,
     retort: FromDishka[Retort],
+    i18n: FromDishka[TranslatorRunner],
     generate_code: FromDishka[GenerateAdLinkCode],
 ) -> None:
     user = dialog_manager.middleware_data[USER_KEY]
     code = await generate_code(user)
-    link = AdLinkDto(name="", code=code)
+    link = AdLinkDto(name=i18n.get("ad-link-default-name"), code=code)
     dialog_manager.dialog_data[AdLinkDto.__name__] = retort.dump(link)
     await dialog_manager.switch_to(RemnashopAdvertising.CONFIGURATOR)
 

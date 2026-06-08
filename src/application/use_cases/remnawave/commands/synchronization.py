@@ -46,6 +46,9 @@ class SyncRemnaUser(Interactor[SyncRemnaUserDto, bool]):
         async with self.uow:
             user = await self.user_dao.get_by_remna_uuid(remna_user.uuid)
 
+            if not user and remna_user.telegram_id:
+                user = await self.user_dao.get_by_telegram_id(remna_user.telegram_id)
+
             if not user and data.creating:
                 logger.debug(f"User '{remna_user.uuid}' not found in bot, creating new user")
 

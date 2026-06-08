@@ -5,7 +5,8 @@ from loguru import logger
 from src.application.common import Interactor
 from src.application.common.dao import PromocodeDao, SubscriptionDao, UserDao
 from src.application.common.policy import Permission
-from src.application.dto import PromocodeDto, UserDto
+from src.application.dto import PromocodeDto, SubscriptionDto, UserDto
+from src.core.constants import UNLIMITED_EXPIRE_YEAR
 from src.core.enums import PromocodeAvailability, PromocodeRewardType
 from src.core.exceptions import (
     PromocodeAlreadyActivatedError,
@@ -65,21 +66,39 @@ class ValidatePromocode(Interactor[ValidatePromocodeDto, PromocodeDto]):
                 logger.info(f"{actor.log} Promocode '{code}' max activations reached")
                 raise PromocodeNotAvailableError("Promocode activation limit reached")
 
-        existing = await self.promocode_dao.get_activation_by_user(promo.id, user.id)
-        if existing:
-            logger.info(f"{actor.log} Promocode '{code}' already activated by user")
-            raise PromocodeAlreadyActivatedError("Promocode already activated")
+        if not promo.is_reusable:
+            existing = await self.promocode_dao.get_activation_by_user(promo.id, user.id)
+            if existing:
+                logger.info(f"{actor.log} Promocode '{code}' already activated by user")
+                raise PromocodeAlreadyActivatedError("Promocode already activated")
 
         if promo.reward_type in SUBSCRIPTION_REQUIRED_REWARDS:
             current = await self.subscription_dao.get_current(user.id)
             if current is None:
                 logger.info(f"{actor.log} Promocode '{code}' requires an active subscription")
                 raise PromocodeNotAvailableError("Active subscription required for this promocode")
+            if self._is_resource_unlimited(promo.reward_type, current):
+                logger.info(f"{actor.log} Promocode '{code}' resource already unlimited")
+                raise PromocodeNotAvailableError("Resource is already unlimited")
 
         await self._check_availability(actor, user, promo)
 
         logger.info(f"{actor.log} Promocode '{code}' is valid for user")
         return promo
+
+    @staticmethod
+    def _is_resource_unlimited(
+        reward_type: PromocodeRewardType, subscription: SubscriptionDto
+    ) -> bool:
+        match reward_type:
+            case PromocodeRewardType.DURATION:
+                return subscription.expire_at.year == UNLIMITED_EXPIRE_YEAR
+            case PromocodeRewardType.TRAFFIC:
+                return subscription.traffic_limit == 0
+            case PromocodeRewardType.DEVICES:
+                return subscription.device_limit == 0
+            case _:
+                return False
 
     async def _check_availability(self, actor: UserDto, user: UserDto, promo: PromocodeDto) -> None:
         match promo.availability:

@@ -88,7 +88,7 @@ async def on_create_promo(
         code=await generate_code(user),
         is_active=True,
         reward_type=PromocodeRewardType.DURATION,
-        reward=0,  # DURATION default: unlimited (permanent) subscription
+        reward=None,  # reward unset until the admin enters a value
         availability=PromocodeAvailability.ALL,
     )
     _save(dialog_manager, retort, promo)
@@ -158,6 +158,18 @@ async def on_toggle_active(
 
 
 @inject
+async def on_toggle_reusable(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    retort: FromDishka[Retort],
+) -> None:
+    promo = _load(dialog_manager, retort)
+    promo.is_reusable = not promo.is_reusable
+    _save(dialog_manager, retort, promo)
+
+
+@inject
 async def on_delete_promo(
     callback: CallbackQuery,
     widget: Button,
@@ -205,7 +217,7 @@ async def on_code_input(
     user = dialog_manager.middleware_data[USER_KEY]
     code = (message.text or "").strip()
     if not (3 <= len(code) <= 16):
-        await notifier.notify_user(user, i18n_key="ntf-promocode.code-invalid")
+        await notifier.notify_user(user, i18n_key="ntf-common.invalid-value")
         return
     promo = _load(dialog_manager, retort)
     promo.code = code
@@ -225,12 +237,8 @@ async def on_type_select(
     promo.reward_type = reward_type
     if reward_type == PromocodeRewardType.SUBSCRIPTION:
         promo.reward = None
-    elif reward_type in (PromocodeRewardType.DURATION, PromocodeRewardType.DEVICES):
-        # DURATION/DEVICES default: 0 == unlimited (permanent subscription / unlimited devices).
-        promo.plan_snapshot = None
-        promo.reward = 0
     else:
-        # Reward is type-specific (GB / %), so reset on type change.
+        # Reward is type-specific (days / devices / GB / %), so reset on type change.
         promo.plan_snapshot = None
         promo.reward = None
     _save(dialog_manager, retort, promo)
@@ -249,16 +257,32 @@ async def on_reward_input(
     user = dialog_manager.middleware_data[USER_KEY]
     reward_text = (message.text or "").strip()
     if not reward_text.isdigit():
-        await notifier.notify_user(user, i18n_key="ntf-promocode.reward-invalid")
+        await notifier.notify_user(user, i18n_key="ntf-common.invalid-value")
         return
     promo = _load(dialog_manager, retort)
     reward = int(reward_text)
     if promo.reward_type in _DISCOUNT_TYPES and not 1 <= reward <= 100:
-        await notifier.notify_user(user, i18n_key="ntf-promocode.discount-out-of-range")
+        await notifier.notify_user(user, i18n_key="ntf-common.invalid-value")
         return
     promo.reward = reward
     _save(dialog_manager, retort, promo)
     await dialog_manager.switch_to(DashboardPromocodes.CONFIGURATOR)
+
+
+@inject
+async def on_plan_open(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    notifier: FromDishka[Notifier],
+    get_available_plans: FromDishka[GetAvailablePlans],
+) -> None:
+    user = dialog_manager.middleware_data[USER_KEY]
+    plans = await get_available_plans.system(user)
+    if not plans:
+        await notifier.notify_user(user, i18n_key="ntf-promocode.plans-empty")
+        return
+    await dialog_manager.switch_to(DashboardPromocodes.PLAN)
 
 
 @inject
@@ -342,7 +366,7 @@ async def on_expires_input(
     promo = _load(dialog_manager, retort)
     expires = _parse_expires_at((message.text or "").strip(), promo.created_at)
     if expires is None or expires <= datetime_now():
-        await notifier.notify_user(user, i18n_key="ntf-promocode.reward-invalid")
+        await notifier.notify_user(user, i18n_key="ntf-common.invalid-value")
         return
     promo.expires_at = expires
     _save(dialog_manager, retort, promo)
@@ -374,7 +398,7 @@ async def on_max_activations_input(
     user = dialog_manager.middleware_data[USER_KEY]
     text = (message.text or "").strip()
     if not text.isdigit() or int(text) <= 0:
-        await notifier.notify_user(user, i18n_key="ntf-promocode.reward-invalid")
+        await notifier.notify_user(user, i18n_key="ntf-common.invalid-value")
         return
     promo = _load(dialog_manager, retort)
     promo.max_activations = int(text)

@@ -274,6 +274,11 @@ btn-promocodes =
     *[0] 🔴 Выключен
     }
 
+    .reusable-toggle = 🔁 { $is_reusable ->
+    [1] Повтор: да
+    *[0] Повтор: нет
+    }
+
 btn-access =
     .mode = { access-mode }
     .conditions = ⚙️ Условия доступа
@@ -541,10 +546,7 @@ btn-subscription =
     .renew = 🔄 Продлить
     .change = 🔃 Изменить
     .promocode = 🎟 Активировать промокод
-    .payment-method = { gateway-type } | { $final_amount ->
-    [0] 🎁
-    *[HAS] { $final_amount }{ $currency }
-    }
+    .promocode-confirm = ✅ Подтвердить
     .pay = 💳 Оплатить
     .get = 🎁 Получить бесплатно
     .back-plans = ⬅️ Назад к выбору плана
@@ -552,6 +554,11 @@ btn-subscription =
     .back-payment-method = ⬅️ Изменить способ оплаты
     .connect = 🚀 Подключиться
 
+    .payment-method = { gateway-type } | { $final_amount ->
+    [0] 🎁
+    *[HAS] { $final_amount }{ $currency }
+    }
+    
     .duration = { $period } | { $final_amount -> 
     [0] 🎁
     *[HAS] { $final_amount }{ $currency }

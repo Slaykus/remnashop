@@ -26,6 +26,7 @@ class Promocode(BaseSql, TimestampMixin):
 
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     max_activations: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_reusable: Mapped[bool] = mapped_column(nullable=False, server_default=text("false"))
 
     activations: Mapped[list["PromocodeActivation"]] = relationship(
         back_populates="promocode",

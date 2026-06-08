@@ -6,7 +6,7 @@ from loguru import logger
 from src.application.common import Cryptographer, EventPublisher, Interactor
 from src.application.common.dao import AdLinkDao, SettingsDao, UserDao
 from src.application.common.uow import UnitOfWork
-from src.application.dto import UserDto
+from src.application.dto import AdLinkDto, UserDto
 from src.application.events import BlacklistRegistrationAttemptEvent, UserRegisteredEvent
 from src.application.use_cases.referral.commands.attachment import AttachReferral, AttachReferralDto
 from src.core.config import AppConfig
@@ -74,7 +74,8 @@ class GetOrCreateUser(Interactor[GetOrCreateUserDto, Optional[UserDto]]):
             settings = await self.settings_dao.get()
             is_blocked = data.telegram_id in settings.blacklist.blocked_ids
 
-            ad_link_id = await self._resolve_ad_link_id(data.ad_link_code)
+            ad_link = await self._resolve_ad_link(data.ad_link_code)
+            ad_link_id = ad_link.id if ad_link else None
 
             async def persist(referral_code: str) -> UserDto:
                 return await self.user_dao.create(
@@ -139,18 +140,21 @@ class GetOrCreateUser(Interactor[GetOrCreateUserDto, Optional[UserDto]]):
                 referrer_email=referrer.email if referrer else None,
                 referrer_username=referrer.username if referrer else None,
                 referrer_name=referrer.name if referrer else None,
+                ad_link_id=ad_link.id if ad_link else None,
+                ad_link_name=ad_link.name if ad_link else None,
+                ad_link_code=ad_link.code if ad_link else None,
             )
         )
 
         logger.info(f"New user '{user.remna_name}' created")
         return user
 
-    async def _resolve_ad_link_id(self, ad_link_code: Optional[str]) -> Optional[int]:
+    async def _resolve_ad_link(self, ad_link_code: Optional[str]) -> Optional[AdLinkDto]:
         if not ad_link_code:
             return None
         ad_link = await self.ad_link_dao.get_by_code(ad_link_code)
         if ad_link and ad_link.is_active:
-            return ad_link.id
+            return ad_link
         return None
 
     async def _transfer_owner_role(self, new_owner: UserDto) -> UserDto:

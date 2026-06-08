@@ -54,7 +54,14 @@ from src.application.use_cases.subscription.commands.purchase import (
     PurchaseSubscription,
     PurchaseSubscriptionDto,
 )
-from src.core.enums import Currency, PaymentGatewayType, PurchaseType, TransactionStatus
+from src.core.enums import (
+    Currency,
+    PaymentGatewayType,
+    PurchaseType,
+    Role,
+    SystemNotificationType,
+    TransactionStatus,
+)
 from src.core.exceptions import PurchaseError
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
@@ -443,6 +450,25 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                     transaction.payment_id, TransactionStatus.FAILED
                 )
                 await self.uow.commit()
+            await self.notifier.notify_system(
+                MessagePayloadDto(
+                    i18n_key="event-payment.purchase-failed",
+                    i18n_kwargs={
+                        "payment_id": str(transaction.payment_id),
+                        "gateway_type": transaction.gateway_type,
+                        "final_amount": transaction.pricing.final_amount,
+                        "original_amount": transaction.pricing.original_amount,
+                        "discount_percent": transaction.pricing.discount_percent,
+                        "currency": transaction.currency.symbol,
+                        "telegram_id": user.telegram_id or 0,
+                        "username": user.username or 0,
+                        "name": user.name,
+                        "email": user.email,
+                    },
+                ),
+                roles=[Role.OWNER, Role.DEV],
+                notification_type=SystemNotificationType.SYSTEM,
+            )
             if user.telegram_id is not None:
                 await self.redirect.to_failed_payment(user.telegram_id)
             raise PurchaseError(e)

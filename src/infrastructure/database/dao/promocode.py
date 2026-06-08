@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.common.dao import PromocodeDao
 from src.application.dto import (
     PromocodeActivationDto,
+    PromocodeDetailStatisticsDto,
     PromocodeDto,
     PromocodeStatisticsDto,
 )
@@ -38,6 +39,7 @@ class PromocodeDaoImpl(PromocodeDao):
             availability=promocode.availability,
             expires_at=promocode.expires_at,
             max_activations=promocode.max_activations,
+            is_reusable=promocode.is_reusable,
         )
         self.session.add(db)
         try:
@@ -58,6 +60,9 @@ class PromocodeDaoImpl(PromocodeDao):
                     value = value.upper()
                 setattr(db, key, value)
         await self.session.flush()
+        # Reload eagerly: the server-side ``onupdate`` expires ``updated_at`` after the
+        # UPDATE, and the sync DTO converter cannot lazy-load it inside the async session.
+        await self.session.refresh(db)
         logger.debug(f"Promocode id={promocode.id} updated")
         return self._to_dto(db)
 
@@ -169,6 +174,50 @@ class PromocodeDaoImpl(PromocodeDao):
             issued_purchase_discounts=counts.get(PromocodeRewardType.PURCHASE_DISCOUNT, 0),
         )
 
+    async def get_detail_statistics(
+        self, promocode_id: int
+    ) -> Optional[PromocodeDetailStatisticsDto]:
+        promo = await self.session.get(Promocode, promocode_id)
+        if not promo:
+            return None
+
+        now = datetime_now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+
+        activated_at = PromocodeActivation.activated_at
+        counts = (
+            (
+                await self.session.execute(
+                    select(
+                        func.count().label("total"),
+                        func.sum(case((activated_at >= today_start, 1), else_=0)).label("today"),
+                        func.sum(case((activated_at >= week_ago, 1), else_=0)).label("week"),
+                        func.sum(case((activated_at >= month_ago, 1), else_=0)).label("month"),
+                    ).where(PromocodeActivation.promocode_id == promocode_id)
+                )
+            )
+            .mappings()
+            .one()
+        )
+
+        return PromocodeDetailStatisticsDto(
+            code=promo.code,
+            reward_type=promo.reward_type,
+            reward=promo.reward,
+            plan_snapshot=promo.plan_snapshot,
+            is_active=promo.is_active,
+            is_reusable=promo.is_reusable,
+            created_at=promo.created_at,
+            expires_at=promo.expires_at,
+            max_activations=promo.max_activations,
+            total_activations=int(counts["total"] or 0),
+            activations_today=int(counts["today"] or 0),
+            activations_week=int(counts["week"] or 0),
+            activations_month=int(counts["month"] or 0),
+        )
+
     async def get_activation_by_user(
         self, promocode_id: int, user_id: int
     ) -> Optional[PromocodeActivationDto]:
@@ -180,14 +229,21 @@ class PromocodeDaoImpl(PromocodeDao):
         return self._act_to_dto(db) if db else None
 
     async def create_activation(
-        self, activation: PromocodeActivationDto, max_activations: Optional[int] = None
+        self,
+        activation: PromocodeActivationDto,
+        max_activations: Optional[int] = None,
+        is_reusable: bool = False,
     ) -> PromocodeActivationDto:
-        if max_activations is not None:
+        # Lock the promocode row so the activation-limit and per-user uniqueness checks
+        # below run race-free against concurrent activations of the same promocode.
+        if max_activations is not None or not is_reusable:
             await self.session.execute(
                 select(Promocode.id)
                 .where(Promocode.id == activation.promocode_id)
                 .with_for_update()
             )
+
+        if max_activations is not None:
             count_result = await self.session.execute(
                 select(func.count(PromocodeActivation.id)).where(
                     PromocodeActivation.promocode_id == activation.promocode_id
@@ -197,19 +253,26 @@ class PromocodeDaoImpl(PromocodeDao):
             if count >= max_activations:
                 raise PromocodeNotAvailableError("Promocode activation limit reached")
 
+        if not is_reusable:
+            existing = await self.session.scalar(
+                select(PromocodeActivation.id).where(
+                    PromocodeActivation.promocode_id == activation.promocode_id,
+                    PromocodeActivation.user_id == activation.user_id,
+                )
+            )
+            if existing is not None:
+                raise PromocodeAlreadyActivatedError(
+                    f"Promocode '{activation.promocode_id}' already activated "
+                    f"by user '{activation.user_id}'"
+                )
+
         db = PromocodeActivation(
             promocode_id=activation.promocode_id,
             user_id=activation.user_id,
             activated_at=activation.activated_at,
         )
         self.session.add(db)
-        try:
-            await self.session.flush()
-        except IntegrityError:
-            raise PromocodeAlreadyActivatedError(
-                f"Promocode '{activation.promocode_id}' already activated "
-                f"by user '{activation.user_id}'"
-            )
+        await self.session.flush()
         logger.debug(
             f"PromocodeActivation created: promocode_id={activation.promocode_id}, "
             f"user_id={activation.user_id}"

@@ -165,6 +165,16 @@ event-user =
     </blockquote>
     }
 
+    { $ad_link_id ->
+    [0] { empty }
+    *[HAS]
+    <b>🎯 Рекламная ссылка</b>:
+    <blockquote>
+    • <b>Название</b>: { $ad_link_name }
+    • <b>Код</b>: <code>{ $ad_link_code }</code>
+    </blockquote>
+    }
+
     .first-connected =
     #UserFirstConnectionEvent
 
@@ -438,6 +448,17 @@ event-payment =
     { frg-user-info }
 
     Покупка завершена успешно, но при начислении реферальной награды произошла ошибка. Требуется ручная проверка.
+
+    .purchase-failed =
+    <b>⚠️ Событие: Ошибка обработки платежа!</b>
+
+    { hdr-payment }
+    { frg-payment-info }
+
+    { hdr-user }
+    { frg-user-info }
+
+    Платеж получен, но не удалось выдать подписку. Транзакция помечена как FAILED. Требуется ручная проверка.
 
 event-remnashop-welcome =
     <b>💎 Remnashop v{ $version }</b>

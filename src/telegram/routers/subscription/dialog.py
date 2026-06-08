@@ -270,11 +270,20 @@ failed = Window(
 
 promocode_window = Window(
     Banner(BannerName.PROMOCODE),
-    I18nFormat("msg-promocode-input"),
+    I18nFormat("msg-promocode-input", ~F["has_promo"]),
+    I18nFormat(
+        "msg-promocode-confirm",
+        F["has_promo"],
+        promo_code=F["promo_code"],
+        reward_type=F["promo_reward_type"],
+        reward=F["promo_reward"],
+    ),
+    I18nFormat("msg-promocode-reset-warning", F["show_reset_warning"]),
+    I18nFormat("msg-promocode-replace-warning", F["will_replace_subscription"]),
     MessageInput(on_promocode_input),
     Row(
         Button(
-            text=I18nFormat("btn-promocodes.confirm"),
+            text=I18nFormat("btn-subscription.promocode-confirm"),
             id="confirm_promo",
             on_click=on_promocode_confirm,
             when=F["has_promo"],

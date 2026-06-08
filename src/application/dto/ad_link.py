@@ -13,12 +13,19 @@ class AdLinkDto(BaseDto, TrackableMixin, TimestampMixin):
 @dataclass(frozen=True)
 class AdLinkStatsDto:
     registrations: int
-    conversions: int
     trials: int
+    buyers: int
+    trial_buyers: int
     revenue: dict[str, float]
 
     @property
-    def conversion_rate(self) -> float:
+    def reg_to_buy_rate(self) -> float:
         if not self.registrations:
             return 0.0
-        return round(self.conversions / self.registrations * 100, 1)
+        return round(self.buyers / self.registrations * 100, 1)
+
+    @property
+    def trial_to_buy_rate(self) -> float:
+        if not self.trials:
+            return 0.0
+        return round(self.trial_buyers / self.trials * 100, 1)

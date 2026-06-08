@@ -268,10 +268,10 @@ def get_remnashop_update_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_user_keyboard(
-    telegram_id: Optional[int],
-    referrer_telegram_id: Optional[int] = None,
+    user_id: Optional[int],
+    referrer_user_id: Optional[int] = None,
 ) -> Optional[InlineKeyboardMarkup]:
-    if telegram_id is None:
+    if not user_id:
         return None
 
     builder = InlineKeyboardBuilder()
@@ -279,15 +279,15 @@ def get_user_keyboard(
     builder.row(
         InlineKeyboardButton(
             text="btn-goto.user-profile",
-            callback_data=f"{GOTO_PREFIX}{DashboardUser.MAIN.state}:{telegram_id}",
+            callback_data=f"{GOTO_PREFIX}{DashboardUser.MAIN.state}:{user_id}",
         ),
     )
 
-    if referrer_telegram_id:
+    if referrer_user_id:
         builder.row(
             InlineKeyboardButton(
                 text="btn-goto.referrer-profile",
-                callback_data=f"{GOTO_PREFIX}{DashboardUser.MAIN.state}:{referrer_telegram_id}",
+                callback_data=f"{GOTO_PREFIX}{DashboardUser.MAIN.state}:{referrer_user_id}",
             ),
         )
 

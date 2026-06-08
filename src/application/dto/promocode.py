@@ -17,6 +17,7 @@ class PromocodeDto(BaseDto, TrackableMixin, TimestampMixin):
     availability: PromocodeAvailability = PromocodeAvailability.ALL
     expires_at: Optional[datetime] = None
     max_activations: Optional[int] = None
+    is_reusable: bool = False
 
 
 @dataclass(kw_only=True)

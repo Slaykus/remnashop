@@ -65,7 +65,7 @@ class PlanSnapshotDto:
 @dataclass(kw_only=True)
 class PlanDto(BaseDto, TrackableMixin, TimestampMixin):
     public_code: Optional[str] = None
-    name: str = "Default Plan"
+    name: str = ""
     description: Optional[str] = None
     tag: Optional[str] = None
 

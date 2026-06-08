@@ -36,11 +36,13 @@ from .handlers import (
     on_page_next,
     on_page_prev,
     on_plan_duration_select,
+    on_plan_open,
     on_plan_select,
     on_promo_confirm,
     on_promo_select,
     on_reward_input,
     on_toggle_active,
+    on_toggle_reusable,
     on_type_select,
 )
 
@@ -109,6 +111,12 @@ configurator = Window(
             on_click=on_toggle_active,
             when=F["can_manage"],
         ),
+        Button(
+            text=I18nFormat("btn-promocodes.reusable-toggle", is_reusable=F["is_reusable"]),
+            id="toggle_reusable",
+            on_click=on_toggle_reusable,
+            when=F["can_manage"],
+        ),
     ),
     Row(
         SwitchTo(
@@ -129,10 +137,10 @@ configurator = Window(
             state=DashboardPromocodes.REWARD,
             when=~F["is_subscription"],
         ),
-        SwitchTo(
+        Button(
             text=I18nFormat("btn-promocodes.plan"),
             id="plan",
-            state=DashboardPromocodes.PLAN,
+            on_click=on_plan_open,
             when=F["is_subscription"],
         ),
         SwitchTo(

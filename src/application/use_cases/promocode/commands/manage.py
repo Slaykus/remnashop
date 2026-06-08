@@ -21,6 +21,7 @@ class CreatePromocodeDto:
     availability: PromocodeAvailability = PromocodeAvailability.ALL
     expires_at: Optional[datetime] = None
     max_activations: Optional[int] = None
+    is_reusable: bool = False
 
 
 class CreatePromocode(Interactor[CreatePromocodeDto, PromocodeDto]):
@@ -77,6 +78,7 @@ class CreatePromocode(Interactor[CreatePromocodeDto, PromocodeDto]):
             availability=data.availability,
             expires_at=data.expires_at,
             max_activations=data.max_activations,
+            is_reusable=data.is_reusable,
         )
 
         async with self.uow:

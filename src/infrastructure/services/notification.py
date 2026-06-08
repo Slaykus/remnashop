@@ -41,6 +41,7 @@ from src.application.events.base import BaseEvent, UserEvent
 from src.application.events.system import (
     BlacklistRegistrationAttemptEvent,
     BotUpdateEvent,
+    PromocodeActivatedEvent,
     RemnashopWelcomeEvent,
     SubscriptionRevokedEvent,
     TrialActivatedEvent,
@@ -132,9 +133,9 @@ class NotificationService(Notifier):
         if isinstance(event, BotUpdateEvent):
             return get_remnashop_update_keyboard()
         if isinstance(event, UserRegisteredEvent):
-            return get_user_keyboard(event.telegram_id, event.referrer_telegram_id)
+            return get_user_keyboard(event.user_id, event.referrer_user_id)
         if isinstance(event, BlacklistRegistrationAttemptEvent):
-            return get_user_keyboard(event.telegram_id)
+            return get_user_keyboard(event.user_id)
         if isinstance(
             event,
             (
@@ -143,9 +144,10 @@ class NotificationService(Notifier):
                 UserPurchaseEvent,
                 TrialActivatedEvent,
                 SubscriptionRevokedEvent,
+                PromocodeActivatedEvent,
             ),
         ):
-            return get_user_keyboard(event.telegram_id)
+            return get_user_keyboard(event.user_id)
         return None
 
     @on_event(RemnashopWelcomeEvent)
@@ -187,7 +189,7 @@ class NotificationService(Notifier):
 
         payload = event.as_payload()
         payload.reply_markup = self._resolve_keyboard(event)
-        await self._notify_system(payload, notification_type=event.notification_type)
+        await self.notify_system(payload, notification_type=event.notification_type)
 
     @on_event(ErrorEvent)
     async def on_error_event(self, event: ErrorEvent) -> None:
@@ -220,13 +222,13 @@ class NotificationService(Notifier):
             filename=f"error_{event.event_id}.txt",
         )
 
-        await self._notify_system(
+        await self.notify_system(
             event.as_payload(media, error_type, error_message),
             roles=[Role.OWNER, Role.DEV],
             notification_type=event.notification_type,
         )
 
-    async def _notify_system(
+    async def notify_system(
         self,
         payload: MessagePayloadDto,
         roles: list[Role] = [Role.OWNER, Role.DEV, Role.ADMIN],
@@ -257,6 +259,12 @@ class NotificationService(Notifier):
             i18n_kwargs=payload.i18n_kwargs,
         )
 
+        reply_markup = (
+            self._translate_keyboard_text(payload.reply_markup, locale)
+            if payload.reply_markup is not None
+            else None
+        )
+
         try:
             if payload.is_text:
                 await self.bot.send_message(
@@ -265,6 +273,7 @@ class NotificationService(Notifier):
                     message_thread_id=thread_id,
                     disable_web_page_preview=True,
                     disable_notification=payload.disable_notification,
+                    reply_markup=reply_markup,
                 )
             elif payload.media:
                 method = self._get_media_method(payload)
@@ -278,6 +287,7 @@ class NotificationService(Notifier):
                     caption=text,
                     message_thread_id=thread_id,
                     disable_notification=payload.disable_notification,
+                    reply_markup=reply_markup,
                 )
             else:
                 logger.error(f"Payload must contain text or media for route {chat_id}:{thread_id}")

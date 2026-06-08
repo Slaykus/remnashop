@@ -273,6 +273,10 @@ class UserRegisteredEvent(UserEvent):
     referrer_username: Optional[str] = field(default=None)
     referrer_name: Optional[str] = field(default=None)
 
+    ad_link_id: Optional[int] = field(default=None)
+    ad_link_name: Optional[str] = field(default=None)
+    ad_link_code: Optional[str] = field(default=None)
+
     def as_payload(self) -> "MessagePayloadDto":
         return MessagePayloadDto(
             i18n_key=self.event_key,
@@ -522,12 +526,13 @@ class SubscriptionRevokedEvent(UserEvent):
 
 
 @dataclass(frozen=True, kw_only=True)
-class PromocodeActivatedEvent(BaseEvent):
+class PromocodeActivatedEvent(SystemEvent):
     notification_type: NotificationType = field(
         default=SystemNotificationType.PROMOCODE_ACTIVATED,
         init=False,
     )
 
+    user_id: int
     telegram_id: Optional[int]
     username: Optional[str]
     name: str

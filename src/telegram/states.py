@@ -40,6 +40,7 @@ class DashboardStatistics(StatesGroup):
     SUBSCRIPTIONS = State()
     TRANSACTIONS = State()
     PROMOCODES = State()
+    PROMOCODE_DETAIL = State()
     REFERRALS = State()
 
 

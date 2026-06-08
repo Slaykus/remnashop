@@ -599,7 +599,7 @@ referrals = Window(
         Select(
             text=Format("{item[telegram_id]} ({item[name]})"),
             id="referral_select",
-            item_id_getter=lambda item: item["telegram_id"],
+            item_id_getter=lambda item: item["id"],
             items="referrals",
             type_factory=int,
             on_click=on_user_select,

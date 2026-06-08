@@ -9,6 +9,9 @@ raw-message = { $content }
 
 payment-invoice-description = { purchase-type } подписки { $name } на { $duration }
 
+ad-link-default-name = Новая ссылка
+plan-default-name = Новый план
+
 inline-invite =
     .title = Пригласить друга
     .description = Нажмите, чтобы отправить пригласительную ссылку!
@@ -211,7 +214,10 @@ frg-promocode-reward = { $promocode_type ->
         [few] { $reward } дня
         *[more] { $reward } дней
         } к текущей подписке
-    [TRAFFIC] { $reward } ГБ к текущей подписке
+    [TRAFFIC] { $reward ->
+        [0] { unlimited } ГБ
+        *[OTHER] { $reward } ГБ
+        } к текущей подписке
     [DEVICES] { $reward ->
         [0] { unlimited } устройств
         [one] { $reward } устройство
