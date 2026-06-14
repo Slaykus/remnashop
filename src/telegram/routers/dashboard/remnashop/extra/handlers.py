@@ -8,6 +8,7 @@ from dishka.integrations.aiogram_dialog import inject
 from src.application.common import Notifier
 from src.application.dto import TelegramUserDto
 from src.application.use_cases.settings.commands.extra import (
+    ToggleMiniAppReserve,
     ToggleResetFeature,
     ToggleResetFeatureDto,
     ToggleTrialChannelGuard,
@@ -46,6 +47,17 @@ async def on_trial_channel_guard_toggle(
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
     await toggle_trial_channel_guard(user)
+
+
+@inject
+async def on_mini_app_reserve_toggle(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    toggle_mini_app_reserve: FromDishka[ToggleMiniAppReserve],
+) -> None:
+    user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
+    await toggle_mini_app_reserve(user)
 
 
 @inject

@@ -303,6 +303,7 @@ async def getter_connect(
     config: AppConfig,
     user: TelegramUserDto,
     subscription_dao: FromDishka[SubscriptionDao],
+    settings_dao: FromDishka[SettingsDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     current_subscription = await subscription_dao.get_current(user.id)
@@ -310,9 +311,11 @@ async def getter_connect(
     if not current_subscription:
         raise ValueError(f"User '{user.telegram_id}' has no active subscription after purchase")
 
+    settings = await settings_dao.get()
+
     return {
         "is_mini_app": config.bot.is_mini_app,
-        "is_mini_app_reserve": config.bot.is_mini_app_reserve,
+        "is_mini_app_reserve": config.bot.is_mini_app and settings.extra.mini_app_reserve,
         "connection_url": config.bot.mini_app_url or current_subscription.url,
         "subscription_url": current_subscription.url,
         "connectable": True,
@@ -325,6 +328,7 @@ async def success_payment_getter(
     config: AppConfig,
     user: TelegramUserDto,
     subscription_dao: FromDishka[SubscriptionDao],
+    settings_dao: FromDishka[SettingsDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     start_data = cast(dict[str, Any], dialog_manager.start_data)
@@ -334,6 +338,8 @@ async def success_payment_getter(
     if not subscription:
         raise ValueError(f"User '{user.telegram_id}' has no active subscription after purchase")
 
+    settings = await settings_dao.get()
+
     return {
         "purchase_type": purchase_type,
         "plan_name": subscription.plan_snapshot.name,
@@ -342,7 +348,7 @@ async def success_payment_getter(
         "expire_time": i18n_format_expire_time(subscription.expire_at),
         "added_duration": i18n_format_days(subscription.plan_snapshot.duration),
         "is_mini_app": config.bot.is_mini_app,
-        "is_mini_app_reserve": config.bot.is_mini_app_reserve,
+        "is_mini_app_reserve": config.bot.is_mini_app and settings.extra.mini_app_reserve,
         "connection_url": config.bot.mini_app_url or subscription.url,
         "subscription_url": subscription.url,
         "connectable": True,

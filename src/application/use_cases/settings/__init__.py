@@ -10,7 +10,12 @@ from .commands.backup import (
     UpdateBackupMaxFiles,
 )
 from .commands.currency import UpdateDefaultCurrency
-from .commands.extra import ToggleResetFeature, ToggleTrialChannelGuard, UpdateResetCooldown
+from .commands.extra import (
+    ToggleMiniAppReserve,
+    ToggleResetFeature,
+    ToggleTrialChannelGuard,
+    UpdateResetCooldown,
+)
 from .commands.notifications import ToggleNotification, UpdateSystemNotificationRoute
 from .commands.referral import (
     ToggleReferralSystem,
@@ -48,5 +53,6 @@ SETTINGS_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     UpdateBackupMaxFiles,
     ToggleResetFeature,
     ToggleTrialChannelGuard,
+    ToggleMiniAppReserve,
     UpdateResetCooldown,
 )

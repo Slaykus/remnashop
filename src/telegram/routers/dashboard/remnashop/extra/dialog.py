@@ -8,7 +8,12 @@ from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.widgets.kbd import Button, Row, Start, SwitchTo
 
 from .getters import extra_getter
-from .handlers import on_cooldown_input, on_toggle, on_trial_channel_guard_toggle
+from .handlers import (
+    on_cooldown_input,
+    on_mini_app_reserve_toggle,
+    on_toggle,
+    on_trial_channel_guard_toggle,
+)
 
 main = Window(
     Banner(BannerName.DASHBOARD),
@@ -61,6 +66,16 @@ main = Window(
             ),
             id="trial_channel_guard",
             state=RemnashopExtra.TRIAL_CHANNEL_GUARD,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat(
+                "btn-remnashop-extra.mini-app-reserve",
+                enabled=F["mini_app_reserve_enabled"],
+            ),
+            id="mini_app_reserve",
+            state=RemnashopExtra.MINI_APP_RESERVE,
         ),
     ),
     Row(
@@ -212,6 +227,34 @@ trial_channel_guard = Window(
     getter=extra_getter,
 )
 
+mini_app_reserve = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat(
+        "msg-extra-mini-app-reserve",
+        enabled=F["mini_app_reserve_enabled"],
+    ),
+    Row(
+        Button(
+            text=I18nFormat(
+                "btn-remnashop-extra.toggle",
+                enabled=F["mini_app_reserve_enabled"],
+            ),
+            id="mini_app_reserve_toggle",
+            on_click=on_mini_app_reserve_toggle,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopExtra.MAIN,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopExtra.MINI_APP_RESERVE,
+    getter=extra_getter,
+)
+
 router = Dialog(
     main,
     device_single,
@@ -219,4 +262,5 @@ router = Dialog(
     link_reset,
     referral_reset,
     trial_channel_guard,
+    mini_app_reserve,
 )

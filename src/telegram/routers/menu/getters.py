@@ -32,6 +32,7 @@ async def menu_getter(
 ) -> dict[str, Any]:
     try:
         menu_data = await get_menu_data(user)
+        settings = await settings_dao.get()
         support_url = bot_service.get_support_url(text=i18n.get("message.help"))
 
         purchase_discount = user.purchase_discount or 0
@@ -50,7 +51,7 @@ async def menu_getter(
             "show_purchase_discount": show_purchase_discount,
             # ui / config
             "is_mini_app": config.bot.is_mini_app,
-            "is_mini_app_reserve": config.bot.is_mini_app_reserve,
+            "is_mini_app_reserve": config.bot.is_mini_app and settings.extra.mini_app_reserve,
             "support_url": support_url,
             "web_enabled": config.web_enabled,
             "web_cabinet_url": config.web_cabinet_url.strip(),
@@ -84,7 +85,6 @@ async def menu_getter(
             trial_is_free = True
             trial_price_str = ""
             if trial_plan and menu_data.is_trial_available:
-                settings = await settings_dao.get()
                 currency = settings.default_currency
                 raw_price = trial_plan.durations[0].get_price(currency)
                 trial_is_free = raw_price == 0

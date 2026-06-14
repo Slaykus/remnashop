@@ -57,6 +57,24 @@ class ToggleTrialChannelGuard(Interactor[None, Optional[SettingsDto]]):
         return updated
 
 
+class ToggleMiniAppReserve(Interactor[None, Optional[SettingsDto]]):
+    required_permission = Permission.SETTINGS_EXTRA
+
+    def __init__(self, uow: UnitOfWork, settings_dao: SettingsDao) -> None:
+        self.uow = uow
+        self.settings_dao = settings_dao
+
+    async def _execute(self, actor: UserDto, data: None) -> Optional[SettingsDto]:
+        async with self.uow:
+            settings = await self.settings_dao.get()
+            settings.extra.mini_app_reserve = not settings.extra.mini_app_reserve
+            updated = await self.settings_dao.update(settings)
+            await self.uow.commit()
+
+        logger.info(f"{actor.log} Toggled mini_app_reserve: {settings.extra.mini_app_reserve}")
+        return updated
+
+
 @dataclass(frozen=True)
 class UpdateResetCooldownDto:
     feature: str

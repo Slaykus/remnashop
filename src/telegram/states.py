@@ -134,6 +134,7 @@ class RemnashopExtra(StatesGroup):
     LINK_RESET = State()
     REFERRAL_RESET = State()
     TRIAL_CHANNEL_GUARD = State()
+    MINI_APP_RESERVE = State()
 
 
 class RemnashopReferral(StatesGroup):
