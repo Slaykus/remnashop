@@ -17,8 +17,9 @@ fi
 
 # --- Migrate legacy layout: move pre-0.8 *.ftl (except custom.ftl) into .legacy/ ---
 # Built-in translations now ship in assets.default; the user volume keeps only custom.ftl.
+# Skipped when assets.default is absent (local dev bind-mounts src into assets directly).
 USER_TRANSLATIONS="${ASSETS_CONTAINER_PATH}/translations"
-if [ -d "$USER_TRANSLATIONS" ]; then
+if [ -d "$ASSETS_DEFAULT_PATH" ] && [ -d "$USER_TRANSLATIONS" ]; then
     for locale_dir in "$USER_TRANSLATIONS"/*/; do
         [ -d "$locale_dir" ] || continue
         for ftl in "$locale_dir"*.ftl; do
