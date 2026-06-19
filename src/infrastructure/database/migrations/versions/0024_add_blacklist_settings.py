@@ -13,18 +13,27 @@ DEFAULT_BLACKLIST = '{"blocked_ids": [], "sources": []}'
 
 
 def upgrade() -> None:
-    op.add_column(
-        "settings",
-        sa.Column(
-            "blacklist",
-            postgresql.JSONB(),
-            nullable=True,
-        ),
-    )
+    conn = op.get_bind()
+    exists = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+            "WHERE table_name='settings' AND column_name='blacklist')"
+        )
+    ).scalar()
+    if not exists:
+        op.add_column(
+            "settings",
+            sa.Column(
+                "blacklist",
+                postgresql.JSONB(),
+                nullable=True,
+            ),
+        )
     op.execute(
         f"UPDATE settings SET blacklist = '{DEFAULT_BLACKLIST}'::jsonb WHERE blacklist IS NULL"
     )
-    op.alter_column("settings", "blacklist", nullable=False)
+    if not exists:
+        op.alter_column("settings", "blacklist", nullable=False)
 
 
 def downgrade() -> None:

@@ -13,16 +13,25 @@ DEFAULT_BACKUP = '{"enabled": false, "interval_hours": 24, "max_files": 7, "send
 
 
 def upgrade() -> None:
-    op.add_column(
-        "settings",
-        sa.Column(
-            "backup",
-            postgresql.JSONB(),
-            nullable=True,
-        ),
-    )
+    conn = op.get_bind()
+    exists = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+            "WHERE table_name='settings' AND column_name='backup')"
+        )
+    ).scalar()
+    if not exists:
+        op.add_column(
+            "settings",
+            sa.Column(
+                "backup",
+                postgresql.JSONB(),
+                nullable=True,
+            ),
+        )
     op.execute(f"UPDATE settings SET backup = '{DEFAULT_BACKUP}'::jsonb WHERE backup IS NULL")
-    op.alter_column("settings", "backup", nullable=False)
+    if not exists:
+        op.alter_column("settings", "backup", nullable=False)
 
 
 def downgrade() -> None:

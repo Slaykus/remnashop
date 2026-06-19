@@ -17,15 +17,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "users",
-        sa.Column(
-            "paid_referrals_count",
-            sa.Integer(),
-            nullable=False,
-            server_default="0",
-        ),
-    )
+    conn = op.get_bind()
+    exists = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+            "WHERE table_name='users' AND column_name='paid_referrals_count')"
+        )
+    ).scalar()
+    if not exists:
+        op.add_column(
+            "users",
+            sa.Column(
+                "paid_referrals_count",
+                sa.Integer(),
+                nullable=False,
+                server_default="0",
+            ),
+        )
 
 
 def downgrade() -> None:
