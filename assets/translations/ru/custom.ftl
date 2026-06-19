@@ -245,6 +245,247 @@ ntf-node-quota =
             *[other]  Вы также можете <b>сбросить счётчик досрочно</b> за { $reset_price } ₽ в разделе «Подписка».
         }
 
+# ============================================================
+# РЕКЛАМНЫЕ ССЫЛКИ: КНОПКИ (ОТСУТСТВУЮТ В UPSTREAM 0.8.0)
+# ============================================================
+
+btn-advertising =
+    .create = ➕ Создать ссылку
+    .toggle-active = { $is_active ->
+    [1] 🔴 Деактивировать
+    *[0] 🟢 Активировать
+    }
+    .edit-name = ✏️ Название
+    .bonus-points = 🎯 Баллы: { $bonus_points }
+    .bonus-days = 📅 Дней: { $bonus_days }
+    .bonus-discount = 💸 Скидка: { $bonus_discount_pct }%
+    .delete = 🗑 Удалить
+    .delete-confirm = ✅ Подтвердить удаление
+    .promo = ✉️ Promo-сообщение
+    .promo-edit-text = ✏️ Изменить текст
+    .promo-photo = { $promo_has_photo ->
+    [1] 📷 Изменить фото
+    *[0] 📷 Добавить фото
+    }
+    .promo-remove-photo = 🗑 Удалить фото
+    .promo-add-button = ➕ Добавить кнопку
+    .promo-use-ad-url = 🔗 Использовать ссылку бота
+    .promo-preview = 👁 Отправить мне превью
+    .promo-style-default = ⚪ Обычная
+    .promo-style-primary = 🔵 Синяя
+    .promo-style-success = 🟢 Зелёная
+    .promo-style-danger = 🔴 Красная
+    .analytics = 📊 Аналитика
+    .analytics-period-7 = { $is_active_7 ->
+    [1] ● 7 дней
+    *[0] ○ 7 дней
+    }
+    .analytics-period-30 = { $is_active_30 ->
+    [1] ● 30 дней
+    *[0] ○ 30 дней
+    }
+    .analytics-period-0 = { $is_active_0 ->
+    [1] ● Всё время
+    *[0] ○ Всё время
+    }
+    .analytics-trend = 📈 Тренд кликов
+    .analytics-funnel = 📊 Воронка
+    .comparison = 📊 Сравнить
+    .comparison-sort-revenue = { $is_sort_revenue ->
+    [1] ● Выручка
+    *[0] ○ Выручка
+    }
+    .comparison-sort-conversion = { $is_sort_conversion ->
+    [1] ● Конверсия
+    *[0] ○ Конверсия
+    }
+    .comparison-sort-clicks = { $is_sort_clicks ->
+    [1] ● Клики
+    *[0] ○ Клики
+    }
+    .comparison-chart = 📊 График
+
+# ============================================================
+# РЕКЛАМНЫЕ ССЫЛКИ: СООБЩЕНИЯ (ОТСУТСТВУЮТ В UPSTREAM 0.8.0)
+# ============================================================
+
+msg-advertising-list =
+    🎯 <b>Рекламные ссылки</b>
+
+    { $count ->
+    [0] Ссылок пока нет. Создайте первую.
+    *[other] Всего ссылок: <b>{ $count }</b>
+    }
+
+msg-advertising-view =
+    🎯 <b>{ $name }</b>  { $is_active ->
+    [1] ✅ Активна
+    *[0] ❌ Неактивна
+    }
+    Код: <code>{ $code }</code>
+    Ссылка: <code>{ $deep_link }</code>
+
+    <b>Бонусы при переходе:</b>
+    • Баллы: <b>{ $bonus_points }</b>
+    • Дней: <b>{ $bonus_days }</b>
+    • Скидка: <b>{ $bonus_discount_pct }%</b>
+
+    <b>Аналитика:</b>
+    • Переходов: <b>{ $clicks_count }</b>
+    • Уник. пользователей: <b>{ $unique_clicks }</b>
+    • Получили бонус: <b>{ $bonus_issued_count }</b>
+    • Активировали пробный: <b>{ $trial_count }</b>
+    • Оплатили: <b>{ $paid_count }</b>
+    • Выручка: <b>{ $revenue_rub } ₽</b>
+
+msg-advertising-create-name =
+    ✏️ Введите название ссылки (для вашего удобства):
+
+msg-advertising-create-code =
+    🔗 Введите код ссылки (только буквы и цифры, без пробелов):
+
+    <i>Название: { $create_name }</i>
+
+msg-advertising-edit-name =
+    ✏️ Введите новое название:
+
+msg-advertising-edit-bonus-points =
+    🎯 Введите количество баллов (0 — без бонуса):
+
+msg-advertising-edit-bonus-days =
+    📅 Введите количество дней (0 — без бонуса):
+
+msg-advertising-edit-bonus-discount =
+    💸 Введите размер скидки % от 0 до 100 (0 — без скидки):
+
+msg-advertising-confirm-delete =
+    ⚠️ Удалить ссылку <b>{ $delete_name }</b>?
+
+    Вся аналитика будет потеряна.
+
+msg-advertising-promo =
+    ✉️ <b>Promo-сообщение</b> — { $name }
+    Отправить: введите <code>@vpnrain_bot { $inline_query }</code> в любом чате
+
+    <b>Фото:</b> { $promo_has_photo ->
+    [1] ✅ Загружено
+    *[0] ❌ Нет
+    }
+    <b>Текст:</b>
+    { $promo_text_preview }
+
+    <b>Кнопки:</b>
+    { $promo_buttons_info }
+
+msg-advertising-promo-edit-text =
+    ✏️ Введите текст promo-сообщения (поддерживается HTML):
+
+msg-advertising-promo-edit-photo =
+    📷 Отправьте фото для promo-сообщения.
+
+    { $promo_has_photo ->
+    [1] <i>Текущее фото будет заменено.</i>
+    *[0] { "" }
+    }
+
+msg-advertising-promo-button-label =
+    ✏️ Введите текст кнопки (до 100 символов):
+
+    <i>Можно использовать эмодзи, например: 🟢 Попробовать</i>
+
+msg-advertising-promo-button-url =
+    🔗 Введите URL для кнопки <b>{ $new_btn_label }</b>:
+
+    <i>Должен начинаться с https://
+    Или нажмите кнопку ниже, чтобы использовать ссылку бота.</i>
+
+msg-advertising-promo-button-style =
+    🎨 Выберите цвет кнопки <b>{ $new_btn_label }</b>:
+
+msg-advertising-analytics =
+    📊 <b>Аналитика — { $name }</b>
+
+    { $period_days ->
+    [0] Период: <b>Всё время</b>
+    *[other] Период: <b>{ $period_days } дней</b>
+    }
+
+    • Уник. пользователей: <b>{ $unique_clicks }</b>
+    • Получили бонус: <b>{ $bonus_issued_count }</b>
+    • Активировали пробный: <b>{ $trial_count }</b>
+    • Оплатили: <b>{ $paid_count }</b>
+    • Выручка: <b>{ $revenue_rub } ₽</b>
+    • Конверсия: <b>{ $conversion_pct }%</b>
+
+msg-advertising-comparison =
+    📊 <b>Сравнение кампаний</b>  ({ $count } ссылок)
+
+    { $comparison_text }
+
+# ============================================================
+# РЕФЕРАЛЬНАЯ СИСТЕМА: СОБЫТИЯ
+# Переопределён полностью, чтобы добавить атрибут .milestone
+# ============================================================
+
+event-referral =
+    .attached =
+    <b>🎉 Вы пригласили друга!</b>
+
+    <blockquote>
+    Пользователь <b>{ $name }</b> присоединился по вашей пригласительной ссылке! Чтобы получить награду, убедитесь, что он совершит покупку подписки.
+    </blockquote>
+
+    .reward =
+    <b>💰 Вам начислена награда!</b>
+
+    <blockquote>
+    Пользователь <b>{ $name }</b> совершил платеж. Вы получили { $reward_type ->
+    [POINTS] <b>{ $value } { $value ->
+        [one] балл
+        [few] балла
+        *[more] баллов
+        }</b>
+
+    <i>Для использования баллов перейдите в раздел "Пригласить" в боте, чтобы узнать о доступных наградах и способах их использования.</i>
+    [EXTRA_DAYS] <b>{ $value } доп. { $value ->
+        [one] день
+        [few] дня
+        *[more] дней
+        }</b> к вашей подписке!
+    *[OTHER] <b>{ $value } { $reward_type }</b>
+    }
+    </blockquote>
+
+    .reward-failed =
+    <b>❌ Не получилось выдать награду!</b>
+
+    <blockquote>
+    Пользователь <b>{ $name }</b> совершил платеж, но мы не смогли начислить вам вознаграждение из-за того что <b>у вас нет купленной подписки</b>, к которой можно было бы добавить { $value } { $reward_type ->
+    [POINTS] { $value ->
+        [one] балл
+        [few] балла
+        *[more] баллов
+        }
+    [EXTRA_DAYS] доп. { $value ->
+        [one] день
+        [few] дня
+        *[more] дней
+        }
+    *[OTHER] { $reward_type }
+    }.
+
+    <i>Купите подписку, чтобы получать бонусы за приглашенных друзей!</i>
+    </blockquote>
+
+    .milestone =
+    <b>🏆 Новый уровень реферальной программы!</b>
+
+    <blockquote>
+    Вы достигли <b>{ $tier } уровня</b>!
+    Оплативших рефералов: <b>{ $paid_referrals_count }</b>
+    Персональная скидка: <b>{ $discount }%</b>
+    </blockquote>
+
 # Уведомления рекламных ссылок
 ntf-ad =
     .bonus-received =
