@@ -43,6 +43,7 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         subscription_data = self.retort.dump(subscription)
         subscription_data.pop("id", None)
         subscription_data.pop("user_id", None)
+        subscription_data.pop("user_telegram_id", None)
         db_subscription = Subscription(**subscription_data, user_id=user_id)
 
         self.session.add(db_subscription)
@@ -198,7 +199,7 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         dtos = self._convert_to_dto_list(db_subscriptions)
         for dto, sub in zip(dtos, db_subscriptions):
             if sub.user is not None:
-                dto.user_telegram_id = sub.user.telegram_id
+                object.__setattr__(dto, "user_telegram_id", sub.user.telegram_id)
         logger.debug(f"Retrieved {len(dtos)} active subscriptions")
         return dtos
 
