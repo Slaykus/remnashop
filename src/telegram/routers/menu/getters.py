@@ -10,6 +10,7 @@ from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.core.config import AppConfig
+from src.core.config.referral_milestones import get_tier_for_count
 from src.core.exceptions import MenuRenderError
 from src.core.utils.i18n_helpers import (
     i18n_format_device_limit,
@@ -39,6 +40,7 @@ async def menu_getter(
         personal_discount = user.personal_discount or 0
         show_purchase_discount = purchase_discount > 0 and purchase_discount >= personal_discount
         show_personal_discount = personal_discount > 0 and not show_purchase_discount
+        referral_tier = get_tier_for_count(user.paid_referrals_count)
 
         data: dict[str, Any] = {
             # user
@@ -49,6 +51,7 @@ async def menu_getter(
             "show_personal_discount": show_personal_discount,
             "purchase_discount": purchase_discount,
             "show_purchase_discount": show_purchase_discount,
+            "referral_tier": referral_tier,
             # ui / config
             "is_mini_app": config.bot.is_mini_app,
             "is_mini_app_reserve": config.bot.is_mini_app and settings.extra.mini_app_reserve,
