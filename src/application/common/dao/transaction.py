@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional, Protocol, runtime_checkable
+from typing import Iterable, Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from src.application.dto import GatewayStatsDto, PlanIncomeDto, TransactionDto, UserPaymentStatsDto
-from src.core.enums import TransactionStatus
+from src.core.enums import PaymentGatewayType, TransactionStatus
 
 
 @runtime_checkable
 class TransactionDao(Protocol):
     async def create(self, transaction: TransactionDto) -> TransactionDto: ...
 
+    async def update(self, transaction: TransactionDto) -> Optional[TransactionDto]: ...
+
     async def get_by_payment_id(self, payment_id: UUID) -> Optional[TransactionDto]: ...
 
-    async def get_by_user(self, telegram_id: int) -> list[TransactionDto]: ...
+    async def get_by_user(self, user_id: int) -> list[TransactionDto]: ...
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[TransactionDto]: ...
 
@@ -24,6 +26,13 @@ class TransactionDao(Protocol):
         self,
         payment_id: UUID,
         status: TransactionStatus,
+    ) -> Optional[TransactionDto]: ...
+
+    async def transition_status(
+        self,
+        payment_id: UUID,
+        new_status: TransactionStatus,
+        allowed_current: Iterable[TransactionStatus],
     ) -> Optional[TransactionDto]: ...
 
     async def exists(self, payment_id: UUID) -> bool: ...
@@ -44,9 +53,17 @@ class TransactionDao(Protocol):
 
     async def get_plan_income(self) -> list[PlanIncomeDto]: ...
 
+    async def get_recent_pending(
+        self,
+        user_id: int,
+        plan_id: int,
+        duration_days: int,
+        gateway_type: PaymentGatewayType,
+    ) -> Optional[TransactionDto]: ...
+
     async def get_user_payment_stats(
         self,
-        telegram_id: int,
+        user_id: int,
     ) -> tuple[Optional[datetime], list[UserPaymentStatsDto]]: ...
 
     async def has_completed_paid_transaction(

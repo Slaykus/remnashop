@@ -1,6 +1,6 @@
 from aiogram.enums import ButtonStyle
 from aiogram_dialog import Dialog, Window
-from aiogram_dialog.widgets.kbd import Button, Column, Group, Row, Select, SwitchTo, Url
+from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.style import Style
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
@@ -10,6 +10,7 @@ from src.core.enums import BannerName, PaymentGatewayType, PurchaseType
 from src.telegram.keyboards import back_main_menu_button, connect_buttons
 from src.telegram.states import Subscription
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
+from src.telegram.widgets.kbd import Button, Column, Group, Row, Select, SwitchTo, Url
 
 from .getters import (
     confirm_getter,
@@ -20,7 +21,6 @@ from .getters import (
     plans_getter,
     subscription_getter,
     success_payment_getter,
-    traffic_reset_getter,
 )
 from .handlers import (
     on_duration_select,
@@ -28,9 +28,9 @@ from .handlers import (
     on_payment_method_select,
     on_plan_select,
     on_subscription_plans,
-    on_traffic_reset_click,
-    on_traffic_reset_gateway_select,
+    on_subscription_start,
 )
+from .promocode_handlers import getter_promocode, on_promocode_confirm, on_promocode_input
 
 subscription = Window(
     Banner(BannerName.SUBSCRIPTION),
@@ -57,20 +57,11 @@ subscription = Window(
     ),
     Row(
         Button(
-            text=I18nFormat("btn-subscription.traffic-reset", price=F["node_quota_reset_price"]),
-            id="traffic_reset",
-            on_click=on_traffic_reset_click,
-            when=F["node_quota_reset_available"],
+            text=I18nFormat("btn-subscription.promocode"),
+            id="goto_promocode",
+            on_click=lambda c, w, m: m.switch_to(Subscription.PROMOCODE),
         ),
     ),
-    # Row(
-    #     Button(
-    #         text=I18nFormat("btn-subscription.promocode"),
-    #         id=f"{PAYMENT_PREFIX}promocode",
-    #         on_click=show_dev_popup,
-    #         # state=Subscription.PROMOCODE,
-    #     ),
-    # ),
     *back_main_menu_button,
     IgnoreUpdate(),
     state=Subscription.MAIN,
@@ -165,7 +156,7 @@ payment_method = Window(
         Select(
             text=I18nFormat(
                 "btn-subscription.payment-method",
-                gateway_type=F["item"]["gateway_type"],
+                gateway_title=F["item"]["gateway_title"],
                 final_amount=F["item"]["final_amount"],
                 original_amount=F["item"]["original_amount"],
                 discount_percent=F["item"]["discount_percent"],
@@ -249,9 +240,7 @@ confirm = Window(
 success_payment = Window(
     Banner(BannerName.SUBSCRIPTION),
     I18nFormat("msg-subscription-success"),
-    Row(
-        *connect_buttons,
-    ),
+    *connect_buttons,
     *back_main_menu_button,
     IgnoreUpdate(),
     state=Subscription.SUCCESS,
@@ -261,9 +250,7 @@ success_payment = Window(
 success_trial = Window(
     Banner(BannerName.SUBSCRIPTION),
     I18nFormat("msg-subscription-trial"),
-    Row(
-        *connect_buttons,
-    ),
+    *connect_buttons,
     *back_main_menu_button,
     IgnoreUpdate(),
     state=Subscription.TRIAL,
@@ -278,48 +265,39 @@ failed = Window(
     state=Subscription.FAILED,
 )
 
-traffic_reset_confirm = Window(
-    Banner(BannerName.SUBSCRIPTION),
-    I18nFormat("msg-subscription-traffic-reset-confirm"),
-    Column(
-        Select(
-            text=I18nFormat(
-                "btn-subscription.traffic-reset-gateway",
-                gateway_type=F["item"]["gateway_type"],
-                price=F["item"]["price"],
-                currency=F["item"]["currency"],
-            ),
-            id="tr_payment",
-            item_id_getter=lambda item: item["gateway_type"],
-            items="tr_gateways",
-            type_factory=PaymentGatewayType,
-            on_click=on_traffic_reset_gateway_select,
-            when=~F["tr_url_has"],
-        ),
+promocode_window = Window(
+    Banner(BannerName.PROMOCODE),
+    I18nFormat("msg-promocode-input", ~F["has_promo"]),
+    I18nFormat(
+        "msg-promocode-confirm",
+        F["has_promo"],
+        promo_code=F["promo_code"],
+        reward_type=F["promo_reward_type"],
+        reward=F["promo_reward"],
+        show_reset_warning=F["show_reset_warning"],
+        will_replace_subscription=F["will_replace_subscription"],
     ),
+    MessageInput(on_promocode_input),
     Row(
-        Url(
-            text=I18nFormat("btn-subscription.pay"),
-            url=Format("{tr_url}"),
-            when=F["tr_url_has"],
-            style=Style(ButtonStyle.SUCCESS),
+        Button(
+            text=I18nFormat("btn-subscription.promocode-confirm"),
+            id="confirm_promo",
+            on_click=on_promocode_confirm,
+            when=F["has_promo"],
         ),
     ),
-    Row(
-        SwitchTo(
-            text=I18nFormat("btn-back.general"),
-            id="tr_back",
-            state=Subscription.MAIN,
-        ),
+    SwitchTo(
+        text=I18nFormat("btn-back.general"),
+        id="back_main",
+        state=Subscription.MAIN,
     ),
-    *back_main_menu_button,
-    IgnoreUpdate(),
-    state=Subscription.TRAFFIC_RESET_CONFIRM,
-    getter=traffic_reset_getter,
+    state=Subscription.PROMOCODE,
+    getter=getter_promocode,
 )
 
 router = Dialog(
     subscription,
+    promocode_window,
     plan,
     plans,
     duration,
@@ -328,5 +306,5 @@ router = Dialog(
     success_payment,
     success_trial,
     failed,
-    traffic_reset_confirm,
+    on_start=on_subscription_start,
 )

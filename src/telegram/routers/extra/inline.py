@@ -6,7 +6,6 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineQuery,
     InlineQueryResultArticle,
-    InlineQueryResultCachedPhoto,
     InlineQueryResultUnion,
     InputTextMessageContent,
 )
@@ -15,12 +14,9 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
 
-from src.application.common import TranslatorRunner
+from src.application.common import BotService, TranslatorRunner
 from src.application.common.dao import UserDao
-from src.application.common.dao.ad_link import AdLinkDao
-from src.application.services import BotService
-from src.core.config import AppConfig
-from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROMO_PREFIX, INLINE_QUERY_PROXY
+from src.core.constants import INLINE_QUERY_INVITE
 
 router = Router(name=__name__)
 
@@ -70,103 +66,3 @@ async def handle_inline_query(
     ]
 
     await inline_query.answer(results, cache_time=1, is_personal=True)
-
-
-@inject
-@router.inline_query(F.query == INLINE_QUERY_PROXY)
-async def handle_proxy_inline_query(
-    inline_query: InlineQuery,
-    config: FromDishka[AppConfig],
-    i18n: FromDishka[TranslatorRunner],
-) -> None:
-    if not config.proxy_url:
-        return
-
-    result_id = hashlib.md5(b"proxy").hexdigest()
-
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text=i18n.get("inline-proxy.connect"),
-            style=ButtonStyle.SUCCESS,
-            url=config.proxy_url,
-        )
-    )
-
-    results: list[InlineQueryResultUnion] = [
-        InlineQueryResultArticle(
-            id=result_id,
-            title=i18n.get("inline-proxy.title"),
-            description=i18n.get("inline-proxy.description"),
-            input_message_content=InputTextMessageContent(
-                message_text=i18n.get("inline-proxy.message")
-            ),
-            reply_markup=builder.as_markup(),
-        )
-    ]
-
-    await inline_query.answer(results, cache_time=300, is_personal=False)
-
-
-_PROMO_STYLE_MAP = {
-    "primary": ButtonStyle.PRIMARY,
-    "success": ButtonStyle.SUCCESS,
-    "danger": ButtonStyle.DANGER,
-}
-
-
-@inject
-@router.inline_query(F.query.startswith(INLINE_QUERY_PROMO_PREFIX))
-async def handle_promo_inline_query(
-    inline_query: InlineQuery,
-    ad_link_dao: FromDishka[AdLinkDao],
-    bot_service: FromDishka[BotService],
-) -> None:
-    code = inline_query.query.removeprefix(INLINE_QUERY_PROMO_PREFIX)
-    if not code:
-        await inline_query.answer([], cache_time=0)
-        return
-
-    link = await ad_link_dao.get_by_code(code)
-    if not link or not link.promo_text:
-        await inline_query.answer([], cache_time=0)
-        return
-
-    deep_link = await bot_service.get_ad_url(link.code)
-
-    builder = InlineKeyboardBuilder()
-    for btn in (link.promo_buttons or []):
-        url = btn.get("url") or deep_link
-        style = _PROMO_STYLE_MAP.get(btn.get("style", "default"))
-        if style:
-            builder.row(InlineKeyboardButton(text=btn["label"], url=url, style=style))
-        else:
-            builder.row(InlineKeyboardButton(text=btn["label"], url=url))
-
-    result_id = hashlib.md5(f"promo_{link.id}".encode()).hexdigest()
-    markup = builder.as_markup() if link.promo_buttons else None
-
-    if link.promo_photo_id:
-        results: list[InlineQueryResultUnion] = [
-            InlineQueryResultCachedPhoto(
-                id=result_id,
-                photo_file_id=link.promo_photo_id,
-                caption=link.promo_text,
-                parse_mode="HTML",
-                reply_markup=markup,
-            )
-        ]
-    else:
-        results = [
-            InlineQueryResultArticle(
-                id=result_id,
-                title=f"Promo: {link.name}",
-                description=(link.promo_text or "")[:100],
-                input_message_content=InputTextMessageContent(
-                    message_text=link.promo_text,
-                    parse_mode="HTML",
-                ),
-                reply_markup=markup,
-            )
-        ]
-    await inline_query.answer(results, cache_time=0, is_personal=True)

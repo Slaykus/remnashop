@@ -1,14 +1,19 @@
 from .base import BaseEvent, SystemEvent, UserEvent
 from .system import (
+    BlacklistRegistrationAttemptEvent,
+    BotInlineModeDisabledEvent,
     BotShutdownEvent,
     BotStartupEvent,
     BotUpdateEvent,
+    ChannelCheckErrorEvent,
     ErrorEvent,
     NodeConnectionLostEvent,
     NodeConnectionRestoredEvent,
     NodeTrafficReachedEvent,
+    NotificationErrorEvent,
     RemnawaveErrorEvent,
     RemnawaveVersionWarningEvent,
+    TorrentBlockerReportEvent,
     TrialActivatedEvent,
     UserDeviceAddedEvent,
     UserDeviceDeletedEvent,
@@ -25,14 +30,19 @@ from .user import (
     SubscriptionExpiredEvent,
     SubscriptionExpiresEvent,
     SubscriptionLimitedEvent,
+    TorrentBlockedEvent,
+    UserNotConnectedEvent,
 )
 
 __all__ = [
     "BaseEvent",
     "SystemEvent",
     "UserEvent",
+    "ChannelCheckErrorEvent",
     "ErrorEvent",
+    "NotificationErrorEvent",
     "WebhookErrorEvent",
+    "BotInlineModeDisabledEvent",
     "RemnawaveErrorEvent",
     "RemnawaveVersionWarningEvent",
     #
@@ -43,12 +53,14 @@ __all__ = [
     "NodeConnectionLostEvent",
     "NodeConnectionRestoredEvent",
     "NodeTrafficReachedEvent",
+    "TorrentBlockerReportEvent",
     #
     "UserDeviceAddedEvent",
     "UserDeviceDeletedEvent",
     "UserFirstConnectionEvent",
     "UserPurchaseEvent",
     "UserRegisteredEvent",
+    "BlacklistRegistrationAttemptEvent",
     #
     "ReferralAttachedEvent",
     "ReferralMilestoneEvent",
@@ -56,7 +68,9 @@ __all__ = [
     "ReferralRewardReceivedEvent",
     #
     "TrialActivatedEvent",
+    "UserNotConnectedEvent",
     "SubscriptionExpiredEvent",
     "SubscriptionExpiresEvent",
     "SubscriptionLimitedEvent",
+    "TorrentBlockedEvent",
 ]

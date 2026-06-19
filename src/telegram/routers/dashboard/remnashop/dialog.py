@@ -1,5 +1,6 @@
+from uuid import UUID
+
 from aiogram_dialog import Dialog, StartMode, Window
-from aiogram_dialog.widgets.kbd import Button, ListGroup, Row, Start, SwitchTo
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
@@ -10,6 +11,8 @@ from src.telegram.states import (
     Dashboard,
     DashboardRemnashop,
     RemnashopAdvertising,
+    RemnashopBackup,
+    RemnashopExtra,
     RemnashopGateways,
     RemnashopMenuEditor,
     RemnashopNotifications,
@@ -18,9 +21,10 @@ from src.telegram.states import (
 )
 from src.telegram.utils import require_permission
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
+from src.telegram.widgets.kbd import Button, ListGroup, Row, ScrollingGroup, Select, Start, SwitchTo
 
-from .getters import admins_getter, remnashop_getter
-from .handlers import on_logs_request, on_role_revoke, on_user_select
+from .getters import admins_getter, all_transactions_getter, remnashop_getter
+from .handlers import on_all_transaction_select, on_logs_request, on_role_revoke, on_user_select
 
 remnashop = Window(
     Banner(BannerName.DASHBOARD),
@@ -78,10 +82,26 @@ remnashop = Window(
             when=require_permission(Permission.VIEW_LOGS),
         ),
         Start(
+            text=I18nFormat("btn-remnashop.backup"),
+            id="backup",
+            state=RemnashopBackup.MAIN,
+            when=require_permission(Permission.VIEW_BACKUP),
+        ),
+    ),
+    Row(
+        Start(
             text=I18nFormat("btn-remnashop.menu-editor"),
             id="menu_editor",
             state=RemnashopMenuEditor.MAIN,
             when=require_permission(Permission.VIEW_MENU_EDITOR),
+        ),
+    ),
+    Row(
+        Start(
+            text=I18nFormat("btn-remnashop.extra"),
+            id="extra",
+            state=RemnashopExtra.MAIN,
+            when=require_permission(Permission.VIEW_EXTRA_SETTINGS),
         ),
     ),
     Row(
@@ -116,7 +136,7 @@ admins = Window(
             ),
         ),
         id="admins_list",
-        item_id_getter=lambda item: item["telegram_id"],
+        item_id_getter=lambda item: item["user_id"],
         items="admins",
     ),
     Row(
@@ -132,7 +152,43 @@ admins = Window(
     getter=admins_getter,
 )
 
+all_transactions = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-remnashop-transactions"),
+    ScrollingGroup(
+        Select(
+            text=I18nFormat(
+                "btn-remnashop-transaction",
+                status=F["item"]["status"],
+                user_id=F["item"]["user_id"],
+                created_at=F["item"]["created_at"],
+                gateway_type=F["item"]["gateway_type"],
+            ),
+            id="transaction_select",
+            item_id_getter=lambda item: item["payment_id"],
+            items="transactions",
+            type_factory=UUID,
+            on_click=on_all_transaction_select,
+        ),
+        id="scroll",
+        width=1,
+        height=7,
+        hide_on_single_page=True,
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=DashboardRemnashop.MAIN,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=DashboardRemnashop.TRANSACTIONS,
+    getter=all_transactions_getter,
+)
+
 router = Dialog(
     remnashop,
     admins,
+    all_transactions,
 )

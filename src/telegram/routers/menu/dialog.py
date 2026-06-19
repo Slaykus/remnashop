@@ -1,7 +1,19 @@
 from aiogram.enums import ButtonStyle
 from aiogram_dialog import Dialog, StartMode
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import (
+from aiogram_dialog.widgets.style import Style
+from aiogram_dialog.widgets.text import Format
+from magic_filter import F
+
+from src.application.common.policy import Permission
+from src.core.constants import INLINE_QUERY_INVITE, PAYMENT_PREFIX
+from src.core.enums import BannerName
+from src.telegram.keyboards import build_buttons_row, connect_buttons
+from src.telegram.routers.dashboard.handlers import on_smart_search
+from src.telegram.states import Dashboard, MainMenu, Subscription
+from src.telegram.utils import require_permission
+from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
+from src.telegram.widgets.kbd import (
     Button,
     CopyText,
     ListGroup,
@@ -10,19 +22,8 @@ from aiogram_dialog.widgets.kbd import (
     SwitchInlineQueryChosenChatButton,
     SwitchTo,
     Url,
+    WebApp,
 )
-from aiogram_dialog.widgets.style import Style
-from aiogram_dialog.widgets.text import Format
-from magic_filter import F
-
-from src.application.common.policy import Permission
-from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROXY, PAYMENT_PREFIX
-from src.core.enums import BannerName
-from src.telegram.keyboards import connect_buttons, custom_buttons
-from src.telegram.routers.dashboard.users.handlers import on_user_search
-from src.telegram.states import Dashboard, MainMenu, Subscription
-from src.telegram.utils import require_permission
-from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.window import Window
 
 from .getters import (
@@ -31,8 +32,6 @@ from .getters import (
     invite_about_getter,
     invite_getter,
     menu_getter,
-    proxy_getter,
-    welcome_getter,
 )
 from .handlers import (
     on_device_delete_all_confirm,
@@ -41,59 +40,44 @@ from .handlers import (
     on_get_trial,
     on_invite,
     on_reissue_subscription_confirm,
+    on_reset_referral_code,
     on_show_qr,
+    on_text_button_click,
     on_withdraw_points,
     show_reason,
 )
 
-welcome = Window(
-    Banner(BannerName.MENU),
-    I18nFormat("msg-onboarding-welcome"),
-    Row(
-        Button(
-            text=I18nFormat("btn-onboarding.trial"),
-            id="welcome_trial",
-            on_click=on_get_trial,
-            when=F["trial_available"],
-            style=Style(ButtonStyle.SUCCESS),
-        ),
-        Start(
-            text=I18nFormat("btn-onboarding.plans"),
-            id="welcome_plans",
-            state=Subscription.MAIN,
-        ),
-    ),
-    Row(
-        SwitchTo(
-            text=I18nFormat("btn-onboarding.menu"),
-            id="welcome_menu",
-            state=MainMenu.MAIN,
-        ),
-    ),
-    IgnoreUpdate(),
-    state=MainMenu.WELCOME,
-    getter=welcome_getter,
+custom_buttons = (
+    build_buttons_row(1, text_on_click=on_text_button_click),
+    build_buttons_row(2, text_on_click=on_text_button_click),
+    build_buttons_row(3, text_on_click=on_text_button_click),
 )
 
 menu = Window(
     Banner(BannerName.MENU),
     I18nFormat("msg-main-menu"),
+    *connect_buttons,
     Row(
-        *connect_buttons,
         Button(
             text=I18nFormat("btn-menu.connect-not-available"),
             id="not_available",
             on_click=show_reason,
-            when=~F["connectable"],
         ),
-        when=F["has_subscription"],
+        when=F["has_subscription"] & ~F["connectable"],
     ),
     Row(
         Button(
             text=I18nFormat("btn-menu.trial"),
-            id="trial",
+            id="trial_free",
             on_click=on_get_trial,
-            when=F["trial_available"],
+            when=F["trial_available"] & F["trial_is_free"],
+            style=Style(ButtonStyle.SUCCESS),
+        ),
+        Button(
+            text=I18nFormat("btn-menu.trial-paid"),
+            id="trial_paid",
+            on_click=on_get_trial,
+            when=F["trial_available"] & ~F["trial_is_free"],
             style=Style(ButtonStyle.SUCCESS),
         ),
     ),
@@ -133,12 +117,11 @@ menu = Window(
         ),
     ),
     Row(
-        SwitchTo(
-            text=I18nFormat("btn-menu.proxy"),
-            id="proxy",
-            state=MainMenu.PROXY,
-            when=F["proxy_enabled"],
+        WebApp(
+            text=I18nFormat("btn-menu.web-cabinet"),
+            url=Format("{web_cabinet_url}"),
         ),
+        when=F["web_enabled"],
     ),
     *custom_buttons,
     Row(
@@ -150,7 +133,7 @@ menu = Window(
             when=require_permission(Permission.VIEW_DASHBOARD),
         ),
     ),
-    MessageInput(func=on_user_search),
+    MessageInput(func=on_smart_search),
     IgnoreUpdate(),
     state=MainMenu.MAIN,
     getter=menu_getter,
@@ -172,10 +155,16 @@ devices = Window(
                 text=Format("{item[label]}"),
                 id="device_item",
                 on_click=on_device_delete_request,
+                when=F["data"]["device_single_enabled"],
+            ),
+            Button(
+                text=Format("{item[label]}"),
+                id="device_item_display",
+                when=~F["data"]["device_single_enabled"],
             ),
         ),
         id="devices_list",
-        item_id_getter=lambda item: item["short_hwid"],
+        item_id_getter=lambda item: item["index"],
         items="devices",
         when=F["has_devices"],
     ),
@@ -184,7 +173,7 @@ devices = Window(
             text=I18nFormat("btn-devices.delete-all"),
             id="delete_all",
             state=MainMenu.DEVICE_CONFIRM_DELETE_ALL,
-            when=F["has_devices"],
+            when=F["has_devices"] & F["device_all_enabled"],
             style=Style(ButtonStyle.DANGER),
         ),
     ),
@@ -194,6 +183,7 @@ devices = Window(
             id="reissue",
             state=MainMenu.DEVICE_CONFIRM_REISSUE,
             style=Style(ButtonStyle.PRIMARY),
+            when=F["link_reset_enabled"],
         ),
     ),
     Row(
@@ -297,6 +287,14 @@ invite = Window(
         when=F["is_points_reward"],
     ),
     Row(
+        Button(
+            text=I18nFormat("btn-invite.reset-referral"),
+            id="reset_referral",
+            on_click=on_reset_referral_code,
+            when=F["referral_reset_enabled"],
+        ),
+    ),
+    Row(
         SwitchTo(
             text=I18nFormat("btn-back.general"),
             id="back",
@@ -323,34 +321,6 @@ invite_about = Window(
     getter=invite_about_getter,
 )
 
-proxy = Window(
-    I18nFormat("msg-menu-proxy"),
-    Row(
-        SwitchInlineQueryChosenChatButton(
-            text=I18nFormat("btn-proxy-share"),
-            query=Format(INLINE_QUERY_PROXY),
-            allow_user_chats=True,
-            allow_group_chats=True,
-            allow_channel_chats=False,
-            id="proxy_send",
-        ),
-        CopyText(
-            text=I18nFormat("btn-proxy-copy"),
-            copy_text=Format("{proxy_url}"),
-        ),
-    ),
-    Row(
-        SwitchTo(
-            text=I18nFormat("btn-back.general"),
-            id="back",
-            state=MainMenu.MAIN,
-        ),
-    ),
-    IgnoreUpdate(),
-    state=MainMenu.PROXY,
-    getter=proxy_getter,
-)
-
 
 device_confirm_reissue = Window(
     Banner(BannerName.MENU),
@@ -374,7 +344,6 @@ device_confirm_reissue = Window(
 )
 
 router = Dialog(
-    welcome,
     menu,
     devices,
     device_confirm_delete,
@@ -382,5 +351,4 @@ router = Dialog(
     device_confirm_reissue,
     invite,
     invite_about,
-    proxy,
 )

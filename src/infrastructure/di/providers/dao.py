@@ -1,48 +1,62 @@
 from dishka import Provider, Scope, provide
 
 from src.application.common.dao import (
+    AdLinkDao,
+    AuthSessionDao,
     BroadcastDao,
+    NodeQuotaDao,
     PaymentGatewayDao,
     PlanDao,
+    PromocodeDao,
+    RecentActivityDao,
     ReferralDao,
     SettingsDao,
     SubscriptionDao,
     TransactionDao,
     UserDao,
+    UserOAuthProviderDao,
     WaitlistDao,
     WebhookDao,
-    NodeQuotaDao,
-    AdLinkDao,
 )
 from src.infrastructure.database.dao import (
+    AdLinkDaoImpl,
     BroadcastDaoImpl,
+    NodeQuotaDaoImpl,
     PaymentGatewayDaoImpl,
     PlanDaoImpl,
+    PromocodeDaoImpl,
     ReferralDaoImpl,
     SettingsDaoImpl,
     SubscriptionDaoImpl,
     TransactionDaoImpl,
     UserDaoImpl,
+    UserOAuthProviderDaoImpl,
     WaitlistDaoImpl,
     WebhookDaoImpl,
-    NodeQuotaDaoImpl,
-    AdLinkDaoImpl,
 )
+from src.infrastructure.redis.activity import RedisActivityRepository
+from src.infrastructure.redis.auth import RedisAuthRepository
 
 
 class DaoProvider(Provider):
     scope = Scope.REQUEST
 
+    ad_link = provide(source=AdLinkDaoImpl, provides=AdLinkDao)
+    node_quota = provide(source=NodeQuotaDaoImpl, provides=NodeQuotaDao)
     broadcast = provide(source=BroadcastDaoImpl, provides=BroadcastDao)
     payment_gateway = provide(source=PaymentGatewayDaoImpl, provides=PaymentGatewayDao)
     plan = provide(source=PlanDaoImpl, provides=PlanDao)
+    promocode = provide(source=PromocodeDaoImpl, provides=PromocodeDao)
     referral = provide(source=ReferralDaoImpl, provides=ReferralDao)
     settings = provide(source=SettingsDaoImpl, provides=SettingsDao)
     subscription = provide(source=SubscriptionDaoImpl, provides=SubscriptionDao)
     transaction = provide(source=TransactionDaoImpl, provides=TransactionDao)
     user = provide(source=UserDaoImpl, provides=UserDao)
-    node_quota = provide(source=NodeQuotaDaoImpl, provides=NodeQuotaDao)
-    ad_link = provide(source=AdLinkDaoImpl, provides=AdLinkDao)
+    oauth_provider = provide(source=UserOAuthProviderDaoImpl, provides=UserOAuthProviderDao)
 
     webhook = provide(source=WebhookDaoImpl, provides=WebhookDao, scope=Scope.APP)
     waitlist = provide(source=WaitlistDaoImpl, provides=WaitlistDao, scope=Scope.APP)
+    auth_session = provide(source=RedisAuthRepository, provides=AuthSessionDao, scope=Scope.APP)
+    recent_activity = provide(
+        source=RedisActivityRepository, provides=RecentActivityDao, scope=Scope.APP
+    )

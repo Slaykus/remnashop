@@ -50,7 +50,7 @@ services:
       - remnashop-db-data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${DATABASE_USER:-remnashop} -d $${DATABASE_NAME:-remnashop}"]
       interval: 3s
       timeout: 10s
       retries: 3
@@ -63,18 +63,19 @@ services:
     <<: [*common, *logging, *env]
     
     command: >
-        valkey-server
-        --save ""
-        --appendonly no
-        --maxmemory-policy noeviction
-        --loglevel warning
-        --requirepass ${REDIS_PASSWORD}
+      sh -c '
+      ARGS="--save \"\" --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru --loglevel warning";
+      if [ -n "$${REDIS_PASSWORD}" ]; then
+        exec valkey-server $${ARGS} --requirepass "$${REDIS_PASSWORD}";
+      else
+        exec valkey-server $${ARGS};
+      fi'
 
     volumes:
       - remnashop-redis-data:/data
 
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD-SHELL", "valkey-cli $${REDIS_PASSWORD:+-a \"$REDIS_PASSWORD\"} ping | grep PONG"]
       interval: 3s
       timeout: 10s
       retries: 3
@@ -100,8 +101,8 @@ services:
     hostname: remnashop-taskiq-worker
     <<: [*build, *common, *logging, *env]
 
-    command: taskiq worker src.infrastructure.taskiq.worker:worker 
-      --ack-type when_received --tasks-pattern src/infrastructure/taskiq/tasks/*.py -fsd
+    command: taskiq worker src.infrastructure.taskiq.worker:worker
+      --workers 1 --ack-type when_received --tasks-pattern src/infrastructure/taskiq/tasks/*.py -fsd
 
     depends_on:
         remnashop-redis:
@@ -128,12 +129,15 @@ networks:
   remnawave-network:
     name: remnawave-network
     driver: bridge
+    external: false
 
 volumes:
   remnashop-db-data:
     name: remnashop-db-data
     driver: local
-
+    external: false
+    
   remnashop-redis-data:
     name: remnashop-redis-data
     driver: local
+    external: false

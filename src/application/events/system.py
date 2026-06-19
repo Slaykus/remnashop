@@ -38,12 +38,9 @@ class RemnashopWelcomeEvent(BaseEvent):
         return "event-remnashop-welcome"
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_remnashop_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_remnashop_keyboard(),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -105,7 +102,7 @@ class RemnawaveErrorEvent(ErrorEvent):
 
 
 @dataclass(frozen=True, kw_only=True)
-class RemnawaveVersionWarningEvent(BaseEvent, BuildInfoDto):
+class RemnawaveVersionWarningEvent(SystemEvent, BuildInfoDto):
     notification_type: NotificationType = field(
         default=SystemNotificationType.SYSTEM,
         init=False,
@@ -128,7 +125,26 @@ class RemnawaveVersionWarningEvent(BaseEvent, BuildInfoDto):
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebhookErrorEvent(BaseEvent):
+class BotInlineModeDisabledEvent(SystemEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.SYSTEM,
+        init=False,
+    )
+
+    @property
+    def event_key(self) -> str:
+        return "event-bot.inline-mode-disabled"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebhookErrorEvent(SystemEvent):
     notification_type: NotificationType = field(
         default=SystemNotificationType.SYSTEM,
         init=False,
@@ -154,6 +170,39 @@ class WebhookErrorEvent(BaseEvent):
             media_type=MediaType.DOCUMENT,
             delete_after=None,
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class ChannelCheckErrorEvent(SystemEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.SYSTEM,
+        init=False,
+    )
+
+    telegram_id: int
+    username: Optional[str]
+    name: str
+    reason: str
+
+    @property
+    def event_key(self) -> str:
+        return "event-error.channel-check"
+
+
+@dataclass(frozen=True, kw_only=True)
+class NotificationErrorEvent(SystemEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.SYSTEM,
+        init=False,
+    )
+
+    chat_id: Optional[int]
+    thread_id: Optional[int]
+    reason: str
+
+    @property
+    def event_key(self) -> str:
+        return "event-error.notification"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -195,12 +244,9 @@ class BotUpdateEvent(SystemEvent):
     remote_version: str
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_remnashop_update_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_remnashop_update_keyboard(),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -212,8 +258,10 @@ class BotUpdateEvent(SystemEvent):
 
 @dataclass(frozen=True, kw_only=True)
 class UserEvent(SystemEvent):
-    telegram_id: int
+    user_id: int = field(default=0)
+    telegram_id: Optional[int] = field(default=None)
     username: Optional[str] = field(default=None)
+    email: Optional[str] = field(default=None)
     name: str
 
 
@@ -224,17 +272,20 @@ class UserRegisteredEvent(UserEvent):
         init=False,
     )
 
+    referrer_user_id: Optional[int] = field(default=None)
     referrer_telegram_id: Optional[int] = field(default=None)
+    referrer_email: Optional[str] = field(default=None)
     referrer_username: Optional[str] = field(default=None)
     referrer_name: Optional[str] = field(default=None)
 
-    def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
+    ad_link_id: Optional[int] = field(default=None)
+    ad_link_name: Optional[str] = field(default=None)
+    ad_link_code: Optional[str] = field(default=None)
 
+    def as_payload(self) -> "MessagePayloadDto":
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_user_keyboard(self.telegram_id, self.referrer_telegram_id),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -242,6 +293,26 @@ class UserRegisteredEvent(UserEvent):
     @property
     def event_key(self) -> str:
         return "event-user.registered"
+
+
+@dataclass(frozen=True, kw_only=True)
+class BlacklistRegistrationAttemptEvent(UserEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.BLACKLIST_ATTEMPT,
+        init=False,
+    )
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={**asdict(self)},
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
+    @property
+    def event_key(self) -> str:
+        return "event-blacklist.registration-attempt"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -264,12 +335,9 @@ class UserFirstConnectionEvent(UserEvent):
         return "event-user.first-connected"
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_user_keyboard(self.telegram_id),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -289,12 +357,9 @@ class UserDevicesUpdatedEvent(UserEvent):
     user_agent: Optional[str]
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_user_keyboard(self.telegram_id),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -338,6 +403,26 @@ class NodeTrafficReachedEvent(NodeEvent):
     @property
     def event_key(self) -> str:
         return "event-node.traffic-reached"
+
+
+@dataclass(frozen=True, kw_only=True)
+class TorrentBlockerReportEvent(UserEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.TORRENT_BLOCKER,
+        init=False,
+    )
+
+    node_name: str
+    blocked_ip: str
+    block_duration: Any
+    will_unblock_at: str
+    protocol: str
+    source: str
+    destination: str
+
+    @property
+    def event_key(self) -> str:
+        return "event-torrent-blocker.report"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -392,12 +477,9 @@ class UserPurchaseEvent(UserEvent):
     previous_plan_duration: Any = None
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_user_keyboard(self.telegram_id),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -428,12 +510,9 @@ class TrialActivatedEvent(UserEvent):
     plan_duration: Any
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_user_keyboard(self.telegram_id),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -459,12 +538,9 @@ class SubscriptionRevokedEvent(UserEvent):
     expire_time: Any
 
     def as_payload(self) -> "MessagePayloadDto":
-        from src.telegram.keyboards import get_user_keyboard  # noqa: PLC0415
-
         return MessagePayloadDto(
             i18n_key=self.event_key,
             i18n_kwargs={**asdict(self)},
-            reply_markup=get_user_keyboard(self.telegram_id),
             disable_default_markup=False,
             delete_after=None,
         )
@@ -472,3 +548,40 @@ class SubscriptionRevokedEvent(UserEvent):
     @property
     def event_key(self) -> str:
         return "event-subscription.revoked"
+
+
+@dataclass(frozen=True, kw_only=True)
+class PromocodeActivatedEvent(SystemEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.PROMOCODE_ACTIVATED,
+        init=False,
+    )
+
+    user_id: int
+    telegram_id: Optional[int]
+    username: Optional[str]
+    name: str
+    promocode_code: str
+    reward_type: str
+    reward: Optional[int]
+    plan_name: str
+
+    @property
+    def event_key(self) -> str:
+        return "event-promocode.activated"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={
+                "telegram_id": self.telegram_id or 0,
+                "username": self.username or 0,
+                "name": self.name,
+                "promocode_code": self.promocode_code,
+                "promocode_type": self.reward_type,  # used by promocode-type term + reward branch
+                "reward": self.reward if self.reward is not None else 0,
+                "plan_name": self.plan_name or "—",
+            },
+            disable_default_markup=False,
+            delete_after=None,
+        )
