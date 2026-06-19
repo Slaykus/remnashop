@@ -5,7 +5,7 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
 from src.application.common.dao.ad_link import AdLinkDao
-from src.application.services import BotService
+from src.application.common import BotService
 from src.application.use_cases.ad_link.queries.list import (
     GetAdLinkStats,
     GetAdLinks,

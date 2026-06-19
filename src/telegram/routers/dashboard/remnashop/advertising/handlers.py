@@ -15,7 +15,7 @@ from src.application.common import Notifier
 from src.application.common.dao.ad_link import AdLinkDao
 from src.application.dto import UserDto
 from src.application.dto.message_payload import MessagePayloadDto
-from src.application.services import BotService
+from src.application.common import BotService
 from src.application.use_cases.ad_link.commands.crud import (
     CreateAdLink,
     CreateAdLinkDto,
