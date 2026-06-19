@@ -10,43 +10,54 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "ad_links",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("name", sa.String(128), nullable=False),
-        sa.Column("code", sa.String(64), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("timezone('UTC', now())"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("timezone('UTC', now())"),
-            nullable=False,
-        ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("code", name="uq_ad_links_code"),
-    )
-    op.create_index("ix_ad_links_code", "ad_links", ["code"])
-    op.create_index("ix_ad_links_name", "ad_links", ["name"])
+    conn = op.get_bind()
+    table_exists = conn.execute(
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='ad_links')")
+    ).scalar()
 
-    op.add_column(
-        "users",
-        sa.Column("ad_link_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_users_ad_link_id",
-        "users",
-        "ad_links",
-        ["ad_link_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_index("ix_users_ad_link_id", "users", ["ad_link_id"])
+    if not table_exists:
+        op.create_table(
+            "ad_links",
+            sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+            sa.Column("name", sa.String(128), nullable=False),
+            sa.Column("code", sa.String(64), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("timezone('UTC', now())"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("timezone('UTC', now())"),
+                nullable=False,
+            ),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("code", name="uq_ad_links_code"),
+        )
+        op.create_index("ix_ad_links_code", "ad_links", ["code"])
+        op.create_index("ix_ad_links_name", "ad_links", ["name"])
+
+    col_exists = conn.execute(
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='ad_link_id')")
+    ).scalar()
+
+    if not col_exists:
+        op.add_column(
+            "users",
+            sa.Column("ad_link_id", sa.Integer(), nullable=True),
+        )
+        op.create_foreign_key(
+            "fk_users_ad_link_id",
+            "users",
+            "ad_links",
+            ["ad_link_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        op.create_index("ix_users_ad_link_id", "users", ["ad_link_id"])
 
 
 def downgrade() -> None:
