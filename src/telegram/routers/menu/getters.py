@@ -80,6 +80,7 @@ async def menu_getter(
             "row_1_buttons": [b for b in menu_data.custom_buttons if b.index in (1, 2)],
             "row_2_buttons": [b for b in menu_data.custom_buttons if b.index in (3, 4)],
             "row_3_buttons": [b for b in menu_data.custom_buttons if b.index in (5, 6)],
+            "proxy_enabled": bool(config.proxy_url),
         }
 
         if not menu_data.current_subscription:
@@ -235,6 +236,8 @@ async def invite_getter(
     referral_url = await bot_service.get_referral_url(user.referral_code)
     support_url = bot_service.get_support_url(text=i18n.get("message.withdraw-points"))
 
+    referral_tier = get_tier_for_count(user.paid_referrals_count)
+
     return {
         "reward_type": settings.referral.reward.type,
         "referrals": referrals,
@@ -245,6 +248,8 @@ async def invite_getter(
         "referral_url": referral_url,
         "withdraw": support_url,
         "referral_reset_enabled": int(settings.extra.referral_reset.enabled),
+        "referral_tier": referral_tier,
+        "personal_discount": user.personal_discount or 0,
     }
 
 
@@ -278,4 +283,15 @@ async def invite_about_getter(
         "accrual_strategy": settings.referral.accrual_strategy,
         "identical_reward": identical_reward,
         "max_level": max_level,
+    }
+
+
+@inject
+async def proxy_getter(
+    config: AppConfig,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    return {
+        "proxy_url": config.proxy_url or "",
+        "proxy_enabled": bool(config.proxy_url),
     }

@@ -6,7 +6,7 @@ from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
 from src.application.common.policy import Permission
-from src.core.constants import INLINE_QUERY_INVITE, PAYMENT_PREFIX
+from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROXY, PAYMENT_PREFIX
 from src.core.enums import BannerName
 from src.telegram.keyboards import build_buttons_row, connect_buttons
 from src.telegram.routers.dashboard.handlers import on_smart_search
@@ -32,6 +32,7 @@ from .getters import (
     invite_about_getter,
     invite_getter,
     menu_getter,
+    proxy_getter,
 )
 from .handlers import (
     on_device_delete_all_confirm,
@@ -122,6 +123,14 @@ menu = Window(
             url=Format("{web_cabinet_url}"),
         ),
         when=F["web_enabled"],
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-menu.proxy"),
+            id="proxy",
+            state=MainMenu.PROXY,
+            when=F["proxy_enabled"],
+        ),
     ),
     *custom_buttons,
     Row(
@@ -343,6 +352,34 @@ device_confirm_reissue = Window(
     getter=device_confirm_delete_getter,
 )
 
+proxy = Window(
+    I18nFormat("msg-menu-proxy"),
+    Row(
+        SwitchInlineQueryChosenChatButton(
+            text=I18nFormat("btn-proxy-share"),
+            query=Format(INLINE_QUERY_PROXY),
+            allow_user_chats=True,
+            allow_group_chats=True,
+            allow_channel_chats=False,
+            id="proxy_send",
+        ),
+        CopyText(
+            text=I18nFormat("btn-proxy-copy"),
+            copy_text=Format("{proxy_url}"),
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=MainMenu.MAIN,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=MainMenu.PROXY,
+    getter=proxy_getter,
+)
+
 router = Dialog(
     menu,
     devices,
@@ -351,4 +388,5 @@ router = Dialog(
     device_confirm_reissue,
     invite,
     invite_about,
+    proxy,
 )

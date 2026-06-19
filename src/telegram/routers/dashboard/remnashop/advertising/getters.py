@@ -55,7 +55,7 @@ async def view_getter(
         return {}
 
     stats = await get_ad_link_stats(user, link.id)
-    deep_link = await bot_service.get_ad_url(link.code)
+    deep_link = await bot_service.get_ad_link_url(link.code)
 
     return {
         "link_id": link.id,
@@ -114,7 +114,7 @@ async def promo_getter(
     if not link:
         return {}
 
-    deep_link = await bot_service.get_ad_url(link.code)
+    deep_link = await bot_service.get_ad_link_url(link.code)
     buttons = link.promo_buttons or []
 
     lines = []
