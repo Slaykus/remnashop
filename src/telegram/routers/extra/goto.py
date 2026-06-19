@@ -8,6 +8,10 @@ from loguru import logger
 
 from src.application.common import Notifier
 from src.application.dto import TelegramUserDto
+from src.application.use_cases.ad_link.commands.process_click import (
+    ProcessAdClick,
+    ProcessAdClickDto,
+)
 from src.application.use_cases.promocode.queries.validate import (
     ValidatePromocode,
     ValidatePromocodeDto,
@@ -121,6 +125,18 @@ async def on_goto_plan(
         mode=StartMode.RESET_STACK,
         show_mode=ShowMode.DELETE_AND_SEND,
     )
+
+
+@inject
+@router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.ADVERTISING))
+async def on_goto_ad(
+    message: Message,
+    command: CommandObject,
+    user: TelegramUserDto,
+    process_ad_click: FromDishka[ProcessAdClick],
+) -> None:
+    code = (command.args or "").removeprefix(Deeplink.ADVERTISING.with_underscore)
+    await process_ad_click(user, ProcessAdClickDto(code=code))
 
 
 @router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.INVITE))
