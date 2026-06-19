@@ -10,7 +10,7 @@ from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.core.config import AppConfig
-from src.core.config.referral_milestones import get_tier_for_count
+from src.core.config.referral_milestones import get_tier_for_count, get_tier_for_discount
 from src.core.exceptions import MenuRenderError
 from src.core.utils.i18n_helpers import (
     i18n_format_device_limit,
@@ -40,7 +40,10 @@ async def menu_getter(
         personal_discount = user.personal_discount or 0
         show_purchase_discount = purchase_discount > 0 and purchase_discount >= personal_discount
         show_personal_discount = personal_discount > 0 and not show_purchase_discount
-        referral_tier = get_tier_for_count(user.paid_referrals_count)
+        referral_tier = max(
+            get_tier_for_count(user.paid_referrals_count),
+            get_tier_for_discount(user.personal_discount or 0),
+        )
 
         data: dict[str, Any] = {
             # user
@@ -236,7 +239,10 @@ async def invite_getter(
     referral_url = await bot_service.get_referral_url(user.referral_code)
     support_url = bot_service.get_support_url(text=i18n.get("message.withdraw-points"))
 
-    referral_tier = get_tier_for_count(user.paid_referrals_count)
+    referral_tier = max(
+        get_tier_for_count(user.paid_referrals_count),
+        get_tier_for_discount(user.personal_discount or 0),
+    )
 
     return {
         "reward_type": settings.referral.reward.type,
