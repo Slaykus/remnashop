@@ -310,7 +310,7 @@ class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
         async with self.uow:
             await self.subscription_dao.create(
                 subscription=trial_subscription,
-                telegram_id=data.telegram_id,
+                user_id=user.id,
             )
             await self.user_dao.set_trial_available(data.telegram_id, False)
             await self.uow.commit()
