@@ -274,7 +274,7 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                     al.is_active,
                     al.clicks_count,
                     COUNT(DISTINCT alu.user_telegram_id) AS unique_clicks,
-                    COUNT(DISTINCT t.user_telegram_id)
+                    COUNT(DISTINCT t.user_id)
                         FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
                         AS paid_count,
                     COALESCE(
@@ -284,7 +284,8 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                     ) AS revenue_rub
                 FROM ad_links al
                 LEFT JOIN ad_link_users alu ON alu.ad_link_id = al.id
-                LEFT JOIN transactions t ON t.user_telegram_id = alu.user_telegram_id
+                LEFT JOIN users u ON u.telegram_id = alu.user_telegram_id
+                LEFT JOIN transactions t ON t.user_id = u.id
                 GROUP BY al.id, al.name, al.code, al.is_active, al.clicks_count
                 ORDER BY revenue_rub DESC, unique_clicks DESC
                 """,

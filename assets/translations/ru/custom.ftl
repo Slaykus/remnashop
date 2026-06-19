@@ -165,15 +165,15 @@ frg-user =
     [2] • <b>Статус</b>: 🌩️ Туча
     [3] • <b>Статус</b>: 🌧️ Дождь
     [4] • <b>Статус</b>: ⛈️ Шторм
-    *[0] { empty }
+    *[0] { "" }
     }
     { $show_personal_discount ->
     [1] • <b>Персональная скидка</b>: { $personal_discount }%
-    *[0] { empty }
+    *[0] { "" }
     }
     { $show_purchase_discount ->
     [1] • <b>Скидка на покупку</b>: { $purchase_discount }%
-    *[0] { empty }
+    *[0] { "" }
     }
     </blockquote>
 
@@ -196,7 +196,7 @@ msg-subscription-main =
 
     { $has_current_subscription ->
     [1] { frg-subscription }
-    *[0] { empty }
+    *[0] { "" }
     }
 
     { $node_quota_enabled ->
@@ -210,7 +210,7 @@ msg-subscription-main =
     • <b>Свободно</b>: { $node_quota_free_gb } ГБ
     }
     </blockquote>
-    *[0] { empty }
+    *[0] { "" }
     }
 
 # msg-menu-invite переопределён: Rain VPN брендинг + таблица тиров реферальной программы
@@ -229,7 +229,7 @@ msg-menu-invite =
     • Оплат по вашей ссылке: { $payments }
     { $reward_type ->
     [POINTS] • Баллов на счёте: { $points }
-    *[EXTRA_DAYS] { empty }
+    *[EXTRA_DAYS] { "" }
     }
     </blockquote>
 
@@ -321,7 +321,7 @@ msg-user-node-quota =
     *[0] ✅ Активен
     }
     { $restricted_at ->
-    [0] { empty }
+    [0] { "" }
     *[HAS] • <b>Ограничен с</b>: { $restricted_at }
     }
     </blockquote>
