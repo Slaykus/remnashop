@@ -8,6 +8,7 @@ from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.application.common.dao import SubscriptionDao, UserDao
 from src.application.dto import PlanSubStatsDto, SubscriptionDto, SubscriptionStatsDto
@@ -180,6 +181,26 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0
+
+    async def get_all_active(self) -> list[SubscriptionDto]:
+        stmt = (
+            select(Subscription)
+            .options(selectinload(Subscription.user))
+            .join(User, User.current_subscription_id == Subscription.id)
+            .where(
+                Subscription.status == SubscriptionStatus.ACTIVE,
+                User.is_blocked.is_(False),
+                User.is_bot_blocked.is_(False),
+            )
+        )
+        result = await self.session.scalars(stmt)
+        db_subscriptions = cast(list, result.all())
+        dtos = self._convert_to_dto_list(db_subscriptions)
+        for dto, sub in zip(dtos, db_subscriptions):
+            if sub.user is not None:
+                dto.user_telegram_id = sub.user.telegram_id
+        logger.debug(f"Retrieved {len(dtos)} active subscriptions")
+        return dtos
 
     async def get_all_active_internal_squads(self) -> list[UUID]:
         stmt = select(Subscription.plan_snapshot["internal_squads"].as_json()).where(

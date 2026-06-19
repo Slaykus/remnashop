@@ -11,7 +11,7 @@ from adaptix import (
     name_mapping,
 )
 from adaptix._internal.provider.loc_stack_filtering import OriginSubclassLSC
-from adaptix.conversion import ConversionRetort, coercer, link_function
+from adaptix.conversion import ConversionRetort, allow_unlinked_optional, coercer, link_function
 from aiogram.enums import ButtonStyle
 from dishka import Provider, Scope, provide
 from pydantic import SecretStr, TypeAdapter
@@ -155,6 +155,7 @@ class RetortProvider(Provider):
                 coercer(dict, PriceDetailsDto, retort.get_loader(PriceDetailsDto)),
                 #
                 link_function(convert_settings, "settings"),
+                allow_unlinked_optional(),
                 *[
                     coercer(dict, dto_class, retort.get_loader(dto_class))
                     for dto_class in [
