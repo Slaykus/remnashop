@@ -178,6 +178,14 @@ frg-user =
 # СООБЩЕНИЯ: ПЕРЕОПРЕДЕЛЕНИЯ СТАНДАРТНЫХ КЛЮЧЕЙ
 # ============================================================
 
+# frg-subscription: явно определён здесь для надёжности (также есть в utils.ftl из assets.default)
+frg-subscription =
+    <blockquote>
+    • <b>Лимит трафика</b>: { $traffic_limit }
+    • <b>Лимит устройств</b>: { $device_limit }
+    • <b>Осталось</b>: { $expire_time }
+    </blockquote>
+
 # msg-subscription-main переопределён: добавлен блок node-quota
 # (upstream версия — просто однострочный текст "<b>💳 Подписка</b>")
 msg-subscription-main =

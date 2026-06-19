@@ -168,10 +168,10 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                     COUNT(DISTINCT alu.user_telegram_id)
                         FILTER (WHERE alu.bonus_issued = TRUE)
                         AS bonus_issued_count,
-                    COUNT(DISTINCT s.user_telegram_id)
+                    COUNT(DISTINCT s.user_id)
                         FILTER (WHERE s.is_trial = TRUE AND s.created_at >= alu.created_at)
                         AS trial_count,
-                    COUNT(DISTINCT t.user_telegram_id)
+                    COUNT(DISTINCT t.user_id)
                         FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
                         AS paid_count,
                     COALESCE(
@@ -180,10 +180,12 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                         0
                     ) AS revenue_rub
                 FROM ad_link_users alu
+                LEFT JOIN users u
+                    ON u.telegram_id = alu.user_telegram_id
                 LEFT JOIN subscriptions s
-                    ON s.user_telegram_id = alu.user_telegram_id
+                    ON s.user_id = u.id
                 LEFT JOIN transactions t
-                    ON t.user_telegram_id = alu.user_telegram_id
+                    ON t.user_id = u.id
                 WHERE alu.ad_link_id = :ad_link_id
                 """,
             ).bindparams(ad_link_id=ad_link_id)
@@ -207,10 +209,10 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                     COUNT(DISTINCT alu.user_telegram_id)
                         FILTER (WHERE alu.bonus_issued = TRUE)
                         AS bonus_issued_count,
-                    COUNT(DISTINCT s.user_telegram_id)
+                    COUNT(DISTINCT s.user_id)
                         FILTER (WHERE s.is_trial = TRUE AND s.created_at >= alu.created_at)
                         AS trial_count,
-                    COUNT(DISTINCT t.user_telegram_id)
+                    COUNT(DISTINCT t.user_id)
                         FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
                         AS paid_count,
                     COALESCE(
@@ -219,10 +221,12 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                         0
                     ) AS revenue_rub
                 FROM ad_link_users alu
+                LEFT JOIN users u
+                    ON u.telegram_id = alu.user_telegram_id
                 LEFT JOIN subscriptions s
-                    ON s.user_telegram_id = alu.user_telegram_id
+                    ON s.user_id = u.id
                 LEFT JOIN transactions t
-                    ON t.user_telegram_id = alu.user_telegram_id
+                    ON t.user_id = u.id
                 WHERE alu.ad_link_id = :ad_link_id
                   AND alu.created_at >= :since_date
                 """,
