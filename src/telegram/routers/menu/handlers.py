@@ -42,10 +42,8 @@ router = Router(name=__name__)
 
 async def on_start_dialog(user: TelegramUserDto, dialog_manager: DialogManager) -> None:
     logger.info(f"{user.log} Started dialog")
-    is_new_user = user.age_days == 0
-    state = MainMenu.WELCOME if is_new_user else MainMenu.MAIN
     await dialog_manager.start(
-        state=state,
+        state=MainMenu.MAIN,
         mode=StartMode.RESET_STACK,
         show_mode=ShowMode.DELETE_AND_SEND,
     )
