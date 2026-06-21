@@ -32,9 +32,11 @@ class LayeredFileStorage(BaseStorage):
 
     @staticmethod
     def _sorted_ftl_texts(locale_dir: Path) -> list[str]:
-        # Load all .ftl files with custom.ftl last so its definitions win over
-        # any same-named messages in other files (e.g. frg-user in utils.ftl).
-        all_files = sorted(locale_dir.rglob("*.ftl"))
+        # Exclude .legacy/ — those are stale copies migrated from user volume into
+        # the build context; canonical versions are at the top level of locale_dir.
+        all_files = sorted(
+            f for f in locale_dir.rglob("*.ftl") if ".legacy" not in f.parts
+        )
         non_custom = [f for f in all_files if f.name != "custom.ftl"]
         custom_files = [f for f in all_files if f.name == "custom.ftl"]
         return [f.read_text("utf8") for f in non_custom + custom_files]
