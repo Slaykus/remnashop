@@ -30,6 +30,15 @@ class LayeredFileStorage(BaseStorage):
             ),
         )
 
+    @staticmethod
+    def _sorted_ftl_texts(locale_dir: Path) -> list[str]:
+        # Load all .ftl files with custom.ftl last so its definitions win over
+        # any same-named messages in other files (e.g. frg-user in utils.ftl).
+        all_files = sorted(locale_dir.rglob("*.ftl"))
+        non_custom = [f for f in all_files if f.name != "custom.ftl"]
+        custom_files = [f for f in all_files if f.name == "custom.ftl"]
+        return [f.read_text("utf8") for f in non_custom + custom_files]
+
     def _load_translations(self) -> None:
         # Local dev fallback: assets.default/ not present — behave like FileStorage
         if not self._default_dir.exists():
@@ -37,7 +46,7 @@ class LayeredFileStorage(BaseStorage):
                 if not locale_dir.is_dir():
                     continue
                 locale = locale_dir.name
-                texts = [f.read_text("utf8") for f in sorted(locale_dir.rglob("*.ftl"))]
+                texts = self._sorted_ftl_texts(locale_dir)
                 if texts:
                     translator = self._make_translator(locale, texts)
                     self._default_translators[locale] = translator
@@ -49,8 +58,8 @@ class LayeredFileStorage(BaseStorage):
                 continue
             locale = locale_dir.name
 
-            # Load all default .ftl files
-            default_texts = [f.read_text("utf8") for f in sorted(locale_dir.rglob("*.ftl"))]
+            # Load all default .ftl files, custom.ftl last so it takes priority
+            default_texts = self._sorted_ftl_texts(locale_dir)
             if default_texts:
                 translator = self._make_translator(locale, default_texts)
                 self._default_translators[locale] = translator
