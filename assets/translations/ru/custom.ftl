@@ -160,12 +160,9 @@ frg-user =
     <blockquote>
     • <b>ID</b>: <code>{ NUMBER($telegram_id, useGrouping: 0) }</code>
     • <b>Имя</b>: { $name }
-    { $referral_tier ->
-    [1] • <b>Статус</b>: ☁️ Облако
-    [2] • <b>Статус</b>: 🌩️ Туча
-    [3] • <b>Статус</b>: 🌧️ Дождь
-    [4] • <b>Статус</b>: ⛈️ Шторм
-    *[0] { "" }
+    { $has_referral_tier ->
+    [true] • <b>Статус</b>: { $referral_tier_name }
+    *[false] { "" }
     }
     { $show_personal_discount ->
     [1] • <b>Персональная скидка</b>: { $personal_discount }%
@@ -242,12 +239,9 @@ msg-menu-invite =
     • 🌧️ Дождь — <b>15%</b> (5 чел.)
     • ⛈️ Шторм — <b>25%</b> (10 чел.)
 
-    { $referral_tier ->
-    [0] Ваш статус: пока не получен.
-    [1] Ваш статус: ☁️ Облако — скидка <b>{ $personal_discount }%</b>
-    [2] Ваш статус: 🌩️ Туча — скидка <b>{ $personal_discount }%</b>
-    [3] Ваш статус: 🌧️ Дождь — скидка <b>{ $personal_discount }%</b>
-    *[4] Ваш статус: ⛈️ Шторм — скидка <b>{ $personal_discount }%</b>
+    { $has_referral_tier ->
+    [true] Ваш статус: { $referral_tier_name } — скидка <b>{ $personal_discount }%</b>
+    *[false] Ваш статус: пока не получен.
     }
     </blockquote>
 
