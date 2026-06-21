@@ -32,11 +32,20 @@ class LayeredFileStorage(BaseStorage):
 
     @staticmethod
     def _sorted_ftl_texts(locale_dir: Path) -> list[str]:
-        # Exclude .legacy/ — those are stale copies migrated from user volume into
-        # the build context; canonical versions are at the top level of locale_dir.
-        all_files = sorted(
-            f for f in locale_dir.rglob("*.ftl") if ".legacy" not in f.parts
-        )
+        # Build a deduplicated file map: top-level files take priority over .legacy/
+        # copies (which the docker-entrypoint migrates from the user volume into the
+        # build context). This prevents duplicate message IDs while still falling
+        # back to .legacy/ when top-level files are absent (e.g. first build before
+        # git pull restored them).
+        legacy_dir = locale_dir / ".legacy"
+        by_name: dict[str, Path] = {}
+        if legacy_dir.is_dir():
+            for f in legacy_dir.glob("*.ftl"):
+                by_name[f.name] = f
+        for f in locale_dir.glob("*.ftl"):
+            by_name[f.name] = f  # top-level overrides .legacy/
+
+        all_files = sorted(by_name.values(), key=lambda f: f.name)
         non_custom = [f for f in all_files if f.name != "custom.ftl"]
         custom_files = [f for f in all_files if f.name == "custom.ftl"]
         return [f.read_text("utf8") for f in non_custom + custom_files]
