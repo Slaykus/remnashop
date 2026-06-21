@@ -40,12 +40,10 @@ async def menu_getter(
         personal_discount = user.personal_discount or 0
         show_purchase_discount = purchase_discount > 0 and purchase_discount >= personal_discount
         show_personal_discount = personal_discount > 0 and not show_purchase_discount
-        _TIER_NAMES = ["", "☁️ Облако", "🌩️ Туча", "🌧️ Дождь", "⛈️ Шторм"]
         referral_tier = max(
             get_tier_for_count(user.paid_referrals_count),
             get_tier_for_discount(user.personal_discount or 0),
         )
-        referral_tier_name = _TIER_NAMES[referral_tier] if 0 <= referral_tier <= 4 else ""
 
         data: dict[str, Any] = {
             # user
@@ -57,8 +55,6 @@ async def menu_getter(
             "purchase_discount": purchase_discount,
             "show_purchase_discount": show_purchase_discount,
             "referral_tier": referral_tier,
-            "has_referral_tier": referral_tier > 0,
-            "referral_tier_name": referral_tier_name,
             # ui / config
             "is_mini_app": config.bot.is_mini_app,
             "is_mini_app_reserve": config.bot.is_mini_app and settings.extra.mini_app_reserve,
@@ -243,12 +239,10 @@ async def invite_getter(
     referral_url = await bot_service.get_referral_url(user.referral_code)
     support_url = bot_service.get_support_url(text=i18n.get("message.withdraw-points"))
 
-    _TIER_NAMES = ["", "☁️ Облако", "🌩️ Туча", "🌧️ Дождь", "⛈️ Шторм"]
     referral_tier = max(
         get_tier_for_count(user.paid_referrals_count),
         get_tier_for_discount(user.personal_discount or 0),
     )
-    referral_tier_name = _TIER_NAMES[referral_tier] if 0 <= referral_tier <= 4 else ""
 
     return {
         "reward_type": settings.referral.reward.type,
@@ -261,8 +255,6 @@ async def invite_getter(
         "withdraw": support_url,
         "referral_reset_enabled": int(settings.extra.referral_reset.enabled),
         "referral_tier": referral_tier,
-        "has_referral_tier": referral_tier > 0,
-        "referral_tier_name": referral_tier_name,
         "personal_discount": user.personal_discount or 0,
     }
 

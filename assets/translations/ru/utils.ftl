@@ -58,6 +58,13 @@ frg-user =
         *[HAS] • <b>ID</b>: <code>{ NUMBER($telegram_id, useGrouping: 0) }</code>
     }
     • <b>Имя</b>: { $name }
+    { $referral_tier ->
+    [1] • <b>Статус</b>: ☁️ Облако
+    [2] • <b>Статус</b>: 🌩️ Туча
+    [3] • <b>Статус</b>: 🌧️ Дождь
+    [4] • <b>Статус</b>: ⛈️ Шторм
+    *[0] { empty }
+    }
     { $show_personal_discount ->
     [1] • <b>Персональная скидка</b>: { $personal_discount }%
     *[0] { empty }
