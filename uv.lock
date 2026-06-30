@@ -1078,8 +1078,8 @@ wheels = [
 
 [[package]]
 name = "remnapy"
-version = "2.7.1.dev4+g95e15ed2e"
-source = { git = "https://github.com/snoups/remnapy?rev=95e15ed#95e15ed2ea29aa62f112a8af790d6151f5db5fb1" }
+version = "2.7.1.dev6+g25d6546b4"
+source = { git = "https://github.com/snoups/remnapy?rev=25d6546b411eb9d611408175a9da6923b5fc4cae#25d6546b411eb9d611408175a9da6923b5fc4cae" }
 dependencies = [
     { name = "cryptography" },
     { name = "httpx" },
@@ -1152,7 +1152,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "qrcode", extras = ["pil"], specifier = ">=8.2" },
     { name = "redis", specifier = "~=7.0.0" },
-    { name = "remnapy", git = "https://github.com/snoups/remnapy?rev=95e15ed" },
+    { name = "remnapy", git = "https://github.com/snoups/remnapy?rev=25d6546b411eb9d611408175a9da6923b5fc4cae" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "taskiq", extras = ["orjson"], specifier = "~=0.12.1" },
     { name = "taskiq-redis", specifier = "~=1.2.1" },

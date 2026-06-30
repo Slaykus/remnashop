@@ -119,6 +119,9 @@ class RemnaWebhookService:
         }:
             await self._process_expiring(user, current_subscription, event, remna_user)
 
+        elif event == RemnaUserEvent.EXPIRATION:
+            await self._process_expiration_consolidated(user, current_subscription, remna_user)
+
         elif event == RemnaUserEvent.FIRST_CONNECTED:
             await self.event_bus.publish(
                 UserFirstConnectionEvent(
@@ -269,6 +272,57 @@ class RemnaWebhookService:
                 is_trial=current_subscription.is_trial,
             )
         )
+
+    async def _process_expiration_consolidated(
+        self,
+        user: UserDto,
+        current_subscription: SubscriptionDto,
+        remna_user: RemnaUserDto,
+    ) -> None:
+        """Panel >=2.8.0 sends a single 'user.expiration' event for what used to be
+        four separate events (expires_in_72/48/24_hours, expired_24_hours_ago) and
+        does not say which threshold fired, so bucket it ourselves from expire_at."""
+        if not remna_user.expire_at:
+            return
+
+        if (
+            current_subscription.expire_at
+            and (current_subscription.expire_at - remna_user.expire_at).total_seconds() > 3600
+        ):
+            logger.debug(
+                f"Skipping 'user.expiration' for '{remna_user.telegram_id}': "
+                f"subscription renewed (local={current_subscription.expire_at}, "
+                f"webhook={remna_user.expire_at})"
+            )
+            return
+
+        hours_left = (remna_user.expire_at - datetime_now()).total_seconds() / 3600
+
+        if hours_left <= -12:
+            await self.event_bus.publish(
+                SubscriptionExpiredAgoEvent(
+                    user=user,
+                    is_trial=current_subscription.is_trial,
+                    day=1,
+                )
+            )
+        elif hours_left <= 36:
+            await self.event_bus.publish(
+                SubscriptionExpiresEvent(day=1, user=user, is_trial=current_subscription.is_trial)
+            )
+        elif hours_left <= 60:
+            await self.event_bus.publish(
+                SubscriptionExpiresEvent(day=2, user=user, is_trial=current_subscription.is_trial)
+            )
+        elif hours_left <= 84:
+            await self.event_bus.publish(
+                SubscriptionExpiresEvent(day=3, user=user, is_trial=current_subscription.is_trial)
+            )
+        else:
+            logger.debug(
+                f"'user.expiration' for '{remna_user.telegram_id}' outside known "
+                f"thresholds (hours_left={hours_left:.1f}), skipping"
+            )
 
     async def _process_not_connected(self, remna_user: RemnaUserDto) -> None:
         user = await self.user_dao.get_by_remna_uuid(remna_user.uuid)
@@ -476,6 +530,11 @@ class RemnaUserEvent(StrEnum):
     EXPIRES_IN_48_HOURS = "user.expires_in_48_hours"
     EXPIRES_IN_24_HOURS = "user.expires_in_24_hours"
     EXPIRED_24_HOURS_AGO = "user.expired_24_hours_ago"
+
+    # Panel >=2.8.0 consolidates the four events above into this single one and
+    # no longer reports which threshold fired, so the day bucket must be derived
+    # from expire_at. Pre-2.8.0 panels never send this event.
+    EXPIRATION = "user.expiration"
 
 
 class RemnaUserHwidDevicesEvent(StrEnum):
