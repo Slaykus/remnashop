@@ -389,7 +389,7 @@ async def _reset_node_monthly(
 
     for quota in restricted:
         tid = quota.user_telegram_id
-        sub = await subscription_dao.get_current(tid)
+        sub = await subscription_dao.get_current_by_telegram_id(tid)
 
         if not sub or not sub.user_remna_id:
             logger.warning(

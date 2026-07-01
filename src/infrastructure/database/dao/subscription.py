@@ -107,6 +107,22 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         logger.debug(f"Active subscription not found for user_id '{user_id}'")
         return None
 
+    async def get_current_by_telegram_id(self, telegram_id: int) -> Optional[SubscriptionDto]:
+        stmt = (
+            select(Subscription)
+            .join(User, User.current_subscription_id == Subscription.id)
+            .where(User.telegram_id == telegram_id)
+            .limit(1)
+        )
+        db_subscription = await self.session.scalar(stmt)
+
+        if db_subscription:
+            logger.debug(f"Current active subscription found for telegram_id '{telegram_id}'")
+            return self._convert_to_dto(db_subscription)
+
+        logger.debug(f"Active subscription not found for telegram_id '{telegram_id}'")
+        return None
+
     async def update(self, subscription: SubscriptionDto) -> Optional[SubscriptionDto]:
         if not subscription.id:
             logger.warning("Subscription ID is missing, skipping update")
