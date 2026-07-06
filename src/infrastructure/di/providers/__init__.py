@@ -11,6 +11,7 @@ from .redis import RedisProvider
 from .remnawave import RemnawaveProvider
 from .retort import RetortProvider
 from .services import ServicesProvider
+from .custom import CustomProvider  # fork-local (Rain): do NOT remove — Moy Nalog receipts
 from .use_cases import UseCasesProvider
 
 
@@ -28,6 +29,7 @@ def get_aiogram_providers() -> list[Provider]:
         RemnawaveProvider(),
         RetortProvider(),
         ServicesProvider(),
+        CustomProvider(),  # fork-local (Rain): do NOT remove — Moy Nalog receipts
         UseCasesProvider(),
     ]
 
@@ -45,5 +47,6 @@ def get_taskiq_providers() -> list[Provider]:
         RemnawaveProvider(),
         RetortProvider(),
         ServicesProvider(),
+        CustomProvider(),  # fork-local (Rain): do NOT remove — Moy Nalog receipts
         UseCasesProvider(),
     ]
