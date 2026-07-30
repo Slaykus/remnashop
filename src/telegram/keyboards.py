@@ -87,26 +87,29 @@ custom_buttons = (
 )
 
 
+# Зелёный держится за главным действием экрана — здесь это подключение.
+# Резервная ссылка синяя: она альтернатива, а не второй призыв к действию.
 connect_buttons = (
     WebApp(
         text=I18nFormat("btn-menu.connect"),
         url=Format("{connection_url}"),
         id="connect_miniapp",
         when=F["is_mini_app"] & F["connectable"],
-        style=Style(ButtonStyle.PRIMARY),
+        style=Style(ButtonStyle.SUCCESS),
     ),
     Url(
         text=I18nFormat("btn-menu.connect-reserve"),
         url=Format("{subscription_url}"),
         id="connect_reserve",
         when=F["is_mini_app_reserve"] & F["connectable"],
+        style=Style(ButtonStyle.PRIMARY),
     ),
     Url(
         text=I18nFormat("btn-menu.connect"),
         url=Format("{connection_url}"),
         id="connect_sub_page",
         when=~F["is_mini_app"] & F["connectable"],
-        style=Style(ButtonStyle.PRIMARY),
+        style=Style(ButtonStyle.SUCCESS),
     ),
 )
 

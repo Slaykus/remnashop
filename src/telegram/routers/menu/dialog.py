@@ -89,12 +89,13 @@ menu = Window(
             id="devices",
             state=MainMenu.DEVICES,
             when=F["has_device_limit"],
+            style=Style(ButtonStyle.PRIMARY),
         ),
         Start(
             text=I18nFormat("btn-menu.subscription"),
             id=f"{PAYMENT_PREFIX}subscription",
             state=Subscription.MAIN,
-            style=Style(ButtonStyle.SUCCESS),
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
@@ -103,7 +104,7 @@ menu = Window(
             id="invite",
             on_click=on_invite,
             when=F["referral_enabled"],
-            style=Style(ButtonStyle.SUCCESS),
+            style=Style(ButtonStyle.PRIMARY),
         ),
         SwitchInlineQueryChosenChatButton(
             text=I18nFormat("btn-menu.invite"),
@@ -113,18 +114,20 @@ menu = Window(
             allow_channel_chats=True,
             id="send",
             when=~F["referral_enabled"],
-            style=Style(ButtonStyle.SUCCESS),
+            style=Style(ButtonStyle.PRIMARY),
         ),
         Url(
             text=I18nFormat("btn-menu.support"),
             id="support",
             url=Format("{support_url}"),
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
         WebApp(
             text=I18nFormat("btn-menu.web-cabinet"),
             url=Format("{web_cabinet_url}"),
+            style=Style(ButtonStyle.PRIMARY),
         ),
         when=F["web_enabled"],
     ),
@@ -144,6 +147,7 @@ menu = Window(
             state=Dashboard.MAIN,
             mode=StartMode.RESET_STACK,
             when=require_permission(Permission.VIEW_DASHBOARD),
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     MessageInput(func=on_smart_search),
@@ -261,13 +265,17 @@ invite = Window(
             text=I18nFormat("btn-invite.about"),
             id="about",
             state=MainMenu.INVITE_ABOUT,
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
+    # Зелёный отдан кнопке во всю ширину: она и так выделена вёрсткой, и если
+    # покрасить вместо неё «Пригласить» вдвое уже, цвет начнёт спорить с
+    # расположением и взгляд будет цепляться за две разные кнопки.
     Row(
         CopyText(
             text=I18nFormat("btn-invite.copy"),
             copy_text=Format("{referral_url}"),
-            style=Style(ButtonStyle.PRIMARY),
+            style=Style(ButtonStyle.SUCCESS),
         ),
     ),
     Row(
@@ -275,6 +283,7 @@ invite = Window(
             text=I18nFormat("btn-invite.qr"),
             id="qr",
             on_click=on_show_qr,
+            style=Style(ButtonStyle.PRIMARY),
         ),
         SwitchInlineQueryChosenChatButton(
             text=I18nFormat("btn-invite.send"),
@@ -283,6 +292,7 @@ invite = Window(
             allow_group_chats=True,
             allow_channel_chats=True,
             id="send",
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
@@ -291,14 +301,14 @@ invite = Window(
             id="withdraw_points",
             on_click=on_withdraw_points,
             when=~F["has_points"],
-            style=Style(ButtonStyle.SUCCESS),
+            style=Style(ButtonStyle.PRIMARY),
         ),
         Url(
             text=I18nFormat("btn-invite.withdraw-points"),
             id="withdraw_points",
             url=Format("{withdraw}"),
             when=F["has_points"],
-            style=Style(ButtonStyle.SUCCESS),
+            style=Style(ButtonStyle.PRIMARY),
         ),
         when=F["is_points_reward"],
     ),
@@ -308,6 +318,7 @@ invite = Window(
             id="reset_referral",
             on_click=on_reset_referral_code,
             when=F["referral_reset_enabled"],
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(

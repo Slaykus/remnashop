@@ -55,6 +55,7 @@ subscription = Window(
             id=f"{PAYMENT_PREFIX}{PurchaseType.CHANGE}",
             on_click=on_subscription_plans,
             when=F["has_active_subscription"],
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
@@ -103,6 +104,7 @@ plans = Window(
             items="plans",
             type_factory=int,
             on_click=on_plan_select,
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
@@ -136,6 +138,7 @@ duration = Window(
             items="durations",
             type_factory=int,
             on_click=on_duration_select,
+            style=Style(ButtonStyle.PRIMARY),
         ),
         width=2,
     ),
@@ -171,6 +174,7 @@ payment_method = Window(
             items="payment_methods",
             type_factory=PaymentGatewayType,
             on_click=on_payment_method_select,
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
