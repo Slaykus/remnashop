@@ -1,5 +1,15 @@
 space = {" "}
 empty = { "!empty!" }
+raw-message = { $content }
+
+platform-icon =
+    .ios = 🍎
+    .android = 🤖
+    .windows = 🖥️
+    .macos = 💻
+    .linux = 🐧
+    .default = 📱
+
 btn-test = Button
 msg-test = Message
 development = In development!
@@ -224,6 +234,27 @@ role =
 }
 
 unlimited = ∞
+
+frg-promocode-reward = { $promocode_type ->
+    [DURATION] { $reward ->
+        [0] { unlimited } days
+        [one] { $reward } day
+        *[other] { $reward } days
+        } to your current subscription
+    [TRAFFIC] { $reward ->
+        [0] { unlimited } GB
+        *[other] { $reward } GB
+        } to your current subscription
+    [DEVICES] { $reward ->
+        [0] { unlimited } devices
+        [one] { $reward } device
+        *[other] { $reward } devices
+        } to your current subscription
+    [SUBSCRIPTION] { $plan_name } subscription
+    [PERSONAL_DISCOUNT] { $reward }% to your personal discount
+    [PURCHASE_DISCOUNT] { $reward }% off your next purchase
+    *[OTHER] { $reward }
+    }
 
 unit-unlimited = { $value ->
     [0] { unlimited }

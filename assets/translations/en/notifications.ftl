@@ -18,6 +18,7 @@ ntf-common =
 
     .invalid-value = ❌ <i>Invalid value.</i>
     .value-updated = ✅ <i>Parameter updated successfully.</i>
+    .cooldown-active = ⏳ <i>Temporarily unavailable. Try again in { $available_at }.</i>
 
     .plan-not-found = ❌ <i>Plan not found or unavailable.</i>
 
@@ -52,6 +53,26 @@ ntf-requirement =
     .channel-join-required-left = ⚠️ You have unsubscribed from the channel. Subscribe to continue using the bot.
     .rules-accept-required = ⚠️ <b>Please read and accept the <a href="{ $url }">Terms of Use</a> before using the service.</b>
     .channel-join-error = ⚠️ We can't see your channel subscription. Please check and try again.
+    .trial-paused = ⚠️ Trial period paused — you unsubscribed from the channel. Subscribe again to restore access.
+    .trial-restored = ✅ Trial period resumed.
+
+ntf-invite =
+    .referral-reset = ✅ <i>Referral link updated.</i>
+
+ntf-promocode =
+    .not-found = ❌ <i>Promocode not found or invalid.</i>
+    .not-available = ❌ <i>Promocode is unavailable.</i>
+    .expired = ❌ <i>Promocode has expired.</i>
+    .already-activated = ❌ <i>You have already activated this promocode.</i>
+    .activated = ✅ <i>Promocode activated successfully!</i>
+    .activation-failed = ❌ <i>Failed to activate the promocode. Please try again later.</i>
+    .code-exists = ❌ <i>A promocode with this code already exists.</i>
+    .created = ✅ <i>Promocode created.</i>
+    .deleted = ✅ <i>Promocode deleted.</i>
+    .fields-required = ❌ <i>Fill in the reward value.</i>
+    .invalid-code = ❌ <i>The code may contain only Latin letters, digits, hyphens and underscores.</i>
+    .plans-empty = ❌ <i>No plans available.</i>
+    .updated = ✅ <i>Promocode updated.</i>
 
 ntf-user =
     .not-found = <i>❌ User not found.</i>

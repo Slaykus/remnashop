@@ -1320,6 +1320,50 @@ msg-importer-sync-completed =
 
 
 # Promocodes
+msg-promocode-input =
+    <b>🎟 Promo code</b>
+
+    Enter your promo code.
+
+msg-promocode-confirm =
+    <b>🎟 Promo code <code>{ $promo_code }</code></b>
+
+    🎁 You will get: { $reward_type ->
+        [DURATION] { $reward ->
+            [0] your current subscription becomes <b>lifetime</b>.
+            *[other] <b>{ $reward } { $reward ->
+                [one] day
+                *[other] days
+            }</b> added to your current subscription.
+        }
+        [TRAFFIC] { $reward ->
+            [0] <b>unlimited traffic</b> on your current subscription.
+            *[other] <b>{ $reward } GB</b> added to your traffic limit.
+        }
+        [DEVICES] { $reward ->
+            [0] <b>unlimited devices</b> on your current subscription.
+            *[other] <b>{ $reward } { $reward ->
+                [one] device
+                *[other] devices
+            }</b> added to your device limit.
+        }
+        [SUBSCRIPTION] a <b>new subscription plan</b>.
+        [PERSONAL_DISCOUNT] a permanent <b>{ $reward }% discount</b> on all purchases.
+        [PURCHASE_DISCOUNT] a <b>{ $reward }% discount</b> on your next purchase.
+        *[OTHER] a reward on your account.
+    }
+
+    { $show_reset_warning ->
+        [1] ⚠️ <i>The bonus lasts until your next renewal — on renewal the limit returns to the plan value.</i>
+       *[0] { space }
+    }
+    { $will_replace_subscription ->
+        [1] ⚠️ <i>You already have an active subscription. It will be replaced by the new plan, and the remaining days and traffic will be reset.</i>
+       *[0] { space }
+    }
+
+    Press <b>Confirm</b> to activate.
+
 msg-promocodes-main = <b>🎟 Promo codes</b>
 msg-promocode-configurator =
     <b>🎟 Promo code configurator</b>

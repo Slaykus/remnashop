@@ -8,11 +8,14 @@ btn-back =
     .menu = ↩️ Main menu
     .menu-return = ↩️ Return to main menu
     .dashboard = ↩️ Return to dashboard
+    .referrals = 👪 Back to referral list
 
 btn-common =
     .notification-close = ❌ Close
     .devices-empty = ⚠️ You have no connected devices
     .cancel = Cancel
+    .next = ▶️ Next
+    .prev = ◀️ Back
 
     .squad-choice = { $selected ->
     [1] 🔘
@@ -31,6 +34,11 @@ btn-devices =
     .confirm-reissue = ✅ Yes, reset
     .cancel-reissue = ❌ No
 
+    .item = { $platform_icon } { $platform } { $device_model ->
+    [0] { space }
+    *[HAS] ({ $device_model }){ space }
+    }— { $created_at }
+
 btn-remnashop-info =
     .release-latest = 👀 View
     .how-upgrade = ❓ How to update
@@ -38,6 +46,7 @@ btn-remnashop-info =
     .telegram = 👪 Telegram
     .donate = 💰 Support developer
     .guide = ❓ Guide
+    .docs = 📖 Documentation
 
 btn-requirement =
     .rules-accept = ✅ Accept terms
