@@ -28,7 +28,9 @@ def extract_tg_emoji(text: str) -> tuple[str, str | None]:
         return text, None
     emoji_id = match.group(1)
     clean = _TG_EMOJI_SHORT_RE.sub("", _TG_EMOJI_RE.sub("", text))
-    return clean, emoji_id
+    # После вырезания тега остаётся пробел, отделявший его от текста, — на
+    # кнопке он виден лишним отступом, так как эмодзи рисуется отдельным полем.
+    return clean.strip(), emoji_id
 
 
 class _EmojiRenderMixin:

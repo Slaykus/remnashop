@@ -26,54 +26,54 @@ c-plan-name2 = 2️⃣ Second plan
 # >>> rain-emoji
 
 btn-menu =
-    .trial = 🌧️ TRY FOR FREE
-    .trial-paid = 🌧️ TRY FOR { $trial_price }
-    .connect = ⚡ Connect
-    .connect-reserve = 🔗 Connect (reserve)
-    .devices = 📱 My devices
-    .subscription = 💎 Subscription
-    .invite = 👥 Invite a friend
-    .support = 💬 Support
-    .web-cabinet = 🌐 Web cabinet
-    .dashboard = 🎛 Dashboard
+    .trial = <e id="5429339305006900161">🌧️</e> TRY FOR FREE
+    .trial-paid = <e id="5429339305006900161">🌧️</e> TRY FOR { $trial_price }
+    .connect = <e id="5429282761762450449">⚡</e> Connect
+    .connect-reserve = <e id="5429584264171661832">🔗</e> Connect (reserve)
+    .devices = <e id="5429616296037753715">📱</e> My devices
+    .subscription = <e id="5429564215264325150">💎</e> Subscription
+    .invite = <e id="5429600567867515464">👥</e> Invite a friend
+    .support = <e id="5431896318081542131">💬</e> Support
+    .web-cabinet = <e id="5429122254539629456">🌐</e> Web cabinet
+    .dashboard = <e id="5429161811188426323">🎛</e> Dashboard
 
 btn-invite =
-    .about = ❓ About the reward
-    .copy = 📋 Copy link
-    .send = 📩 Invite
-    .qr = 🔳 QR code
-    .withdraw-points = ⭐ Exchange points
-    .reset-referral = 🔄 Reset referral link
+    .about = <e id="5429441933250439962">❓</e> About the reward
+    .copy = <e id="5431552836661977123">📋</e> Copy link
+    .send = <e id="5429450274076929631">📩</e> Invite
+    .qr = <e id="5429192215261911590">🔳</e> QR code
+    .withdraw-points = <e id="5429251773573407519">⭐</e> Exchange points
+    .reset-referral = <e id="5429165006644095979">🔄</e> Reset referral link
 
 btn-devices =
-    .delete-all = 🗑 Delete all devices
-    .reissue = 🔄 Reissue subscription
-    .confirm-delete = ✅ Yes, delete
-    .confirm-reissue = ✅ Yes, reset
-    .cancel-reissue = ❌ No
+    .delete-all = <e id="5429606649541208054">🗑</e> Delete all devices
+    .reissue = <e id="5429165006644095979">🔄</e> Reissue subscription
+    .confirm-delete = <e id="5431365176655913424">✅</e> Yes, delete
+    .confirm-reissue = <e id="5431365176655913424">✅</e> Yes, reset
+    .cancel-reissue = <e id="5431373569022009585">❌</e> No
 
 btn-subscription =
-    .plan = 🗂 Go to subscription
-    .new = 💰 Buy subscription
-    .renew = 🔁 Renew
-    .change = 🔀 Change
-    .promocode = 🎟 Activate promocode
-    .promocode-confirm = ✅ Confirm
-    .pay = 💳 Pay
-    .get = 🎁 Get for free
-    .connect = ⚡ Connect
+    .plan = <e id="5431866897555564066">🗂</e> Go to subscription
+    .new = <e id="5429458988565570302">💰</e> Buy subscription
+    .renew = <e id="5431470622397996981">🔁</e> Renew
+    .change = <e id="5429519899791762269">🔀</e> Change
+    .promocode = <e id="5431674023459204413">🎟</e> Activate promocode
+    .promocode-confirm = <e id="5431365176655913424">✅</e> Confirm
+    .pay = <e id="5429173368945420581">💳</e> Pay
+    .get = <e id="5429103378158366023">🎁</e> Get for free
+    .connect = <e id="5429282761762450449">⚡</e> Connect
 
 btn-back =
-    .general = ⬅️ Back
-    .menu = 🏠 Main menu
-    .menu-return = 🏠 Return to main menu
+    .general = <e id="5429579775930837843">⬅️</e> Back
+    .menu = <e id="5431571386625732786">🏠</e> Main menu
+    .menu-return = <e id="5431571386625732786">🏠</e> Return to main menu
 
 btn-common =
-    .cancel = ❌ Cancel
-    .notification-close = ❌ Close
+    .cancel = <e id="5431373569022009585">❌</e> Cancel
+    .notification-close = <e id="5431373569022009585">❌</e> Close
 
 # Menu buttons
-btn-how-connect = 🧭 How to connect?
+btn-how-connect = <e id="5431382528323788017">🧭</e> How to connect?
 btn-proxy = 👀 Share Mtproxy
 
 # <<< rain-emoji
