@@ -12,22 +12,22 @@ import { DEFS, bob, g, glow, pulse, rim, shade, spec, wave } from "./style.mjs";
 import { CLOUD, cloudBody, dome, drop, dropAt } from "./primitives.mjs";
 
 export const ICONS_CORE = {
-  // ── 1. Подключиться: разряд из облака пробивает купол, и тот загорается ──
+  // ── 1. Подключиться: разряд, срывающийся из облака ──
+  // Два элемента с перекрытием, а не три яруса в столбик: иначе глиф выходит
+  // узким и высоким и на кнопке читается мельче остальных.
   connect: {
     title: "Подключиться",
     fallback: "⚡",
-    concept: "разряд из облака пробивает защитный купол — момент соединения",
+    concept: "разряд, срывающийся из облака — момент соединения",
     render: (t) => {
       const strike = pulse(t); // медленное нарастание вместо вспышки
       return `
-        ${glow("gold", 50, 44, 42, 0.16 + strike * 0.28)}
-        ${g(bob(t, 0.9), cloudBody("url(#g-cloud)", -18, 0.78))}
-        <g opacity="${(0.78 + strike * 0.22).toFixed(3)}">
-          <path d="M55 38 L38 62 H49 L45 80 L64 56 H52 Z" fill="url(#g-gold)"/>
-          ${rim("M54 41 L41 58", 0.3 + strike * 0.35, 2.2)}
-        </g>
-        <g opacity="${(0.55 + strike * 0.45).toFixed(3)}">
-          ${dropAt(50, 88, 0.78, "cyan")}
+        ${glow("gold", 50, 56, 44, 0.16 + strike * 0.3)}
+        ${g(bob(t, 0.9), cloudBody("url(#g-cloud)", -14, 0.98))}
+        <g opacity="${(0.8 + strike * 0.2).toFixed(3)}">
+          ${shade(`<path d="M57 42 L32 66 H47 L41 86 L67 58 H52 Z"/>`, 4, 0.4)}
+          <path d="M57 42 L32 66 H47 L41 86 L67 58 H52 Z" fill="url(#g-gold)"/>
+          ${rim("M55 46 L37 63", 0.3 + strike * 0.35, 2.4)}
         </g>`;
     },
   },
