@@ -39,6 +39,9 @@ backups/*
 # Logs
 *.log
 
+# Brand assets tooling
+node_modules/
+
 # Build
 build/
 _build/

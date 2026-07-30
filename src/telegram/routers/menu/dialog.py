@@ -63,6 +63,7 @@ menu = Window(
             text=I18nFormat("btn-menu.connect-not-available"),
             id="not_available",
             on_click=show_reason,
+            style=Style(ButtonStyle.DANGER),
         ),
         when=F["has_subscription"] & ~F["connectable"],
     ),
@@ -93,6 +94,7 @@ menu = Window(
             text=I18nFormat("btn-menu.subscription"),
             id=f"{PAYMENT_PREFIX}subscription",
             state=Subscription.MAIN,
+            style=Style(ButtonStyle.SUCCESS),
         ),
     ),
     Row(
@@ -101,6 +103,7 @@ menu = Window(
             id="invite",
             on_click=on_invite,
             when=F["referral_enabled"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
         SwitchInlineQueryChosenChatButton(
             text=I18nFormat("btn-menu.invite"),
@@ -110,6 +113,7 @@ menu = Window(
             allow_channel_chats=True,
             id="send",
             when=~F["referral_enabled"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
         Url(
             text=I18nFormat("btn-menu.support"),
@@ -263,6 +267,7 @@ invite = Window(
         CopyText(
             text=I18nFormat("btn-invite.copy"),
             copy_text=Format("{referral_url}"),
+            style=Style(ButtonStyle.PRIMARY),
         ),
     ),
     Row(
@@ -286,12 +291,14 @@ invite = Window(
             id="withdraw_points",
             on_click=on_withdraw_points,
             when=~F["has_points"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
         Url(
             text=I18nFormat("btn-invite.withdraw-points"),
             id="withdraw_points",
             url=Format("{withdraw}"),
             when=F["has_points"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
         when=F["is_points_reward"],
     ),

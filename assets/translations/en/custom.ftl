@@ -16,9 +16,67 @@ c-menu-link2 = 2️⃣ Second button
 c-plan-name1 = 1️⃣ First plan
 c-plan-name2 = 2️⃣ Second plan
 
+# ============================================================
+# User menu buttons — Rain VPN branding.
+# Plain Unicode emoji here double as the fallback for clients without
+# custom emoji support. Run `node brand/emoji/apply-ids.mjs` after filling
+# brand/emoji/ids.json to inject <e id="..."> tags between the markers.
+# ============================================================
+
+# >>> rain-emoji
+
+btn-menu =
+    .trial = 🌧️ TRY FOR FREE
+    .trial-paid = 🌧️ TRY FOR { $trial_price }
+    .connect = ⚡ Connect
+    .connect-reserve = 🔗 Connect (reserve)
+    .devices = 📱 My devices
+    .subscription = 💎 Subscription
+    .invite = 👥 Invite a friend
+    .support = 💬 Support
+    .web-cabinet = 🌐 Web cabinet
+    .dashboard = 🎛 Dashboard
+
+btn-invite =
+    .about = ❓ About the reward
+    .copy = 📋 Copy link
+    .send = 📩 Invite
+    .qr = 🔳 QR code
+    .withdraw-points = ⭐ Exchange points
+    .reset-referral = 🔄 Reset referral link
+
+btn-devices =
+    .delete-all = 🗑 Delete all devices
+    .reissue = 🔄 Reissue subscription
+    .confirm-delete = ✅ Yes, delete
+    .confirm-reissue = ✅ Yes, reset
+    .cancel-reissue = ❌ No
+
+btn-subscription =
+    .plan = 🗂 Go to subscription
+    .new = 💰 Buy subscription
+    .renew = 🔁 Renew
+    .change = 🔀 Change
+    .promocode = 🎟 Activate promocode
+    .promocode-confirm = ✅ Confirm
+    .pay = 💳 Pay
+    .get = 🎁 Get for free
+    .connect = ⚡ Connect
+
+btn-back =
+    .general = ⬅️ Back
+    .menu = 🏠 Main menu
+    .menu-return = 🏠 Return to main menu
+
+btn-common =
+    .cancel = ❌ Cancel
+    .notification-close = ❌ Close
+
 # Menu buttons
-btn-how-connect = 🤷‍♂️ How to connect?
+btn-how-connect = 🧭 How to connect?
 btn-proxy = 👀 Share Mtproxy
+
+# <<< rain-emoji
 
 # System labels (squad for imported users)
 IMPORTED = 🔄 Imported

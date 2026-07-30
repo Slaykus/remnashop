@@ -1,0 +1,137 @@
+// Подставляет id премиум-эмодзи в assets/translations/*/custom.ftl.
+//
+//   node apply-ids.mjs            # применить
+//   node apply-ids.mjs --check    # только показать, что изменится
+//
+// Правит исключительно участок между маркерами `# >>> rain-emoji` и
+// `# <<< rain-emoji`. Скрипт идемпотентен: повторный запуск заменяет ранее
+// вставленные теги, а не наслаивает их. Иконки с пустым id пропускаются —
+// такие ключи остаются на обычных Unicode-эмодзи.
+
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { ICONS } from "./icons.mjs";
+
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const REPO = join(ROOT, "..", "..");
+const LOCALES = ["ru", "en"];
+
+const CHECK = process.argv.includes("--check");
+
+const START = "# >>> rain-emoji";
+const END = "# <<< rain-emoji";
+
+// Уже вставленный тег — снимаем его, чтобы прогон был идемпотентным.
+const LEADING_TAG =
+  /^(?:<e id="\d+">[^<]*<\/e>|<tg-emoji emoji-id="\d+">[^<]*<\/tg-emoji>)\s*/;
+
+// Ведущий Unicode-эмодзи вместе с вариационными селекторами, ZWJ-связками
+// и модификаторами тона кожи: 🤷‍♂️ — это один «эмодзи» из пяти кодпоинтов.
+const LEADING_EMOJI =
+  /^(?:\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*|[\u{1F1E6}-\u{1F1FF}]{2})+\s*/u;
+
+const idsPath = join(ROOT, "ids.json");
+if (!existsSync(idsPath)) {
+  console.error("ids.json не найден. Создайте его из ids.example.json.");
+  process.exit(1);
+}
+const ids = JSON.parse(readFileSync(idsPath, "utf8"));
+
+// ftl-ключ -> { id, fallback }
+const byKey = new Map();
+for (const [name, icon] of Object.entries(ICONS)) {
+  const id = String(ids[name] ?? "").trim();
+  if (!id) continue;
+  if (!/^\d+$/.test(id)) {
+    console.error(`ids.json: у «${name}» id не число — ${JSON.stringify(ids[name])}`);
+    process.exit(1);
+  }
+  for (const key of icon.keys ?? []) {
+    byKey.set(key, { id, fallback: icon.fallback, name });
+  }
+}
+
+if (byKey.size === 0) {
+  console.log("В ids.json ещё нет ни одного id — нечего подставлять.");
+  process.exit(0);
+}
+
+let totalChanged = 0;
+const missed = new Set(byKey.keys());
+
+for (const locale of LOCALES) {
+  const file = join(REPO, "assets", "translations", locale, "custom.ftl");
+  if (!existsSync(file)) continue;
+
+  const src = readFileSync(file, "utf8");
+  const from = src.indexOf(START);
+  const to = src.indexOf(END);
+  if (from === -1 || to === -1 || to < from) {
+    console.error(`${locale}/custom.ftl: маркеры rain-emoji не найдены — пропуск.`);
+    continue;
+  }
+
+  const head = src.slice(0, from);
+  const tail = src.slice(to);
+  // Файлы локалей приходят с разными переводами строк (ru — LF, en — CRLF);
+  // склейка своим EOL перепишет весь участок и замусорит диф.
+  const eol = src.includes("\r\n") ? "\r\n" : "\n";
+  const lines = src.slice(from, to).split(/\r?\n/);
+
+  let current = null; // текущее top-level сообщение, для ключей вида a.b
+  let changed = 0;
+
+  const out = lines.map((line) => {
+    const top = line.match(/^([A-Za-z][\w-]*)\s*=\s*(.*)$/);
+    const attr = line.match(/^(\s+)\.([\w-]*)\s*=\s*(.*)$/);
+
+    let key = null;
+    let indent = "";
+    let value = null;
+    let prefix = "";
+
+    if (top) {
+      current = top[1];
+      key = top[1];
+      value = top[2];
+      prefix = `${top[1]} = `;
+    } else if (attr && current) {
+      key = `${current}.${attr[2]}`;
+      indent = attr[1];
+      value = attr[3];
+      prefix = `${indent}.${attr[2]} = `;
+    } else {
+      return line;
+    }
+
+    const hit = byKey.get(key);
+    if (!hit) return line;
+    missed.delete(key);
+
+    // Значение переносится на следующие строки (мультистрочный селектор) —
+    // ведущего эмодзи в этой строке нет, вставлять некуда.
+    if (value.trim() === "") {
+      console.warn(`  ${locale}: ${key} — многострочное значение, пропущено`);
+      return line;
+    }
+
+    const stripped = value.replace(LEADING_TAG, "").replace(LEADING_EMOJI, "");
+    const next = `${prefix}<e id="${hit.id}">${hit.fallback}</e> ${stripped}`;
+    if (next !== line) changed += 1;
+    return next;
+  });
+
+  if (changed && !CHECK) writeFileSync(file, head + out.join(eol) + tail, "utf8");
+  console.log(`${locale}/custom.ftl: ${changed} ключ(ей)${CHECK ? " (проверка)" : ""}`);
+  totalChanged += changed;
+}
+
+for (const key of missed) {
+  console.warn(`не найден в custom.ftl: ${key}`);
+}
+
+console.log(
+  CHECK ? `\nбудет изменено: ${totalChanged}` : `\nизменено: ${totalChanged}`,
+);
