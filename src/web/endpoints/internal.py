@@ -489,12 +489,15 @@ async def activate_free_plan(
     telegram_id: int,
     activate_free: FromDishka[ActivateFreePlan],
     user_dao: FromDishka[UserDao],
+    plan_tag: str | None = None,
 ) -> ActivateFreePlanResponse:
     user = await user_dao.get_by_telegram_id(telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     try:
-        sub = await activate_free.system(ActivateFreePlanDto(telegram_id=telegram_id))
+        sub = await activate_free.system(
+            ActivateFreePlanDto(telegram_id=telegram_id, plan_tag=plan_tag)
+        )
     except ValueError as e:
         msg = str(e)
         status_code = 404 if "not found" in msg.lower() else 409

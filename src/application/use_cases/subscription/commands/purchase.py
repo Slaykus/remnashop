@@ -253,6 +253,10 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
 @dataclass(frozen=True)
 class ActivateFreePlanDto:
     telegram_id: int
+    # Тег пробного плана. Нужен, чтобы сайт мог выдавать свой короткий
+    # пробный период, не меняя тот, что бот даёт своим пользователям:
+    # активных пробных планов может быть несколько.
+    plan_tag: str | None = None
 
 
 class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
@@ -284,7 +288,13 @@ class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
         plans = await self.plan_dao.get_active_trial_plans()
         if not plans:
             raise ValueError("No trial plan available")
-        plan = plans[0]
+
+        if data.plan_tag:
+            plan = next((p for p in plans if p.tag == data.plan_tag), None)
+            if plan is None:
+                raise ValueError(f"Trial plan with tag '{data.plan_tag}' not found")
+        else:
+            plan = plans[0]
 
         if not plan.durations:
             raise ValueError("Trial plan has no durations configured")
