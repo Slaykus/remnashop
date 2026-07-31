@@ -36,6 +36,13 @@ from src.application.use_cases.subscription.commands.purchase import ActivateFre
 from src.application.use_cases.promocode.commands.activate import ActivatePromocode, ActivatePromocodeDto
 from src.application.use_cases.user import SetUserPersonalDiscount
 from src.application.use_cases.user.commands.profile_edit import SetUserPersonalDiscountDto
+from src.core.exceptions import (
+    PromocodeAlreadyActivatedError,
+    PromocodeError,
+    PromocodeExpiredError,
+    PromocodeNotAvailableError,
+    PromocodeNotFoundError,
+)
 from src.core.enums import PaymentGatewayType, PurchaseType, ReferralRewardType
 from src.core.constants import API_V1
 
@@ -967,9 +974,25 @@ async def activate_promocode(
 
     try:
         promo = await activate.system(ActivatePromocodeDto(code=body.code.strip(), user=user))
+    except PromocodeError as e:
+        # Отказ по промокоду — не сбой сервиса, а нормальный исход. Раньше
+        # ловился только ValueError, а бот бросает свои исключения, поэтому
+        # наружу уходила 500 и пользователь видел «не удалось активировать»
+        # вместо настоящей причины.
+        reasons = {
+            PromocodeNotFoundError: "Промокод не найден",
+            PromocodeExpiredError: "Срок действия промокода истёк",
+            PromocodeAlreadyActivatedError: "Вы уже активировали этот промокод",
+            PromocodeNotAvailableError: "Промокод недоступен",
+        }
+        # Порядок важен: PromocodeExpiredError наследует NotAvailable, и при
+        # проверке по базовому классу истёкший код получил бы общий текст.
+        detail = next(
+            (msg for cls, msg in reasons.items() if isinstance(e, cls)),
+            str(e) or "Промокод не может быть активирован",
+        )
+        raise HTTPException(status_code=400, detail=detail)
     except ValueError as e:
-        # Использованный, просроченный или несуществующий код — это ошибка
-        # ввода, а не сбой: отвечаем 400 с текстом причины.
         raise HTTPException(status_code=400, detail=str(e))
 
     return ActivatePromocodeResponse(
