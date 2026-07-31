@@ -53,14 +53,14 @@ msg-main-menu =
     • You have no active subscription.
 
     <i>{ $trial_available ->
-    [1] 🎁 A free trial is available for you — click the button below to get it.
+    [1] <e id="5431744001361352063">🎁</e> A free trial is available for you — click the button below to get it.
     *[0] ↘️ Go to the «Subscription» menu to purchase access.
     }</i>
     </blockquote>
     }
 
 msg-menu-devices =
-    <b>📱 Device management</b>
+    <b><e id="5433608163196706522">📱</e> Device management</b>
 
     Connected: <b>{ $current_count } / { $max_count }</b>
 
@@ -71,9 +71,9 @@ msg-menu-devices =
     }
 
 msg-menu-devices-confirm-reissue =
-    🔄 <b>Reissue subscription</b>
+    <e id="5431450139698962745">🔄</e> <b>Reissue subscription</b>
 
-    ⚠️ After reset, the old link will <b>stop working</b>.
+    <e id="5431713747611722012">⚠️</e> After reset, the old link will <b>stop working</b>.
 
     You will need to:
     • Remove the old subscription from the app
@@ -82,10 +82,10 @@ msg-menu-devices-confirm-reissue =
     Are you sure you want to reset the link?
 
 msg-menu-devices-confirm-delete =
-    🗑 Delete device <b>{ $selected_device_label }</b>?
+    <e id="5433693255088776864">🗑</e> Delete device <b>{ $selected_device_label }</b>?
 
 msg-menu-devices-confirm-delete-all =
-    🗑 Delete <b>all devices</b>?
+    <e id="5433693255088776864">🗑</e> Delete <b>all devices</b>?
 
 msg-menu-invite =
     <b>🤝 Referral program</b>
@@ -1123,7 +1123,7 @@ msg-notifications-system = <b>⚙️ System notifications</b>
 
 # Subscription
 msg-subscription-main =
-    <b>💳 Subscription</b>
+    <b><e id="5431887891355703774">💳</e> Subscription</b>
 
     { $has_current_subscription ->
     [1] { frg-subscription }
@@ -1154,7 +1154,7 @@ msg-subscription-traffic-reset-confirm =
 
     { $tr_show_warning ->
     [1]
-    ⚠️ <b>You still have unused traffic remaining.</b> Resetting the counter is only worthwhile when your limit is exhausted. The payment will be charged regardless.
+    <e id="5431713747611722012">⚠️</e> <b>You still have unused traffic remaining.</b> Resetting the counter is only worthwhile when your limit is exhausted. The payment will be charged regardless.
 
     *[0] { "" }
     }<b>Cost:</b> { $price } ₽
@@ -1162,16 +1162,16 @@ msg-subscription-traffic-reset-confirm =
     After successful payment, your counter will be reset immediately and you will regain access to your full monthly limit.
 
     { $tr_url_has ->
-    [1] ✅ Payment created. Click the button below to pay.
+    [1] <e id="5433838236004820271">✅</e> Payment created. Click the button below to pay.
     *[0] Select a payment method:
     }
 
-msg-subscription-plans = <b>📦 Select a plan</b>
+msg-subscription-plans = <b><e id="5431887363074728345">📦</e> Select a plan</b>
 msg-subscription-new-success = To start using our service, click the <code>`{ btn-subscription.connect }`</code> button and follow the instructions!
 msg-subscription-renew-success = Your subscription has been extended by { $added_duration }.
 
 msg-subscription-plan =
-    <b>📦 Plan available by link</b>
+    <b><e id="5431887363074728345">📦</e> Plan available by link</b>
 
     The plan <b>{ $name }</b> is available to you by link. Click the button below to select the duration and payment method.
 
@@ -1184,8 +1184,8 @@ msg-subscription-plan =
     }
 
     { $purchase_type ->
-    [RENEW] <i>⚠️ Your current subscription will be <u>extended</u> by the selected period.</i>
-    [CHANGE] <i>⚠️ Your current subscription will be <u>replaced</u> by this plan without recalculating the remaining period.</i>
+    [RENEW] <i><e id="5431713747611722012">⚠️</e> Your current subscription will be <u>extended</u> by the selected period.</i>
+    [CHANGE] <i><e id="5431713747611722012">⚠️</e> Your current subscription will be <u>replaced</u> by this plan without recalculating the remaining period.</i>
     *[OTHER] { empty }
     }
 
@@ -1216,12 +1216,12 @@ msg-subscription-duration =
     { msg-subscription-details }
 
 msg-subscription-payment-method =
-    <b>💳 Select payment method</b>
+    <b><e id="5433625699548179370">💳</e> Select payment method</b>
 
     { msg-subscription-details }
 
 msg-subscription-confirm =
-    <b>🛒 Confirm { $purchase_type ->
+    <b><e id="5433718990532814817">🛒</e> Confirm { $purchase_type ->
     [RENEW] renewal
     [CHANGE] change
     *[OTHER] purchase
@@ -1230,18 +1230,18 @@ msg-subscription-confirm =
     { msg-subscription-details }
 
     { $purchase_type ->
-    [RENEW] <i>⚠️ Your current subscription will be <u>extended</u> by the selected period.</i>
-    [CHANGE] <i>⚠️ Your current subscription will be <u>replaced</u> by the selected one without recalculating the remaining period.</i>
+    [RENEW] <i><e id="5431713747611722012">⚠️</e> Your current subscription will be <u>extended</u> by the selected period.</i>
+    [CHANGE] <i><e id="5431713747611722012">⚠️</e> Your current subscription will be <u>replaced</u> by the selected one without recalculating the remaining period.</i>
     *[OTHER] { empty }
     }
 
 msg-subscription-trial =
-    <b>✅ Trial subscription received successfully!</b>
+    <b><e id="5433838236004820271">✅</e> Trial subscription received successfully!</b>
 
     { msg-subscription-new-success }
 
 msg-subscription-success =
-    <b>✅ Payment successful!</b>
+    <b><e id="5433838236004820271">✅</e> Payment successful!</b>
 
     { $purchase_type ->
     [NEW] { msg-subscription-new-success }
@@ -1257,7 +1257,7 @@ msg-subscription-change-success =
     { frg-subscription }
 
 msg-subscription-failed =
-    <b>❌ An error occurred!</b>
+    <b><e id="5433773811495378237">❌</e> An error occurred!</b>
 
     Don't worry, technical support has been notified and will contact you shortly. We apologize for the inconvenience.
 
@@ -1321,14 +1321,14 @@ msg-importer-sync-completed =
 
 # Promocodes
 msg-promocode-input =
-    <b>🎟 Promo code</b>
+    <b><e id="5431503878329774916">🎟</e> Promo code</b>
 
     Enter your promo code.
 
 msg-promocode-confirm =
-    <b>🎟 Promo code <code>{ $promo_code }</code></b>
+    <b><e id="5431503878329774916">🎟</e> Promo code <code>{ $promo_code }</code></b>
 
-    🎁 You will get: { $reward_type ->
+    <e id="5431744001361352063">🎁</e> You will get: { $reward_type ->
         [DURATION] { $reward ->
             [0] your current subscription becomes <b>lifetime</b>.
             *[other] <b>{ $reward } { $reward ->
@@ -1354,11 +1354,11 @@ msg-promocode-confirm =
     }
 
     { $show_reset_warning ->
-        [1] ⚠️ <i>The bonus lasts until your next renewal — on renewal the limit returns to the plan value.</i>
+        [1] <e id="5431713747611722012">⚠️</e> <i>The bonus lasts until your next renewal — on renewal the limit returns to the plan value.</i>
        *[0] { space }
     }
     { $will_replace_subscription ->
-        [1] ⚠️ <i>You already have an active subscription. It will be replaced by the new plan, and the remaining days and traffic will be reset.</i>
+        [1] <e id="5431713747611722012">⚠️</e> <i>You already have an active subscription. It will be replaced by the new plan, and the remaining days and traffic will be reset.</i>
        *[0] { space }
     }
 

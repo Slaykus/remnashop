@@ -8,6 +8,80 @@
 // keys перечисляет только ключи внутри маркеров rain-emoji; пустой массив
 // означает, что иконка не привязана к кнопке (используется в тексте сообщений).
 
+/**
+ * Эмодзи в текстах сообщений.
+ *
+ * Кнопки правятся в custom.ftl, а тексты — во встроенных файлах образа, и вот
+ * почему. Заголовки вроде hdr-user-profile подставляются в сообщения ссылкой
+ * `{ hdr-user-profile }`, а ссылки в Fluent резолвятся внутри своего бандла.
+ * custom.ftl загружается отдельным бандлом, поэтому переопределение заголовка
+ * там до сообщения не доедет — сообщение возьмёт встроенный вариант.
+ *
+ * Структура: файл -> ключ -> список пар «эмодзи в тексте» → «иконка пака».
+ * Эмодзи может не совпадать с запасным у иконки: в тексте стоит 💳, а иконка
+ * называется subscription — сопоставление задаётся явно.
+ */
+export const MESSAGE_EMOJI = {
+  "utils.ftl": {
+    "hdr-user": [["👤", "profile"]],
+    "hdr-user-profile": [["👤", "profile"]],
+    "hdr-payment": [["💰", "buy"]],
+    "hdr-error": [["⚠️", "warning"]],
+    "hdr-hwid": [["📱", "devices"]],
+    "hdr-subscription": [
+      ["🎁", "gift"],
+      ["💳", "subscription"],
+    ],
+    "hdr-plan": [
+      ["🎁", "gift"],
+      ["📦", "plan"],
+    ],
+  },
+  "messages.ftl": {
+    "msg-main-menu": [["🎁", "gift"]],
+    "msg-menu-devices": [["📱", "devices"]],
+    "msg-menu-devices-confirm-delete": [["🗑", "delete"]],
+    "msg-menu-devices-confirm-delete-all": [["🗑", "delete"]],
+    "msg-menu-devices-confirm-reissue": [
+      ["🔄", "reissue"],
+      ["⚠️", "warning"],
+    ],
+    "msg-menu-invite": [
+      ["👥", "invite"],
+      ["💳", "subscription"],
+      ["💎", "points"],
+    ],
+    "msg-menu-invite-about": [
+      ["🎁", "gift"],
+      ["💎", "points"],
+    ],
+    "msg-subscription-main": [["💳", "subscription"]],
+    "msg-subscription-plans": [["📦", "plan"]],
+    "msg-subscription-plan": [
+      ["📦", "plan"],
+      ["⚠️", "warning"],
+    ],
+    "msg-subscription-payment-method": [["💳", "pay"]],
+    "msg-subscription-confirm": [
+      ["🛒", "buy"],
+      ["⚠️", "warning"],
+    ],
+    "msg-subscription-success": [["✅", "confirm"]],
+    "msg-subscription-trial": [["✅", "confirm"]],
+    "msg-subscription-failed": [["❌", "cancel"]],
+    "msg-promocode-input": [["🎟", "promocode"]],
+    "msg-promocode-confirm": [
+      ["🎟", "promocode"],
+      ["🎁", "gift"],
+      ["⚠️", "warning"],
+    ],
+    "msg-subscription-traffic-reset-confirm": [
+      ["⚠️", "warning"],
+      ["✅", "confirm"],
+    ],
+  },
+};
+
 export const WIRING = {
   // ── брендовое ядро ──
   connect: { fallback: "⚡", keys: ["btn-menu.connect", "btn-subscription.connect"] },

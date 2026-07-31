@@ -54,21 +54,21 @@ command =
     .rules = Terms of use
     .help = Help
 
-hdr-user = <b>👤 User:</b>
-hdr-user-profile = <b>👤 Profile:</b>
-hdr-payment = <b>💰 Payment:</b>
-hdr-error = <b>⚠️ Error:</b>
+hdr-user = <b><e id="5431484142955042536">👤</e> User:</b>
+hdr-user-profile = <b><e id="5431484142955042536">👤</e> Profile:</b>
+hdr-payment = <b><e id="5433718990532814817">💰</e> Payment:</b>
+hdr-error = <b><e id="5431713747611722012">⚠️</e> Error:</b>
 hdr-node = <b>🖥 Node:</b>
-hdr-hwid = <b>📱 Device:</b>
+hdr-hwid = <b><e id="5433608163196706522">📱</e> Device:</b>
 
 hdr-subscription = { $is_trial ->
-    [1] <b>🎁 Trial subscription:</b>
-    *[0] <b>💳 Subscription:</b>
+    [1] <b><e id="5431744001361352063">🎁</e> Trial subscription:</b>
+    *[0] <b><e id="5431887891355703774">💳</e> Subscription:</b>
 }
 
 hdr-plan = { $is_trial_plan ->
-    [1] <b>🎁 Trial plan:</b>
-    *[0] <b>📦 Plan:</b>
+    [1] <b><e id="5431744001361352063">🎁</e> Trial plan:</b>
+    *[0] <b><e id="5431887363074728345">📦</e> Plan:</b>
 }
 
 frg-user =

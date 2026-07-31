@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ICONS } from "./pack.mjs";
+import { MESSAGE_EMOJI } from "./wiring.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const REPO = join(ROOT, "..", "..");
@@ -132,6 +133,68 @@ for (const key of missed) {
   console.warn(`не найден в custom.ftl: ${key}`);
 }
 
+// ── Тексты сообщений: правим встроенные файлы образа ──
+// Здесь ключ уже известен, а эмодзи ищется по всему его блоку, а не только
+// в начале строки: в сообщениях значки стоят внутри абзацев.
+const idByIcon = new Map(Object.entries(ids).map(([n, v]) => [n, String(v).trim()]));
+
+// Тег снимается перед подстановкой, поэтому повторный прогон не наслаивает.
+const UNWRAP = /<e id="\d+">([^<]*)<\/e>|<tg-emoji emoji-id="\d+">([^<]*)<\/tg-emoji>/g;
+
+let msgChanged = 0;
+for (const locale of LOCALES) {
+  for (const [fileName, keys] of Object.entries(MESSAGE_EMOJI)) {
+    const file = join(REPO, "assets", "translations", locale, fileName);
+    if (!existsSync(file)) continue;
+
+    let src = readFileSync(file, "utf8");
+    const eol = src.includes("\r\n") ? "\r\n" : "\n";
+    const lines = src.split(/\r?\n/);
+
+    let changedHere = 0;
+    let current = null;
+    let blockStart = -1;
+
+    const blocks = [];
+    lines.forEach((line, i) => {
+      const m = line.match(/^(-?[A-Za-z][\w-]*)\s*=/);
+      if (m) {
+        if (current && keys[current]) blocks.push([current, blockStart, i]);
+        current = m[1];
+        blockStart = i;
+      }
+    });
+    if (current && keys[current]) blocks.push([current, blockStart, lines.length]);
+
+    // С конца: правка блока перезаписывает строки, и обход с начала сдвинул бы
+    // индексы блоков, идущих следом.
+    for (const [key, from, to] of blocks.reverse()) {
+      let chunk = lines.slice(from, to).join(eol).replace(UNWRAP, (_, a, b) => a ?? b);
+      for (const [emoji, icon] of keys[key]) {
+        const id = idByIcon.get(icon);
+        if (!id) continue;
+        // Вариационный селектор U+FE0F может быть, а может и не быть.
+        const bare = emoji.replace(/️/g, "");
+        for (const variant of new Set([emoji, bare])) {
+          if (!chunk.includes(variant)) continue;
+          chunk = chunk.split(variant).join(`<e id="${id}">${emoji}</e>`);
+          changedHere += 1;
+          break;
+        }
+      }
+      const rebuilt = chunk.split(eol);
+      lines.splice(from, to - from, ...rebuilt);
+    }
+
+    if (changedHere && !CHECK) writeFileSync(file, lines.join(eol), "utf8");
+    if (changedHere) {
+      console.log(`${locale}/${fileName}: ${changedHere} значк(ов)${CHECK ? " (проверка)" : ""}`);
+      msgChanged += changedHere;
+    }
+  }
+}
+
 console.log(
-  CHECK ? `\nбудет изменено: ${totalChanged}` : `\nизменено: ${totalChanged}`,
+  `\n${CHECK ? "будет изменено" : "изменено"}: ` +
+    `кнопок ${totalChanged}, значков в текстах ${msgChanged}`,
 );
