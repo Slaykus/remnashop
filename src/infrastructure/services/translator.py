@@ -9,6 +9,9 @@ from loguru import logger
 
 from src.core.utils.converters import event_to_key
 
+# <e id="123">🎁</e> — короткая запись кастом-эмодзи в .ftl.
+_TG_EMOJI_SHORT_RE = re.compile(r'<e id="(\d+)">([^<]*)</e>')
+
 
 class TranslatorRunnerImpl(TranslatorRunner):
     def __init__(
@@ -100,6 +103,15 @@ class TranslatorRunnerImpl(TranslatorRunner):
         return bool(re.fullmatch(pattern, key))
 
     def _postprocess(self, text: str) -> str:
+        # Короткая запись кастом-эмодзи разворачивается здесь, а не у отдельного
+        # потребителя: переводы уходят не только в диалоги, но и в системные
+        # уведомления, рассылку и фоновые задачи. Раньше разворот жил в виджете
+        # I18nFormat, поэтому всё, что шло мимо диалогов, отправлялось с сырым
+        # тегом <e> и Telegram отбивал такое сообщение с ошибкой разбора
+        # сущностей. Здесь единственная точка, через которую проходит любой
+        # перевод, — значит и разворачивать нужно здесь.
+        text = _TG_EMOJI_SHORT_RE.sub(r'<tg-emoji emoji-id="\1">\2</tg-emoji>', text)
+
         text = re.sub(
             r"<(\w+)>[\n\r]+(.*?)[\n\r]+</\1>",
             lambda m: f"<{m[1]}>{m[2].rstrip()}</{m[1]}>",
