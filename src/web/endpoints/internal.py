@@ -664,6 +664,8 @@ async def migrate_telegram(
     user_dao: FromDishka[UserDao],
     subscription_dao: FromDishka[SubscriptionDao],
     remnawave: FromDishka[Remnawave],
+    add_duration: FromDishka[AddSubscriptionDuration],
+    sdk: FromDishka[RemnawaveSDK],
     uow: FromDishka[UnitOfWork],
 ) -> MigrateTelegramResponse:
     user = await user_dao.get_by_telegram_id(old_telegram_id)
@@ -677,24 +679,62 @@ async def migrate_telegram(
         virtual_sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
         real_sub = await subscription_dao.get_current_by_telegram_id(body.new_telegram_id)
 
-        async with uow:
-            if virtual_sub and virtual_sub.id and not real_sub:
-                # Метод называется set_current_subscription_by_id и принимает
-                # внутренний id пользователя. Прежний вызов обращался к
-                # несуществующему имени с telegram_id и падал бы с AttributeError.
+        # Если у телеграм-аккаунта своей подписки нет, переносим веб-подписку
+        # целиком: у неё сохраняется тот же user_remna_id, а значит и ссылка,
+        # которую человек уже добавил в приложение, продолжает работать.
+        carried_days = 0
+        if virtual_sub and virtual_sub.id and not real_sub:
+            async with uow:
                 await user_dao.set_current_subscription_by_id(conflict.id or 0, virtual_sub.id)
-            # Виртуальный аккаунт удаляем по внутреннему id, а не по telegram_id.
-            await user_dao.delete(user.id or 0)
-            await uow.commit()
+                await user_dao.delete(user.id or 0)
+                await uow.commit()
 
-        # Update Remnawave username to reflect real telegram_id (best effort)
-        if virtual_sub and virtual_sub.user_remna_id and not real_sub:
             try:
                 await remnawave.update_user(user=conflict, uuid=str(virtual_sub.user_remna_id))
             except Exception:
                 pass
 
-        return MigrateTelegramResponse(migrated=True, message="Merged with existing account")
+            return MigrateTelegramResponse(migrated=True, message="Merged with existing account")
+
+        # Обе стороны с подписками. Раньше веб-подписка здесь просто исчезала
+        # вместе с виртуальным аккаунтом — вместе с оплаченными днями.
+        # Переносим остаток дней на телеграм-подписку.
+        if virtual_sub and real_sub:
+            carried_days = _days_left(virtual_sub.expire_at)
+            if carried_days > 0:
+                try:
+                    await add_duration.system(
+                        AddSubscriptionDurationDto(
+                            telegram_id=body.new_telegram_id,
+                            days=carried_days,
+                        )
+                    )
+                except Exception:
+                    # Перенос не удался — прерываем слияние, не удаляя ничего.
+                    # Лучше оставить два аккаунта, чем стереть оплаченные дни.
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Не удалось перенести дни подписки. Привязка отменена, попробуйте позже.",
+                    )
+
+            # Лишний аккаунт в Remnawave надо убрать, иначе он продолжит
+            # занимать место, а его старая ссылка — работать.
+            if virtual_sub.user_remna_id:
+                try:
+                    await sdk.users.delete_user(uuid=str(virtual_sub.user_remna_id))
+                except Exception:
+                    pass
+
+        async with uow:
+            await user_dao.delete(user.id or 0)
+            await uow.commit()
+
+        message = (
+            f"Merged with existing account, carried over {carried_days} days"
+            if carried_days
+            else "Merged with existing account"
+        )
+        return MigrateTelegramResponse(migrated=True, message=message)
 
     # No conflict — simple rename: update telegram_id on the virtual account
     sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
