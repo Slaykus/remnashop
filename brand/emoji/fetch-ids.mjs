@@ -116,8 +116,9 @@ if (token) {
 // картинке, и хеш локального файла перестаёт совпадать с загруженным. Тогда
 // прежнее соответствие из ids.json надёжнее любого угадывания по порядку —
 // достаточно убедиться, что такой id всё ещё есть в наборе.
-if (existsSync(idsPath)) {
-  const previous = JSON.parse(readFileSync(idsPath, "utf8"));
+const prevPath = join(ROOT, "ids.json");
+if (existsSync(prevPath)) {
+  const previous = JSON.parse(readFileSync(prevPath, "utf8"));
   const inSet = new Map(report.map((r) => [r.id, r]));
   const taken = new Set(report.filter((r) => r.name).map((r) => r.name));
   for (const [name, id] of Object.entries(previous)) {

@@ -22,6 +22,44 @@
  * называется subscription — сопоставление задаётся явно.
  */
 export const MESSAGE_EMOJI = {
+  // Часть текстов переопределена в custom.ftl — это брендированные варианты
+  // Rain, и они перекрывают встроенные. Правка только встроенного файла до
+  // пользователя не доедет, поэтому те же ключи обрабатываются и здесь.
+  // Ключей может не быть в файле — тогда блок просто пропускается.
+  "custom.ftl": {
+    "frg-subscription": [["💳", "subscription"]],
+    "msg-subscription-main": [
+      ["💳", "subscription"],
+      ["🔴", "node"],
+      ["🚫", "restricted"],
+    ],
+    "msg-menu-invite": [
+      ["🤝", "invite"],
+      ["👥", "invite"],
+      ["📊", "stats"],
+      ["🏆", "points"],
+      ["☁️", "tier-cloud"],
+      ["🌩️", "tier-thunder"],
+      ["🌧️", "tier-rain"],
+      ["⛈️", "tier-storm"],
+    ],
+    "msg-menu-invite-about": [
+      ["💡", "sparkle"],
+      ["✨", "sparkle"],
+      ["🎁", "gift"],
+      ["💎", "points"],
+    ],
+    "msg-user-node-quota": [
+      ["🔴", "node"],
+      ["🚫", "restricted"],
+      ["✅", "confirm"],
+    ],
+    "msg-subscription-traffic-reset-confirm": [
+      ["🔴", "node"],
+      ["⚠️", "warning"],
+      ["✅", "confirm"],
+    ],
+  },
   "utils.ftl": {
     // Ступени реферальной программы. Порядок задан в frg-user: облако, туча,
     // дождь, шторм — от 5% до 25% скидки.

@@ -88,7 +88,7 @@ msg-menu-devices-confirm-delete-all =
     <e id="5433693255088776864">🗑</e> Delete <b>all devices</b>?
 
 msg-menu-invite =
-    <b>🤝 Referral program</b>
+    <b><e id="5434067728992347183">🤝</e> Referral program</b>
 
     Invite users via your unique link and earn { $reward_type ->
         [POINTS] <b>points</b> — redeem for access days or a subscription
@@ -96,7 +96,7 @@ msg-menu-invite =
         *[OTHER] { $reward_type }
     }.
 
-    <b>📊 Your statistics:</b>
+    <b><e id="5431409921625205825">📊</e> Your statistics:</b>
     <blockquote>
     • Users invited: { $referrals }
     • Payments via your link: { $payments }
@@ -106,21 +106,21 @@ msg-menu-invite =
     }
     </blockquote>
 
-    <b>🏆 Status and personal discount:</b>
+    <b><e id="5431658449907789518">🏆</e> Status and personal discount:</b>
     <blockquote>
     For every invited user who subscribes, you earn a permanent discount on all plans:
 
-    • ☁️ Cloud — <b>5%</b> (1 person)
-    • 🌩️ Storm Cloud — <b>10%</b> (3 people)
-    • ⛈️ Storm — <b>15%</b> (5 people)
-    • 🌧️ Rain — <b>25%</b> (10 people)
+    • <e id="5431362105754296012">☁️</e> Cloud — <b>5%</b> (1 person)
+    • <e id="5431433165988209445">🌩️</e> Storm Cloud — <b>10%</b> (3 people)
+    • <e id="5431693264912690049">⛈️</e> Storm — <b>15%</b> (5 people)
+    • <e id="5433946872907606413">🌧️</e> Rain — <b>25%</b> (10 people)
 
     { $referral_tier ->
     [0] Your status: not yet earned.
-    [1] Your status: ☁️ Cloud — discount <b>{ $personal_discount }%</b>
-    [2] Your status: 🌩️ Storm Cloud — discount <b>{ $personal_discount }%</b>
-    [3] Your status: ⛈️ Storm — discount <b>{ $personal_discount }%</b>
-    *[4] Your status: 🌧️ Rain — discount <b>{ $personal_discount }%</b>
+    [1] Your status: <e id="5431362105754296012">☁️</e> Cloud — discount <b>{ $personal_discount }%</b>
+    [2] Your status: <e id="5431433165988209445">🌩️</e> Storm Cloud — discount <b>{ $personal_discount }%</b>
+    [3] Your status: <e id="5431693264912690049">⛈️</e> Storm — discount <b>{ $personal_discount }%</b>
+    *[4] Your status: <e id="5433946872907606413">🌧️</e> Rain — discount <b>{ $personal_discount }%</b>
     }
     </blockquote>
 
@@ -133,7 +133,7 @@ msg-menu-proxy =
     • <b>Other messenger</b> — copy the link and send via any app
 
 msg-menu-invite-about =
-    <b>💡 Program terms</b>
+    <b><e id="5431673473703389665">💡</e> Program terms</b>
 
     <b>Accrual condition:</b>
     <blockquote>
@@ -1132,10 +1132,10 @@ msg-subscription-main =
 
     { $node_quota_enabled ->
     [1]
-    <b>🔴 4G/LTE Server:</b>
+    <b><e id="5434006396859357687">🔴</e> 4G/LTE Server:</b>
     <blockquote>
     { $node_quota_is_restricted ->
-    [1] • 🚫 Access restricted until the 1st of next month
+    [1] • <e id="5431537503628730769">🚫</e> Access restricted until the 1st of next month
     *[0]
     • <b>Used</b>: { $node_quota_used_gb } / { $node_quota_limit_gb } GB
     • <b>Free</b>: { $node_quota_free_gb } GB

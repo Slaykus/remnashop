@@ -58,7 +58,7 @@ hdr-user = <b><e id="5431484142955042536">👤</e> User:</b>
 hdr-user-profile = <b><e id="5431484142955042536">👤</e> Profile:</b>
 hdr-payment = <b><e id="5433718990532814817">💰</e> Payment:</b>
 hdr-error = <b><e id="5431713747611722012">⚠️</e> Error:</b>
-hdr-node = <b>🖥 Node:</b>
+hdr-node = <b><e id="5434006396859357687">🖥</e> Node:</b>
 hdr-hwid = <b><e id="5433608163196706522">📱</e> Device:</b>
 
 hdr-subscription = { $is_trial ->
@@ -76,10 +76,10 @@ frg-user =
     • <b>ID</b>: <code>{ NUMBER($telegram_id, useGrouping: 0) }</code>
     • <b>Name</b>: { $name }
     { $referral_tier ->
-    [1] • <b>Status</b>: ☁️ Cloud
-    [2] • <b>Status</b>: 🌩️ Storm Cloud
-    [3] • <b>Status</b>: ⛈️ Storm
-    [4] • <b>Status</b>: 🌧️ Rain
+    [1] • <b>Status</b>: <e id="5431362105754296012">☁️</e> Cloud
+    [2] • <b>Status</b>: <e id="5431433165988209445">🌩️</e> Storm Cloud
+    [3] • <b>Status</b>: <e id="5431693264912690049">⛈️</e> Storm
+    [4] • <b>Status</b>: <e id="5433946872907606413">🌧️</e> Rain
     *[0] { empty }
     }
     { $show_personal_discount ->
