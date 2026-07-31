@@ -33,6 +33,7 @@ from src.application.use_cases.user.queries.plans import GetAvailablePlans, GetA
 from src.application.use_cases.subscription import AddSubscriptionDuration
 from src.application.use_cases.subscription.commands.management import AddSubscriptionDurationDto
 from src.application.use_cases.subscription.commands.purchase import ActivateFreePlan, ActivateFreePlanDto
+from src.application.use_cases.promocode.commands.activate import ActivatePromocode, ActivatePromocodeDto
 from src.application.use_cases.user import SetUserPersonalDiscount
 from src.application.use_cases.user.commands.profile_edit import SetUserPersonalDiscountDto
 from src.core.enums import PaymentGatewayType, PurchaseType, ReferralRewardType
@@ -371,9 +372,11 @@ async def get_referral_stats(
         raise HTTPException(status_code=404, detail="User not found")
 
     referrals = await referral_dao.get_referrals_list(user.id or 0)
-    earned_days = await referral_dao.get_total_rewards_amount(
-        telegram_id, ReferralRewardType.EXTRA_DAYS
-    )
+    # Метода get_total_rewards_amount в ReferralDao нет — обращение к нему
+    # роняло весь эндпоинт с AttributeError, и кабинет показывал пустую
+    # страницу рефералов вместо статистики.
+    stats = await referral_dao.get_user_referral_stats(user.id or 0)
+    earned_days = stats.reward_days
 
     entries = [
         ReferralEntryResponse(
@@ -921,4 +924,56 @@ async def create_web_payment(
     return CreateWebPaymentResponse(
         payment_id=str(result.id),
         payment_url=result.url,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Promocodes
+# ---------------------------------------------------------------------------
+
+
+class ActivatePromocodeRequest(BaseModel):
+    code: str
+
+
+class ActivatePromocodeResponse(BaseModel):
+    code: str
+    reward_type: str
+    reward: str
+
+
+@router.post(
+    "/promocodes/{telegram_id}/activate",
+    response_model=ActivatePromocodeResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def activate_promocode(
+    telegram_id: int,
+    body: ActivatePromocodeRequest,
+    user_dao: FromDishka[UserDao],
+    activate: FromDishka[ActivatePromocode],
+) -> ActivatePromocodeResponse:
+    """
+    Активация промокода бота из веб-кабинета.
+
+    Коды заводятся в панели бота и должны действовать в обоих местах: свой
+    список кодов на сайте означал бы две несвязанные системы и коды, которые
+    работают где-то одном.
+    """
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        promo = await activate.system(ActivatePromocodeDto(code=body.code.strip(), user=user))
+    except ValueError as e:
+        # Использованный, просроченный или несуществующий код — это ошибка
+        # ввода, а не сбой: отвечаем 400 с текстом причины.
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return ActivatePromocodeResponse(
+        code=promo.code,
+        reward_type=promo.reward_type.value.lower(),
+        reward=str(promo.reward),
     )
