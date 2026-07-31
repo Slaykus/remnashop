@@ -204,11 +204,11 @@ event-subscription =
     [1]
     { $is_trial ->
     [0]
-    ⚠️ <b>Your subscription expires tomorrow!</b>
+    <e id="5431713747611722012">⚠️</e> <b>Your subscription expires tomorrow!</b>
 
     Renew now — otherwise VPN will stop working tomorrow.
     *[1]
-    ⚠️ <b>Your free trial ends tomorrow!</b>
+    <e id="5431713747611722012">⚠️</e> <b>Your free trial ends tomorrow!</b>
 
     Subscribe now to keep access to the service.
     }
@@ -239,11 +239,11 @@ event-subscription =
     .expired =
     { $is_trial ->
     [0]
-    ⛔ <b>Subscription expired — VPN is offline.</b>
+    <e id="5431537503628730769">⛔</e> <b>Subscription expired — VPN is offline.</b>
 
     Renew your subscription to restore access.
     *[1]
-    ⛔ <b>Free trial ended — VPN is offline.</b>
+    <e id="5431537503628730769">⛔</e> <b>Free trial ended — VPN is offline.</b>
 
     Subscribe to continue using the service.
     }
@@ -251,11 +251,11 @@ event-subscription =
     .expired-ago =
     { $is_trial ->
     [0]
-    ⛔ <b>Your subscription expired { unit-day } ago.</b>
+    <e id="5431537503628730769">⛔</e> <b>Your subscription expired { unit-day } ago.</b>
 
     VPN is still offline. Renew whenever you're ready.
     *[1]
-    ⛔ <b>Your free trial ended { unit-day } ago.</b>
+    <e id="5431537503628730769">⛔</e> <b>Your free trial ended { unit-day } ago.</b>
 
     Subscribe whenever you're ready — access restores instantly.
     }
@@ -263,14 +263,14 @@ event-subscription =
     .limited =
     { $is_trial ->
     [0]
-    ⛔ <b>Traffic exhausted — VPN is suspended.</b>
+    <e id="5431537503628730769">⛔</e> <b>Traffic exhausted — VPN is suspended.</b>
 
     { $traffic_strategy ->
     [NO_RESET] Renew your subscription to reset the counter and continue.
     *[RESET] Traffic resets in { $reset_time }. Or renew now to reset it immediately.
     }
     *[1]
-    ⛔ <b>Trial traffic exhausted.</b>
+    <e id="5431537503628730769">⛔</e> <b>Trial traffic exhausted.</b>
 
     { $traffic_strategy ->
     [NO_RESET] Subscribe to continue using the service.
@@ -364,11 +364,11 @@ event-referral =
 
     .milestone =
     { $tier ->
-    [1] 🎉 <b>New status: ☁️ Cloud!</b>
-    [2] 🎉 <b>New status: 🌩️ Storm Cloud!</b>
-    [3] 🎉 <b>New status: ⛈️ Storm!</b>
-    [4] 🎉 <b>New status: 🌧️ Rain!</b>
-    *[other] 🎉 <b>New status unlocked!</b>
+    [1] <e id="5431673473703389665">🎉</e> <b>New status: ☁️ Cloud!</b>
+    [2] <e id="5431673473703389665">🎉</e> <b>New status: 🌩️ Storm Cloud!</b>
+    [3] <e id="5431673473703389665">🎉</e> <b>New status: ⛈️ Storm!</b>
+    [4] <e id="5431673473703389665">🎉</e> <b>New status: 🌧️ Rain!</b>
+    *[other] <e id="5431673473703389665">🎉</e> <b>New status unlocked!</b>
     }
 
     <blockquote>

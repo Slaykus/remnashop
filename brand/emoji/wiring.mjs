@@ -59,6 +59,23 @@ export const MESSAGE_EMOJI = {
       ["⚠️", "warning"],
       ["✅", "confirm"],
     ],
+    // Уведомления пользователю: реферальные события, квота узла, акции.
+    "event-referral": [
+      ["🎉", "sparkle"],
+      ["💰", "buy"],
+      ["❌", "cancel"],
+      ["🏆", "points"],
+    ],
+    "ntf-node-quota": [
+      ["✅", "confirm"],
+      ["💳", "subscription"],
+      ["⚠️", "warning"],
+      ["🚫", "restricted"],
+    ],
+    "ntf-ad": [
+      ["🎁", "gift"],
+      ["⚠️", "warning"],
+    ],
   },
   "utils.ftl": {
     // Ступени реферальной программы. Порядок задан в frg-user: облако, туча,
@@ -71,6 +88,13 @@ export const MESSAGE_EMOJI = {
     ],
     "hdr-user": [["👤", "profile"]],
     "hdr-node": [["🖥", "node"]],
+    // Пригласительное сообщение. В канал уйдёт обычный вариант — теги там
+    // недопустимы, и обработчик инлайна снимает их по chat_type.
+    "inline-invite": [
+      ["🌧", "logo"],
+      ["🎁", "gift"],
+      ["⚡", "connect"],
+    ],
     "hdr-user-profile": [["👤", "profile"]],
     "hdr-payment": [["💰", "buy"]],
     "hdr-error": [["⚠️", "warning"]],
@@ -82,6 +106,25 @@ export const MESSAGE_EMOJI = {
     "hdr-plan": [
       ["🎁", "gift"],
       ["📦", "plan"],
+    ],
+  },
+  // Уведомления пользователю: истечение подписки, лимит трафика, отсутствие
+  // подключения, реферальные события. Уходят в личку — кастом-эмодзи там
+  // разрешены.
+  "events.ftl": {
+    "event-subscription": [
+      ["⚠️", "warning"],
+      ["⛔", "restricted"],
+      ["🔌", "connect"],
+    ],
+    "event-referral": [
+      ["🎉", "sparkle"],
+      ["💰", "buy"],
+      ["❌", "cancel"],
+    ],
+    "event-torrent-blocker": [
+      ["⛔", "restricted"],
+      ["⚠️", "warning"],
     ],
   },
   "messages.ftl": {

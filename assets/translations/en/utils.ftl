@@ -22,16 +22,17 @@ payment-invoice-description = { purchase-type } of { $name } subscription for { 
 payment-invoice-description-traffic-reset = 4G/LTE Traffic Reset
 
 inline-invite =
-    .title = Rain VPN — stable access
-    .description = Reliable VPN without restrictions. First days — free.
+    .title = Invite a friend
+    .description = Send an invitation with free access
     .message =
-        🌧️ Rain VPN
+        <e id="5433621018033823459">🌧</e> <b>{ $bot_name }</b>
 
-        Stable and secure internet access without restrictions.
-        Suitable for personal use and work.
+        When the weather turns bad online — yours stays clear.
 
-        New users get free access for testing.
-    .start = Try for free
+        No need to switch it off: banking apps, marketplaces and taxi services open as usual — the app routes them around the tunnel by itself.
+
+        <e id="5431744001361352063">🎁</e> First days are free.
+    .start = <e id="5431350621011746205">⚡</e> Connect
 
 inline-proxy =
     .title = Telegram Proxy
