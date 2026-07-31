@@ -111,7 +111,29 @@ if (token) {
   }
 }
 
-// ── 4. Добираем нераспознанные по порядку ──
+// ── 4. Нераспознанные: сначала переносим уже известные соответствия ──
+// Кодировщик VP9 недетерминирован: пересборка даёт другие байты при той же
+// картинке, и хеш локального файла перестаёт совпадать с загруженным. Тогда
+// прежнее соответствие из ids.json надёжнее любого угадывания по порядку —
+// достаточно убедиться, что такой id всё ещё есть в наборе.
+if (existsSync(idsPath)) {
+  const previous = JSON.parse(readFileSync(idsPath, "utf8"));
+  const inSet = new Map(report.map((r) => [r.id, r]));
+  const taken = new Set(report.filter((r) => r.name).map((r) => r.name));
+  for (const [name, id] of Object.entries(previous)) {
+    const prev = String(id ?? "").trim();
+    if (!prev || taken.has(name)) continue;
+    const row = inSet.get(prev);
+    if (row && !row.name) {
+      row.name = name;
+      row.carried = true;
+      taken.add(name);
+      matched += 1;
+    }
+  }
+}
+
+// ── 5. Остаток добираем по порядку ──
 const byContent = matched === stickers.length && matched === localNames.length;
 if (!byContent) {
   console.warn(
@@ -139,8 +161,9 @@ console.log(
   `\n${"#".padEnd(4)}${"эмодзи".padEnd(8)}${"иконка".padEnd(20)}custom_emoji_id`,
 );
 for (const r of report) {
+  const how = r.carried ? " (из прежнего ids.json)" : "";
   console.log(
-    `${String(r.i + 1).padEnd(4)}${(r.emoji ?? "").padEnd(8)}${(r.name ?? "???").padEnd(20)}${r.id}`,
+    `${String(r.i + 1).padEnd(4)}${(r.emoji ?? "").padEnd(8)}${(r.name ?? "???").padEnd(20)}${r.id}${how}`,
   );
 }
 console.log(

@@ -23,7 +23,16 @@
  */
 export const MESSAGE_EMOJI = {
   "utils.ftl": {
+    // Ступени реферальной программы. Порядок задан в frg-user: облако, туча,
+    // дождь, шторм — от 5% до 25% скидки.
+    "frg-user": [
+      ["☁️", "tier-cloud"],
+      ["🌩️", "tier-thunder"],
+      ["🌧️", "tier-rain"],
+      ["⛈️", "tier-storm"],
+    ],
     "hdr-user": [["👤", "profile"]],
+    "hdr-node": [["🖥", "node"]],
     "hdr-user-profile": [["👤", "profile"]],
     "hdr-payment": [["💰", "buy"]],
     "hdr-error": [["⚠️", "warning"]],
@@ -48,14 +57,27 @@ export const MESSAGE_EMOJI = {
     ],
     "msg-menu-invite": [
       ["👥", "invite"],
+      ["🤝", "invite"],
       ["💳", "subscription"],
       ["💎", "points"],
+      ["📊", "stats"],
+      ["🏆", "points"],
+      ["☁️", "tier-cloud"],
+      ["🌩️", "tier-thunder"],
+      ["🌧️", "tier-rain"],
+      ["⛈️", "tier-storm"],
     ],
     "msg-menu-invite-about": [
       ["🎁", "gift"],
       ["💎", "points"],
+      ["✨", "sparkle"],
+      ["💡", "sparkle"],
     ],
-    "msg-subscription-main": [["💳", "subscription"]],
+    "msg-subscription-main": [
+      ["💳", "subscription"],
+      ["🔴", "node"],
+      ["🚫", "restricted"],
+    ],
     "msg-subscription-plans": [["📦", "plan"]],
     "msg-subscription-plan": [
       ["📦", "plan"],
@@ -138,4 +160,14 @@ export const WIRING = {
   about: { fallback: "❓", keys: ["btn-invite.about"] },
   "connect-reserve": { fallback: "🔗", keys: ["btn-menu.connect-reserve"] },
   "how-connect": { fallback: "🧭", keys: ["btn-how-connect"] },
+
+  // ── дополнение: только для текстов сообщений, кнопкам не назначены ──
+  "tier-cloud": { fallback: "☁️", keys: [] },
+  "tier-thunder": { fallback: "🌩️", keys: [] },
+  "tier-rain": { fallback: "🌧️", keys: [] },
+  "tier-storm": { fallback: "⛈️", keys: [] },
+  stats: { fallback: "📊", keys: [] },
+  sparkle: { fallback: "✨", keys: [] },
+  node: { fallback: "🖥", keys: [] },
+  restricted: { fallback: "🚫", keys: [] },
 };

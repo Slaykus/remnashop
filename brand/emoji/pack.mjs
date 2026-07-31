@@ -3,6 +3,7 @@
 
 import { DEFS } from "./style.mjs";
 import { ICONS_CORE } from "./icons-core.mjs";
+import { ICONS_EXTRA } from "./icons-extra.mjs";
 import { ICONS_UTIL } from "./icons-util.mjs";
 import { WIRING } from "./wiring.mjs";
 
@@ -13,7 +14,13 @@ const merge = (group, tier) =>
     return [name, { ...icon, ...w, tier }];
   });
 
-const entries = [...merge(ICONS_CORE, "ядро"), ...merge(ICONS_UTIL, "утилита")];
+// Дополнение идёт последним: так порядок MAPPING.md совпадает с порядком
+// дозалива в уже существующий набор.
+const entries = [
+  ...merge(ICONS_CORE, "ядро"),
+  ...merge(ICONS_UTIL, "утилита"),
+  ...merge(ICONS_EXTRA, "дополнение"),
+];
 
 const unused = Object.keys(WIRING).filter((n) => !entries.some(([k]) => k === n));
 if (unused.length) {
