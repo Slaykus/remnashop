@@ -5,8 +5,8 @@
 // палитра, градиентная пластика, свечение и капля как акцентная деталь —
 // она есть почти в каждой иконке, но нигде не мешает распознаванию.
 
-import { DEFS, bob, g, glow, pulse, rim, shade, spec, wave } from "./style.mjs";
-import { card, disc, dome, drop, dropAt } from "./primitives.mjs";
+import { DEFS, bob, g, glow, outline, pulse, rim, shade, spec, wave } from "./style.mjs";
+import { card, cloudBody, disc, dome, drop, dropAt } from "./primitives.mjs";
 
 const white = (d, w = 11) =>
   `<path d="${d}" fill="none" stroke="#FFFFFF" stroke-width="${w}"
@@ -36,7 +36,7 @@ export const ICONS_UTIL = {
           ${shade(`<path d="M50 12 L92 48 H84 V86 H16 V48 H8 Z"/>`, 5, 0.45)}
           <path d="M50 12 L92 48 H84 V86 H16 V48 H8 Z" fill="url(#g-blue)"/>
           <path d="M50 12 L92 48 H8 Z" fill="url(#g-cyan)"/>
-          ${rim("M22 42 L50 18 L78 42", 0.5, 2.4)}
+          ${outline("M50 12 L92 48 H84 V86 H16 V48 H8 Z", 3.4, 0.9)}
           <g opacity="${(0.85 + p * 0.15).toFixed(2)}">${dropAt(50, 64, 1.15, "cloud")}</g>`,
         )}`;
     },
@@ -97,6 +97,8 @@ export const ICONS_UTIL = {
     render: (t) => {
       const eye = (x, y) => `
         <rect x="${x}" y="${y}" width="30" height="30" rx="7" fill="url(#g-blue)"/>
+        <rect x="${x}" y="${y}" width="30" height="30" rx="7" fill="none"
+              stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="3"/>
         <rect x="${x + 8}" y="${y + 8}" width="14" height="14" rx="3" fill="#0F1C2E"/>`;
       const p = pulse(t);
       return `
@@ -165,7 +167,7 @@ export const ICONS_UTIL = {
               stroke-width="6" stroke-linecap="round"/>
         ${shade(`<path d="M16 34 H84 L90 88 A4 4 0 0 1 86 92 H14 A4 4 0 0 1 10 88 Z"/>`, 5, 0.45)}
         <path d="M16 34 H84 L90 88 A4 4 0 0 1 86 92 H14 A4 4 0 0 1 10 88 Z" fill="url(#g-blue)"/>
-        ${rim("M20 39 H80", 0.4, 2.2)}
+        ${outline("M16 34 H84 L90 88 A4 4 0 0 1 86 92 H14 A4 4 0 0 1 10 88 Z", 3.4, 0.9)}
         ${dropAt(50, 62, 1.25, "cloud")}`,
       )}`,
   },
@@ -184,8 +186,8 @@ export const ICONS_UTIL = {
           ${card(10, 34, 80, 16, 5, "cloud")}
           ${shade(`<path d="M16 50 H84 V84 A8 8 0 0 1 76 92 H24 A8 8 0 0 1 16 84 Z"/>`, 5, 0.45)}
           <path d="M16 50 H84 V84 A8 8 0 0 1 76 92 H24 A8 8 0 0 1 16 84 Z" fill="url(#g-blue)"/>
-          <rect x="43" y="34" width="14" height="58" fill="url(#g-cyan)"/>
-          ${rim("M20 55 H80", 0.35, 2.2)}`,
+          ${outline("M16 50 H84 V84 A8 8 0 0 1 76 92 H24 A8 8 0 0 1 16 84 Z", 3.4, 0.9)}
+          <rect x="43" y="34" width="14" height="58" fill="url(#g-cyan)"/>`,
         )}`;
     },
   },
@@ -197,11 +199,15 @@ export const ICONS_UTIL = {
       return `
         ${glow("blue", 50, 50, 42, 0.18)}
         <g transform="translate(0 ${s.toFixed(2)})">
+          <path d="M18 36 H68" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="16" stroke-linecap="round"/>
           <path d="M18 36 H68" stroke="#3B82E8" stroke-width="10" stroke-linecap="round"/>
+          ${outline("M86 36 L62 22 V50 Z", 3.2, 0.9)}
           <path d="M86 36 L62 22 V50 Z" fill="url(#g-blue)"/>
         </g>
         <g transform="translate(0 ${(-s).toFixed(2)})">
+          <path d="M82 68 H32" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="16" stroke-linecap="round"/>
           <path d="M82 68 H32" stroke="#5FD3F5" stroke-width="10" stroke-linecap="round"/>
+          ${outline("M14 68 L38 54 V82 Z", 3.2, 0.9)}
           <path d="M14 68 L38 54 V82 Z" fill="url(#g-cyan)"/>
         </g>`;
     },
@@ -293,14 +299,16 @@ export const ICONS_UTIL = {
 
   about: {
     title: "Подробнее",
+    // Буква «i», а не знак вопроса: вопрос уже занят у «Поддержки» и
+    // «Как подключиться», три одинаковых по смыслу значка путали.
     render: (t) => `
-      ${glow("blue", 50, 52, 42, 0.2)}
+      ${glow("blue", 50, 52, 44, 0.3)}
       ${g(
         bob(t, 1),
         `
         ${disc("blue")}
-        ${white("M38 38 A12 12 0 1 1 50 56 V61", 10)}
-        <circle cx="50" cy="75" r="6.5" fill="#FFFFFF"/>`,
+        <circle cx="50" cy="30" r="6.5" fill="#FFFFFF"/>
+        <rect x="43.5" y="43" width="13" height="30" rx="6.5" fill="#FFFFFF"/>`,
       )}`,
   },
 
@@ -310,12 +318,16 @@ export const ICONS_UTIL = {
       const d = wave(t) * 1.5;
       return `
         ${glow("cyan", 50, 50, 42, 0.2)}
-        <g transform="rotate(-45 50 50)" fill="none" stroke-width="11" stroke-linecap="round">
+        <g transform="rotate(-45 50 50)" fill="none" stroke-linecap="round">
           <g transform="translate(${(-d).toFixed(2)} 0)">
-            <rect x="12" y="34" width="46" height="32" rx="16" stroke="url(#g-cyan)"/>
+            <rect x="12" y="34" width="46" height="32" rx="16" stroke="#FFFFFF"
+                  stroke-opacity="0.9" stroke-width="17"/>
+            <rect x="12" y="34" width="46" height="32" rx="16" stroke="url(#g-cyan)" stroke-width="11"/>
           </g>
           <g transform="translate(${d.toFixed(2)} 0)">
-            <rect x="42" y="34" width="46" height="32" rx="16" stroke="url(#g-blue)"/>
+            <rect x="42" y="34" width="46" height="32" rx="16" stroke="#FFFFFF"
+                  stroke-opacity="0.9" stroke-width="17"/>
+            <rect x="42" y="34" width="46" height="32" rx="16" stroke="url(#g-blue)" stroke-width="11"/>
           </g>
         </g>`;
     },
@@ -323,30 +335,32 @@ export const ICONS_UTIL = {
 
   "how-connect": {
     title: "Как подключиться",
+    // Маршрут из точек читался как навигация, а не как инструкция, и был залит
+    // тем же синим, что и кнопка, — на синей кнопке линия исчезала полностью.
+    // Теперь прямая отсылка к кнопке «Подключиться» плюс знак вопроса.
     render: (t) => {
-      // Маршрут из точек и капля-указатель, идущая по нему: «шаги подключения».
-      const pts = [
-        [20, 74],
-        [38, 56],
-        [62, 60],
-        [80, 30],
-      ];
-      const k = t * pts.length;
-      const i = Math.floor(k) % pts.length;
-      const j = (i + 1) % pts.length;
-      const f = k - Math.floor(k);
-      const x = pts[i][0] + (pts[j][0] - pts[i][0]) * f;
-      const y = pts[i][1] + (pts[j][1] - pts[i][1]) * f;
-      const dots = pts
-        .map(([px, py]) => `<circle cx="${px}" cy="${py}" r="5" fill="#3B82E8" opacity="0.75"/>`)
-        .join("");
-      const line = `<path d="M20 74 L38 56 L62 60 L80 30" fill="none" stroke="#3B82E8"
-                      stroke-opacity="0.5" stroke-width="4" stroke-linecap="round"
-                      stroke-linejoin="round" stroke-dasharray="7 8"/>`;
+      const p = pulse(t);
       return `
-        ${glow("blue", 50, 52, 42, 0.18)}
-        ${line}${dots}
-        ${dropAt(x, y - 10, 1.15, "cloud")}`;
+        ${glow("blue", 50, 50, 44, 0.3)}
+        ${g(
+          bob(t, 0.7),
+          `
+          <g transform="translate(-8 0) scale(0.82)">
+            ${cloudBody("url(#g-cloud)", -6, 1)}
+          </g>
+          <g opacity="${(0.85 + p * 0.15).toFixed(2)}">
+            <path d="M40 40 L24 62 H34 L30 82 L48 56 H36 Z" fill="url(#g-gold)"/>
+            ${outline("M40 40 L24 62 H34 L30 82 L48 56 H36 Z", 2.6, 0.75)}
+          </g>
+          <g transform="translate(70 58)">
+            <circle cx="0" cy="0" r="24" fill="url(#g-blue)"/>
+            <circle cx="0" cy="0" r="24" fill="none" stroke="#FFFFFF"
+                    stroke-opacity="0.9" stroke-width="3.2"/>
+            <path d="M-9 -7 A9 9 0 1 1 0 6 V9" fill="none" stroke="#FFFFFF"
+                  stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="0" cy="17" r="4.2" fill="#FFFFFF"/>
+          </g>`,
+        )}`;
     },
   },
 };

@@ -8,7 +8,7 @@
 // Тон сдержанный: неглубокие амплитуды, медленные нарастания вместо вспышек,
 // палитра ограничена облачно-синим рядом; золото — только на «Подключиться».
 
-import { DEFS, bob, g, glow, pulse, rim, shade, spec, wave } from "./style.mjs";
+import { DEFS, bob, g, glow, outline, pulse, rim, shade, spec, wave } from "./style.mjs";
 import { CLOUD, cloudBody, dome, drop, dropAt } from "./primitives.mjs";
 
 export const ICONS_CORE = {
@@ -53,7 +53,10 @@ export const ICONS_CORE = {
           bob(t, 0.9),
           `
           ${shade(`<path d="${drop(3.05)}" transform="translate(50 54)"/>`, 5, 0.45)}
-          <g transform="translate(50 54)"><path d="${drop(3.05)}" fill="url(#g-blue)"/></g>
+          <g transform="translate(50 54)">
+            <path d="${drop(3.05)}" fill="url(#g-blue)"/>
+            ${outline(drop(3.05), 3.4, 0.9)}
+          </g>
           ${spec(40, 34, 9, 6, 0.6, -25)}
           ${ticks}
           <circle cx="50" cy="54" r="15" fill="none" stroke="#0F3B7A" stroke-opacity="0.35" stroke-width="4"/>
@@ -99,8 +102,9 @@ export const ICONS_CORE = {
     fallback: "📱",
     concept: "три капли на общей дуге — устройства под одной подпиской",
     render: (t) => `
-      ${glow("blue", 50, 52, 42, 0.24)}
-      ${dome(50, 78, 36, "#3B82E8", 5, 0.85)}
+      ${glow("blue", 50, 52, 42, 0.3)}
+      ${dome(50, 78, 36, "#FFFFFF", 9, 0.85)}
+      ${dome(50, 78, 36, "#3B82E8", 5, 1)}
       ${dropAt(24, 62 + wave(t, 0.0) * 1.6, 1.05, "cyan")}
       ${dropAt(50, 50 + wave(t, 0.33) * 1.6, 1.45, "blue")}
       ${dropAt(76, 62 + wave(t, 0.66) * 1.6, 1.05, "cyan")}`,
@@ -137,22 +141,29 @@ export const ICONS_CORE = {
   support: {
     title: "Поддержка",
     fallback: "💬",
-    concept: "капля, развёрнутая хвостом вниз-влево — реплика; внутри знак вопроса",
+    concept: "капля, развёрнутая хвостом вниз-влево — реплика; внутри многоточие",
+    // Многоточие вместо вопроса: знак вопроса теперь у «Как подключиться»,
+    // а точки прямо читаются как «идёт разговор».
     render: (t) => {
-      const p = pulse(t);
+      const dots = [0, 1, 2]
+        .map((i) => {
+          const k = pulse(t, -i * 0.16);
+          return `<circle cx="${38 + i * 14}" cy="50" r="${(4.6 + k * 1.8).toFixed(2)}"
+                    fill="#FFFFFF" opacity="${(0.6 + k * 0.4).toFixed(2)}"/>`;
+        })
+        .join("");
       return `
-        ${glow("blue", 50, 48, 44, 0.24 + p * 0.14)}
+        ${glow("blue", 50, 48, 46, 0.32)}
         ${g(
           bob(t, 1.0),
           `
-          ${shade(`<g transform="translate(52 46) rotate(215)"><path d="${drop(3.3)}"/></g>`, 5, 0.45)}
+          ${shade(`<g transform="translate(52 46) rotate(215)"><path d="${drop(3.6)}"/></g>`, 5, 0.45)}
           <g transform="translate(52 46) rotate(215)">
-            <path d="${drop(3.3)}" fill="url(#g-blue)"/>
+            <path d="${drop(3.6)}" fill="url(#g-blue)"/>
+            ${outline(drop(3.6), 3.2, 0.85)}
           </g>
           ${spec(40, 34, 12, 7, 0.45, -20)}
-          <path d="M44 40 A8.5 8.5 0 1 1 53 53 V57" fill="none" stroke="#FFFFFF"
-                stroke-opacity="0.95" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="53" cy="68" r="4.4" fill="#FFFFFF" opacity="0.95"/>`,
+          ${dots}`,
         )}`;
     },
   },
@@ -248,7 +259,7 @@ export const ICONS_CORE = {
         <g transform="translate(${cx - 50 * s} ${cy + wave(t, phase) * 0.9}) scale(${s})" opacity="${o}">
           ${shade(`<path d="${CLOUD}"/>`, 5, 0.35)}
           <path d="${CLOUD}" fill="${fill}"/>
-          ${rim("M34 40 A19 19 0 0 1 65 33", 0.5)}
+          ${outline(CLOUD, 3.4 / s, 0.8)}
         </g>`;
       return `
         ${glow("blue", 52, 52, 44, 0.22)}
@@ -271,7 +282,7 @@ export const ICONS_CORE = {
         ${glow("cyan", 50, 58, 42, 0.24)}
         ${dropAt(50, fallY, 0.8, "cloud", fo)}
         <path d="M18 58 A32 32 0 0 0 82 58 Z" fill="url(#g-blue)"/>
-        <path d="M18 58 H82" stroke="#B4F0FF" stroke-opacity="0.85" stroke-width="3.4" stroke-linecap="round"/>
+        ${outline("M18 58 A32 32 0 0 0 82 58 Z", 3.4, 0.9)}
         ${dropAt(38, 68, 0.72, "cyan")}
         ${dropAt(56, 66, 0.85, "cyan")}
         ${dropAt(48, 78, 0.62, "cloud", 0.85)}`;
@@ -316,6 +327,7 @@ export const ICONS_CORE = {
         ${dropAt(74, 22 + wave(t, 0.8) * 2, 0.7, "cloud", 0.75)}
         ${shade(`<path d="M14 62 A36 36 0 0 1 86 62 Z"/>`, 5, 0.4)}
         <path d="M14 62 A36 36 0 0 1 86 62 Z" fill="url(#g-blue)"/>
+        ${outline("M14 62 A36 36 0 0 1 86 62 Z", 3.4, 0.9)}
         ${dome(50, 62, 36, "#B4F0FF", 4, 0.55 + p * 0.3)}
         ${spec(38, 46, 14, 7, 0.4, -20)}
         <path d="M50 66 V86" stroke="#3B82E8" stroke-width="6" stroke-linecap="round"/>`;

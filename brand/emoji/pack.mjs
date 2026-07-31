@@ -22,5 +22,19 @@ if (unused.length) {
 
 export const ICONS = Object.fromEntries(entries);
 
+/**
+ * Небольшое общее увеличение глифа.
+ *
+ * Размер рендера эмодзи задаёт клиент, у бота управления им нет — но канва
+ * наша, и раньше по её краю шло цветное свечение, которое на кнопке не
+ * читалось и просто отъедало площадь. Свечение убрано, базовые формы
+ * укрупнены, и остаток поля добирается этим масштабом.
+ *
+ * Больше брать нельзя: обводка внешнего силуэта начнёт срезаться краем.
+ */
+export const SCALE = 1.05;
+export const scaled = (body) =>
+  `<g transform="translate(50 50) scale(${SCALE}) translate(-50 -50)">${body}</g>`;
+
 export const wrapFrame = (body) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">${DEFS}${body}</svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">${DEFS}${scaled(body)}</svg>`;

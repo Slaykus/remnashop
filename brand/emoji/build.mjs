@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import { Resvg } from "@resvg/resvg-js";
 
-import { ICONS, wrapFrame } from "./pack.mjs";
+import { ICONS, scaled, wrapFrame } from "./pack.mjs";
 import { DEFS } from "./style.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -84,7 +84,7 @@ const rows = names
     const cells = Array.from({ length: STEPS }, (_, c) => {
       return `<g transform="translate(${190 + c * CELL} 0)">
           <rect x="2" y="2" width="100" height="100" rx="14" fill="#16283F"/>
-          <g transform="translate(2 2)">${icon.render(c / STEPS)}</g>
+          <g transform="translate(2 2)">${scaled(icon.render(c / STEPS))}</g>
         </g>`;
     }).join("");
     return `<g transform="translate(0 ${r * CELL + 40})">
@@ -115,7 +115,7 @@ const big = names
   .map(
     (name, i) => `<g transform="translate(${20 + (i % COLS) * 150} ${30 + Math.floor(i / COLS) * 150})">
       <rect width="134" height="134" rx="22" fill="#16283F"/>
-      <g transform="translate(7 7) scale(1.2)">${ICONS[name].render(0.2)}</g>
+      <g transform="translate(7 7) scale(1.2)">${scaled(ICONS[name].render(0.2))}</g>
     </g>`,
   )
   .join("");
@@ -145,7 +145,7 @@ writeFileSync(
     const cells = names
       .map(
         (name, k) => `<g transform="translate(${(k % COLS_A) * S} ${Math.floor(k / COLS_A) * S})">
-          <g transform="translate(6 6) scale(0.8)">${ICONS[name].render(i / FRAMES)}</g>
+          <g transform="translate(6 6) scale(0.8)">${scaled(ICONS[name].render(i / FRAMES))}</g>
         </g>`,
       )
       .join("");

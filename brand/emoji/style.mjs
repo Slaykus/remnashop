@@ -88,9 +88,29 @@ export const shade = (body, dy = 5, opacity = 0.45) =>
   `<g transform="translate(0 ${dy})" opacity="${opacity}" filter="url(#soft)"
       fill="${SHADOW}" stroke="none">${body}</g>`;
 
-/** Цветное свечение вокруг центра — то, что даёт «премиальность» на тёмном фоне. */
-export const glow = (name, cx = 50, cy = 50, r = 46, opacity = 1) =>
-  `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#glow-${name})" opacity="${opacity.toFixed(3)}"/>`;
+/**
+ * Тёмный ореол под глифом.
+ *
+ * Раньше здесь было цветное свечение — оно смотрелось на тёмном фоне превью,
+ * но эмодзи живёт на цветной кнопке, где свечение не читается и лишь съедает
+ * поле канвы. Тёмный ореол, наоборот, отделяет иконку от любого фона:
+ * и от синей кнопки, и от зелёной, и от светлой темы клиента.
+ *
+ * Сигнатура сохранена, чтобы не править три десятка мест вызова; имя цвета
+ * теперь игнорируется.
+ */
+export const glow = (_name, cx = 50, cy = 50, r = 46, opacity = 1) =>
+  `<circle cx="${cx}" cy="${cy}" r="${(r * 0.82).toFixed(1)}" fill="${SHADOW}"
+     opacity="${Math.min(0.5, opacity * 0.45).toFixed(3)}" filter="url(#softer)"/>`;
+
+/**
+ * Светлая обводка силуэта — главный приём читаемости на цветной кнопке.
+ * Рекомендация самих требований Telegram к стикерам: прозрачный фон,
+ * белая обводка, тёмная тень.
+ */
+export const outline = (d, w = 3.2, opacity = 0.92) =>
+  `<path d="${d}" fill="none" stroke="#FFFFFF" stroke-opacity="${opacity}"
+     stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>`;
 
 /** Верхний блик. Ставится поверх заливки, повторяя её верхнюю кромку. */
 export const spec = (cx, cy, rx, ry, opacity = 1, rotate = 0) =>
@@ -105,6 +125,14 @@ export const rim = (d, opacity = 0.5, w = 2.2) =>
 export const g = (transform, body, extra = "") =>
   `<g transform="${transform}" ${extra}>${body}</g>`;
 
-/** Общий приём пака: лёгкое покачивание, чтобы иконка «жила» в статике меню. */
+/**
+ * Покачивание глифа.
+ *
+ * Множитель здесь неслучаен. В кнопке эмодзи рендерится примерно в 20px, то
+ * есть канва 100 сжимается в пять раз: амплитуда в один пиксель превращается
+ * в 0.2 и физически незаметна. Читается только крупное движение — поэтому
+ * заданная амплитуда усиливается втрое.
+ */
+export const BOB_GAIN = 3.2;
 export const bob = (t, amp = 1.6, phase = 0) =>
-  `translate(0 ${(wave(t, phase) * amp).toFixed(3)})`;
+  `translate(0 ${(wave(t, phase) * amp * BOB_GAIN).toFixed(3)})`;
