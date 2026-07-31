@@ -79,8 +79,8 @@ frg-user =
     { $referral_tier ->
     [1] • <b>Status</b>: <e id="5431362105754296012">☁️</e> Cloud
     [2] • <b>Status</b>: <e id="5431433165988209445">🌩️</e> Storm Cloud
-    [3] • <b>Status</b>: <e id="5431693264912690049">⛈️</e> Storm
-    [4] • <b>Status</b>: <e id="5433946872907606413">🌧️</e> Rain
+    [3] • <b>Status</b>: <e id="5433946872907606413">🌧️</e> Rain
+    [4] • <b>Status</b>: <e id="5431693264912690049">⛈️</e> Storm
     *[0] { empty }
     }
     { $show_personal_discount ->

@@ -112,15 +112,15 @@ msg-menu-invite =
 
     • <e id="5431362105754296012">☁️</e> Cloud — <b>5%</b> (1 person)
     • <e id="5431433165988209445">🌩️</e> Storm Cloud — <b>10%</b> (3 people)
-    • <e id="5431693264912690049">⛈️</e> Storm — <b>15%</b> (5 people)
-    • <e id="5433946872907606413">🌧️</e> Rain — <b>25%</b> (10 people)
+    • <e id="5433946872907606413">🌧️</e> Rain — <b>15%</b> (5 people)
+    • <e id="5431693264912690049">⛈️</e> Storm — <b>25%</b> (10 people)
 
     { $referral_tier ->
     [0] Your status: not yet earned.
     [1] Your status: <e id="5431362105754296012">☁️</e> Cloud — discount <b>{ $personal_discount }%</b>
     [2] Your status: <e id="5431433165988209445">🌩️</e> Storm Cloud — discount <b>{ $personal_discount }%</b>
-    [3] Your status: <e id="5431693264912690049">⛈️</e> Storm — discount <b>{ $personal_discount }%</b>
-    *[4] Your status: <e id="5433946872907606413">🌧️</e> Rain — discount <b>{ $personal_discount }%</b>
+    [3] Your status: <e id="5433946872907606413">🌧️</e> Rain — discount <b>{ $personal_discount }%</b>
+    *[4] Your status: <e id="5431693264912690049">⛈️</e> Storm — discount <b>{ $personal_discount }%</b>
     }
     </blockquote>
 
