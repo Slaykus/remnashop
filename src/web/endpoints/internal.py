@@ -189,7 +189,7 @@ async def get_subscription(
     subscription_dao: FromDishka[SubscriptionDao],
     sdk: FromDishka[RemnawaveSDK],
 ) -> SubscriptionResponse:
-    sub = await subscription_dao.get_current(telegram_id)
+    sub = await subscription_dao.get_current_by_telegram_id(telegram_id)
     if not sub:
         raise HTTPException(status_code=404, detail="No active subscription found")
 
@@ -319,8 +319,14 @@ async def get_user_plans(
 async def get_transactions(
     telegram_id: int,
     transaction_dao: FromDishka[TransactionDao],
+    user_dao: FromDishka[UserDao],
 ) -> list[TransactionResponse]:
-    transactions = await transaction_dao.get_by_user(telegram_id)
+    # get_by_user ждёт внутренний id пользователя, а не telegram_id:
+    # передача telegram_id молча возвращала пустой список.
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    transactions = await transaction_dao.get_by_user(user.id or 0)
     return [
         TransactionResponse(
             payment_id=str(t.payment_id),
@@ -511,7 +517,7 @@ async def get_user_devices(
     subscription_dao: FromDishka[SubscriptionDao],
     remnawave: FromDishka[Remnawave],
 ) -> list[DeviceResponse]:
-    sub = await subscription_dao.get_current(telegram_id)
+    sub = await subscription_dao.get_current_by_telegram_id(telegram_id)
     if not sub or not sub.user_remna_id:
         raise HTTPException(status_code=404, detail="No active subscription found")
     devices = await remnawave.get_devices(sub.user_remna_id)
@@ -623,7 +629,7 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     # 1. Delete VPN account from Remnawave panel
-    sub = await subscription_dao.get_current(telegram_id)
+    sub = await subscription_dao.get_current_by_telegram_id(telegram_id)
     if sub and sub.user_remna_id:
         try:
             await sdk.users.delete_user(uuid=str(sub.user_remna_id))
@@ -631,8 +637,9 @@ async def delete_user(
             pass  # Continue even if Remnawave is unavailable
 
     # 2. Delete user from bot database
+    # delete() принимает внутренний id, telegram_id здесь не подходит.
     async with uow:
-        await user_dao.delete(telegram_id)
+        await user_dao.delete(user.id or 0)
         await uow.commit()
 
 
@@ -667,15 +674,17 @@ async def migrate_telegram(
     if conflict:
         # Real Telegram account already exists in bot (user interacted with bot before).
         # Transfer virtual user's subscription to the real account so it isn't lost.
-        virtual_sub = await subscription_dao.get_current(old_telegram_id)
-        real_sub = await subscription_dao.get_current(body.new_telegram_id)
+        virtual_sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
+        real_sub = await subscription_dao.get_current_by_telegram_id(body.new_telegram_id)
 
         async with uow:
             if virtual_sub and virtual_sub.id and not real_sub:
-                # Move subscription reference from virtual user to real user
-                await user_dao.set_current_subscription(body.new_telegram_id, virtual_sub.id)
-            # Remove the virtual account — real account takes over
-            await user_dao.delete(old_telegram_id)
+                # Метод называется set_current_subscription_by_id и принимает
+                # внутренний id пользователя. Прежний вызов обращался к
+                # несуществующему имени с telegram_id и падал бы с AttributeError.
+                await user_dao.set_current_subscription_by_id(conflict.id or 0, virtual_sub.id)
+            # Виртуальный аккаунт удаляем по внутреннему id, а не по telegram_id.
+            await user_dao.delete(user.id or 0)
             await uow.commit()
 
         # Update Remnawave username to reflect real telegram_id (best effort)
@@ -688,7 +697,7 @@ async def migrate_telegram(
         return MigrateTelegramResponse(migrated=True, message="Merged with existing account")
 
     # No conflict — simple rename: update telegram_id on the virtual account
-    sub = await subscription_dao.get_current(old_telegram_id)
+    sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
 
     user.telegram_id = body.new_telegram_id
     async with uow:
@@ -844,7 +853,7 @@ async def create_web_payment(
 
     plan_snapshot = PlanSnapshotDto.from_plan(plan, body.duration_days)
 
-    subscription = await subscription_dao.get_current(body.telegram_id)
+    subscription = await subscription_dao.get_current_by_telegram_id(body.telegram_id)
     if subscription is None:
         purchase_type = PurchaseType.NEW
     elif subscription.plan_snapshot and subscription.plan_snapshot.id != plan.id:
