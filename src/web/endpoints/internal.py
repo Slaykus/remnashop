@@ -104,6 +104,8 @@ class PlanResponse(BaseModel):
     traffic_limit: int
     device_limit: int
     availability: str
+    # Имя поля в ответе оставлено прежним ради совместимости с кабинетом;
+    # в PlanDto оно с версии 0.8 называется allowed_telegram_ids.
     allowed_user_ids: list[int]
     durations: list[PlanDurationResponse]
 
@@ -250,7 +252,7 @@ async def get_plans(
                 traffic_limit=p.traffic_limit,
                 device_limit=p.device_limit,
                 availability=p.availability.value.lower(),
-                allowed_user_ids=p.allowed_user_ids or [],
+                allowed_user_ids=p.allowed_telegram_ids or [],
                 durations=durations,
             )
         )
@@ -301,7 +303,7 @@ async def get_user_plans(
                 traffic_limit=p.traffic_limit,
                 device_limit=p.device_limit,
                 availability=p.availability.value.lower(),
-                allowed_user_ids=p.allowed_user_ids or [],
+                allowed_user_ids=p.allowed_telegram_ids or [],
                 durations=durations,
             )
         )
