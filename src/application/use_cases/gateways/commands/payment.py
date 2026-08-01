@@ -1,10 +1,11 @@
 import hashlib
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
+from adaptix import Retort
 from loguru import logger
 
 from src.application.common import (
@@ -49,7 +50,7 @@ from src.application.dto.payment_gateway import (
     YooKassaGatewaySettingsDto,
     YooMoneyGatewaySettingsDto,
 )
-from src.application.events import UserPurchaseEvent
+from src.application.events import ErrorEvent, UserPurchaseEvent
 from src.application.use_cases.gateways.queries.providers import GetPaymentGatewayInstance
 from src.application.use_cases.promocode.commands.manage import (
     CreatePromocode,
@@ -73,6 +74,7 @@ from src.core.enums import (
     SystemNotificationType,
     TransactionStatus,
 )
+from src.core.config import AppConfig
 from src.core.exceptions import PurchaseError
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
@@ -338,6 +340,8 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         purchase_subscription: PurchaseSubscription,
         create_promocode: CreatePromocode,
         promocode_dao: PromocodeDao,
+        retort: Retort,
+        config: AppConfig,
     ) -> None:
         self.uow = uow
         self.user_dao = user_dao
@@ -351,6 +355,8 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         self.purchase_subscription = purchase_subscription
         self.create_promocode = create_promocode
         self.promocode_dao = promocode_dao
+        self.retort = retort
+        self.config = config
 
     async def _execute(self, actor: UserDto, data: ProcessPaymentDto) -> None:
         payment_id = data.payment_id
@@ -481,7 +487,10 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 CreatePromocodeDto(
                     code=code,
                     reward_type=PromocodeRewardType.SUBSCRIPTION,
-                    plan_snapshot=asdict(transaction.plan_snapshot),
+                    # Именно retort, а не asdict: колонка JSONB, а в снимке
+                    # лежат UUID и енамы — asdict оставляет их объектами, и
+                    # вставка падает на сериализации.
+                    plan_snapshot=self.retort.dump(transaction.plan_snapshot),
                     availability=PromocodeAvailability.ALL,
                     expires_at=expires_at,
                     max_activations=1,
@@ -495,14 +504,16 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 f"Gift promocode not issued for paid transaction "
                 f"'{transaction.payment_id}', user {user.log}: {e}"
             )
-            await self.notifier.notify_admins(
-                MessagePayloadDto(
-                    i18n_key="event-payment.gift-failed",
-                    i18n_kwargs={
-                        "payment_id": str(transaction.payment_id),
-                        "telegram_id": user.telegram_id or 0,
-                        "username": user.username or "",
-                    },
+            # Через событие, а не личным сообщением админам: события уходят в
+            # супергруппу по настроенной маршрутизации, и такой сигнал там не
+            # потеряется среди личной переписки.
+            await self.event_publisher.publish(
+                ErrorEvent(
+                    **self.config.build.data,
+                    telegram_id=user.telegram_id,
+                    username=user.username,
+                    name=user.name,
+                    exception=e,
                 )
             )
             return
