@@ -212,10 +212,10 @@ ntf-ad-link =
 
 # Node quota notifications
 ntf-node-quota =
-    .reset-purchased = ✅ <i>Счётчик трафика 4G/LTE успешно сброшен!</i>
+    .reset-purchased = ✅ <i>Счётчик трафика на обходе белых списков успешно сброшен!</i>
 
     .reset-purchased-system =
-        💳 <b>Платный сброс трафика 4G/LTE</b>
+        💳 <b>Платный сброс трафика</b>
 
         Пользователь: <code>{ $telegram_id }</code> ({ $name }, @{ $username })
         Сумма: <b>{ $price } ₽</b>
@@ -226,7 +226,7 @@ ntf-node-quota =
         }
 
     .reset-by-admin-system =
-        🛠 <b>Сброс трафика 4G/LTE администратором</b>
+        🛠 <b>Сброс трафика администратором</b>
 
         Администратор: <code>{ $admin_telegram_id }</code> ({ $admin_name })
         Пользователь: <code>{ $target_telegram_id }</code> ({ $target_name }, @{ $target_username })
@@ -237,12 +237,12 @@ ntf-node-quota =
         }
 
     .warn =
-        ⚠️ Вы использовали <b>{ $used_gb } ГБ</b> из <b>{ $limit_gb } ГБ</b> месячного лимита на сервере для 4G/LTE.
+        ⚠️ Вы использовали <b>{ $used_gb } ГБ</b> из <b>{ $limit_gb } ГБ</b> месячного лимита на сервере обхода белых списков.
 
         При достижении 100% доступ к этому серверу будет ограничен до конца месяца.
 
     .limited =
-        🚫 Ваш месячный лимит на сервере для 4G/LTE (<b>{ $limit_gb } ГБ</b>) исчерпан.
+        🚫 Ваш месячный лимит на сервере обхода белых списков (<b>{ $limit_gb } ГБ</b>) исчерпан.
 
         Доступ к серверу будет восстановлен 1-го числа следующего месяца.{ $reset_price ->
             [0] { "" }

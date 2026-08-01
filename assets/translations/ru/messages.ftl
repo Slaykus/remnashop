@@ -1423,7 +1423,7 @@ msg-subscription-main =
 
     { $node_quota_enabled ->
     [1]
-    <b><e id="5434006396859357687">🔴</e> Сервер для 4G/LTE:</b>
+    <b><e id="5434006396859357687">🔴</e> Обход белых списков:</b>
     <blockquote>
     { $node_quota_is_restricted ->
     [1] • <e id="5431537503628730769">🚫</e> Доступ ограничен до 1-го числа следующего месяца
@@ -1845,12 +1845,12 @@ msg-ad-link-stats =
     <blockquote>
     { $revenue_lines }
     </blockquote>
-# Node quota (4G/LTE node traffic limit)
+# Node quota (лимит трафика на ноде обхода белых списков)
 msg-user-node-quota =
-    <b>🔴 Сервер для 4G/LTE</b>
+    <b>🔴 Обход белых списков</b>
 
     <blockquote>
-    • <b>Нода</b>: 🇷🇺🔴 4G/LTE | Не для Wi-Fi
+    • <b>Нода</b>: 🇷🇺🔴 Обход белых списков
     • <b>Лимит</b>: { $node_quota_limit_gb } ГБ / мес
     • <b>Использовано</b>: { $node_quota_used_gb } ГБ ({ $node_quota_pct }%)
     • <b>Свободно</b>: { $node_quota_free_gb } ГБ
@@ -1866,9 +1866,9 @@ msg-user-node-quota =
     </blockquote>
 
 msg-subscription-traffic-reset-confirm =
-    <b>🔴 Сброс трафика 4G/LTE</b>
+    <b>🔴 Сброс трафика</b>
 
-    Сбросьте счётчик использованного трафика на сервере 4G/LTE.
+    Сбросьте счётчик использованного трафика на сервере обхода белых списков.
 
     <b>Использовано:</b> { $tr_used_gb } из { $tr_limit_gb } ГБ ({ $tr_used_pct }%)
     <b>Свободно:</b> { $tr_free_gb } ГБ

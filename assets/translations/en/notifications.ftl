@@ -184,10 +184,10 @@ ntf-devices =
     .reissued = ✅ <i>Subscription reissued successfully.</i>
 
 ntf-node-quota =
-    .reset-purchased = ✅ <i>4G/LTE traffic counter has been reset!</i>
+    .reset-purchased = ✅ <i>whitelist bypass traffic counter has been reset!</i>
 
     .reset-purchased-system =
-        💳 <b>Paid 4G/LTE traffic reset</b>
+        💳 <b>Paid Whitelist Bypass traffic reset</b>
 
         User: <code>{ $telegram_id }</code> ({ $name }, @{ $username })
         Amount: <b>{ $price } ₽</b>
@@ -198,7 +198,7 @@ ntf-node-quota =
         }
 
     .reset-by-admin-system =
-        🛠 <b>4G/LTE traffic reset by administrator</b>
+        🛠 <b>Whitelist Bypass traffic reset by administrator</b>
 
         Administrator: <code>{ $admin_telegram_id }</code> ({ $admin_name })
         User: <code>{ $target_telegram_id }</code> ({ $target_name }, @{ $target_username })
@@ -209,12 +209,12 @@ ntf-node-quota =
         }
 
     .warn =
-        ⚠️ You have used <b>{ $used_gb } GB</b> out of <b>{ $limit_gb } GB</b> of your monthly limit on the 4G/LTE server.
+        ⚠️ You have used <b>{ $used_gb } GB</b> out of <b>{ $limit_gb } GB</b> of your monthly limit on the whitelist bypass server.
 
         At 100% usage, access to this server will be restricted until the end of the month.
 
     .limited =
-        🚫 Your monthly limit on the 4G/LTE server (<b>{ $limit_gb } GB</b>) has been reached.
+        🚫 Your monthly limit on the whitelist bypass server (<b>{ $limit_gb } GB</b>) has been reached.
 
         Access will be restored on the 1st of next month.{ $reset_price ->
             [0] { "" }

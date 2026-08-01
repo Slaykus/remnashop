@@ -19,7 +19,7 @@ unknown = —
 development-promocode = Promo codes are not yet implemented. You can donate to motivate and speed up development.
 
 payment-invoice-description = { purchase-type } of { $name } subscription for { $duration }
-payment-invoice-description-traffic-reset = 4G/LTE Traffic Reset
+payment-invoice-description-traffic-reset = Whitelist Bypass Traffic Reset
 
 inline-invite =
     .title = Invite a friend

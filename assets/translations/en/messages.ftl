@@ -627,10 +627,10 @@ msg-user-subscription-internal-squads =
     Select which internal groups will be assigned to this user.
 
 msg-user-node-quota =
-    <b>🔴 4G/LTE Server</b>
+    <b>🔴 Whitelist Bypass</b>
 
     <blockquote>
-    • <b>Node</b>: 🇷🇺🔴 4G/LTE | Not for Wi-Fi
+    • <b>Node</b>: 🇷🇺🔴 Whitelist Bypass
     • <b>Limit</b>: { $node_quota_limit_gb } GB / month
     • <b>Used</b>: { $node_quota_used_gb } GB ({ $node_quota_pct }%)
     • <b>Free</b>: { $node_quota_free_gb } GB
@@ -1132,7 +1132,7 @@ msg-subscription-main =
 
     { $node_quota_enabled ->
     [1]
-    <b><e id="5434006396859357687">🔴</e> 4G/LTE Server:</b>
+    <b><e id="5434006396859357687">🔴</e> Whitelist Bypass:</b>
     <blockquote>
     { $node_quota_is_restricted ->
     [1] • <e id="5431537503628730769">🚫</e> Access restricted until the 1st of next month
@@ -1145,9 +1145,9 @@ msg-subscription-main =
     }
 
 msg-subscription-traffic-reset-confirm =
-    <b>🔴 4G/LTE Traffic Reset</b>
+    <b>🔴 Whitelist Bypass Traffic Reset</b>
 
-    Reset your used traffic counter for the 4G/LTE server.
+    Reset your used traffic counter for the whitelist bypass server.
 
     <b>Used:</b> { $tr_used_gb } of { $tr_limit_gb } GB ({ $tr_used_pct }%)
     <b>Free:</b> { $tr_free_gb } GB

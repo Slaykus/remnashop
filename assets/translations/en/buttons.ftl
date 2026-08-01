@@ -147,7 +147,7 @@ btn-user =
     .subscription-url = 📋 Copy link
     .subscription-set = ✅ Set subscription
     .subscription-delete = ❌ Delete
-    .node-quota = 🔴 4G/LTE Server
+    .node-quota = 🔴 Whitelist Bypass
     .node-quota-reset = 🔄 Reset counter
     .node-quota-restrict = 🚫 Restrict access
     .node-quota-unrestrict = ✅ Remove restriction
@@ -485,7 +485,7 @@ btn-subscription =
     [0] 🎁
     *[HAS] { $final_amount }{ $currency }
     }
-    .traffic-reset = 🔴 Traffic Reset 4G/LTE — { $price } ₽
+    .traffic-reset = 🔴 Traffic Reset (Whitelist Bypass) — { $price } ₽
     .traffic-reset-gateway = { gateway-type } — { $price } { $currency }
 
 btn-promocode =
