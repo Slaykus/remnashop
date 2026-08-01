@@ -7,6 +7,7 @@ Endpoints protected by X-Internal-Key header (APP_WEB_API_KEY env var).
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import secrets
 from datetime import datetime, timezone
@@ -147,12 +148,22 @@ class NodeResponse(BaseModel):
 
 
 def _days_left(expire_at: datetime | None) -> int:
+    """
+    Остаток в днях, округлённый вверх.
+
+    Округление вниз давало ноль у любой подписки, которой осталось меньше
+    суток: свежий суточный пробный период показывался как «0 дней» сразу
+    после выдачи. Неполный день человек считает днём, поэтому вверх.
+    """
     if expire_at is None:
         return 0
     now = datetime.now(timezone.utc)
     if expire_at.tzinfo is None:
         expire_at = expire_at.replace(tzinfo=timezone.utc)
-    return max(int((expire_at - now).total_seconds() / 86400), 0)
+    seconds = (expire_at - now).total_seconds()
+    if seconds <= 0:
+        return 0
+    return math.ceil(seconds / 86400)
 
 
 # ---------------------------------------------------------------------------
