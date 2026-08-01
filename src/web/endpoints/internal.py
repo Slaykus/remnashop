@@ -11,6 +11,7 @@ import math
 import os
 import secrets
 from datetime import datetime, timezone
+from uuid import UUID
 from typing import Annotated
 
 from dishka import FromDishka
@@ -22,7 +23,7 @@ from remnapy import RemnawaveSDK
 from src.application.common import Remnawave
 from decimal import Decimal
 
-from src.application.common.dao import PlanDao, PaymentGatewayDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
+from src.application.common.dao import PlanDao, PaymentGatewayDao, PromocodeDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
 from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
@@ -34,6 +35,7 @@ from src.application.use_cases.user.queries.plans import GetAvailablePlans, GetA
 from src.application.use_cases.subscription import AddSubscriptionDuration
 from src.application.use_cases.subscription.commands.management import AddSubscriptionDurationDto
 from src.application.use_cases.subscription.commands.purchase import ActivateFreePlan, ActivateFreePlanDto
+from src.application.use_cases.gateways.commands.payment import gift_code_for_payment
 from src.application.use_cases.promocode.commands.activate import ActivatePromocode, ActivatePromocodeDto
 from src.application.use_cases.user import SetUserPersonalDiscount
 from src.application.use_cases.user.commands.profile_edit import SetUserPersonalDiscountDto
@@ -44,7 +46,7 @@ from src.core.exceptions import (
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
-from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType
+from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, TransactionStatus
 from src.core.constants import API_V1
 
 router = APIRouter(prefix=API_V1 + "/internal", tags=["internal"])
@@ -876,6 +878,9 @@ class CreateWebPaymentRequest(BaseModel):
     duration_days: int
     gateway_type: str
     return_url: str
+    # Подарочная покупка: оплаченная подписка уходит не плательщику, а в
+    # одноразовый промокод. По умолчанию False — обычная покупка.
+    is_gift: bool = False
 
 
 class CreateWebPaymentResponse(BaseModel):
@@ -947,8 +952,12 @@ async def create_web_payment(
 
     plan_snapshot = PlanSnapshotDto.from_plan(plan, body.duration_days)
 
+    # Подарок не меняет подписку плательщика, поэтому и тип покупки у него
+    # всегда NEW: CHANGE/RENEW описывали бы то, чего не происходит.
     subscription = await subscription_dao.get_current_by_telegram_id(body.telegram_id)
-    if subscription is None:
+    if body.is_gift:
+        purchase_type = PurchaseType.NEW
+    elif subscription is None:
         purchase_type = PurchaseType.NEW
     elif subscription.plan_snapshot and subscription.plan_snapshot.id != plan.id:
         purchase_type = PurchaseType.CHANGE
@@ -964,6 +973,7 @@ async def create_web_payment(
                 purchase_type=purchase_type,
                 gateway_type=gateway_type,
                 return_url=body.return_url,
+                is_gift=body.is_gift,
             ),
         )
     except Exception as e:
@@ -1040,4 +1050,96 @@ async def activate_promocode(
         code=promo.code,
         reward_type=promo.reward_type.value.lower(),
         reward=str(promo.reward),
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# Подарочные подписки
+# ---------------------------------------------------------------------------
+
+
+class GiftCodeResponse(BaseModel):
+    code: str
+    plan_name: str
+    duration_days: int
+    expires_at: datetime
+
+
+@router.get(
+    "/gifts/{payment_id}",
+    response_model=GiftCodeResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_gift_code(
+    payment_id: UUID,
+    transaction_dao: FromDishka[TransactionDao],
+    promocode_dao: FromDishka[PromocodeDao],
+) -> GiftCodeResponse:
+    """
+    Код, выпущенный по оплаченному подарку.
+
+    Сайт спрашивает эту ручку после возврата с оплаты: своего канала событий
+    у него нет, а до подтверждения платежа кода ещё не существует.
+    """
+    transaction = await transaction_dao.get_by_payment_id(payment_id)
+    if not transaction or not transaction.is_gift:
+        raise HTTPException(status_code=404, detail="Gift payment not found")
+    if transaction.status != TransactionStatus.COMPLETED:
+        raise HTTPException(status_code=409, detail="Payment is not completed yet")
+
+    promo = await promocode_dao.get_by_code(gift_code_for_payment(payment_id))
+    if not promo:
+        raise HTTPException(status_code=404, detail="Gift code not issued")
+
+    return GiftCodeResponse(
+        code=promo.code,
+        plan_name=transaction.plan_snapshot.name,
+        duration_days=transaction.plan_snapshot.duration,
+        expires_at=promo.expires_at,
+    )
+
+
+class PromocodeInfoResponse(BaseModel):
+    code: str
+    reward_type: str
+    plan_name: str | None = None
+    duration_days: int | None = None
+    expires_at: datetime | None = None
+    is_used: bool
+
+
+@router.get(
+    "/promocodes/{code}",
+    response_model=PromocodeInfoResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_promocode_info(
+    code: str,
+    promocode_dao: FromDishka[PromocodeDao],
+) -> PromocodeInfoResponse:
+    """
+    Что внутри кода — для страницы получателя до входа в аккаунт.
+
+    Активацию не выполняет: показывает содержимое, чтобы человек видел, что
+    ему подарили, ещё до регистрации.
+    """
+    promo = await promocode_dao.get_by_code(code.strip().upper())
+    if not promo or not promo.is_active:
+        raise HTTPException(status_code=404, detail="Промокод не найден")
+
+    used = 0
+    if promo.id is not None:
+        used = await promocode_dao.get_activations_count(promo.id)
+
+    snapshot = promo.plan_snapshot or {}
+    return PromocodeInfoResponse(
+        code=promo.code,
+        reward_type=promo.reward_type.value.lower(),
+        plan_name=snapshot.get("name"),
+        duration_days=snapshot.get("duration"),
+        expires_at=promo.expires_at,
+        is_used=bool(promo.max_activations and used >= promo.max_activations),
     )

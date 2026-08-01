@@ -129,6 +129,12 @@ ntf-gateway =
     .test-payment-created = ✅ <i><a href="{ $url }">Test payment</a> created successfully.</i>
     .test-payment-error = ❌ <i>Error creating test payment.</i>
     .test-payment-confirmed = ✅ <i>Test payment processed successfully.</i>
+    .gift-issued =
+        🎁 <b>Gift subscription paid</b>
+
+        Code for the recipient: <code>{ $code }</code>
+
+        Pass it on to whoever you are gifting. The code is single-use and valid for { $days } days, then it expires.
 
 ntf-subscription =
     .plans-unavailable = ❌ <i>No plans available at the moment.</i>

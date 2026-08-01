@@ -453,6 +453,13 @@ event-promocode =
     </blockquote>
 
 event-payment =
+    .gift-failed =
+    <b>⚠️ Подарок оплачен, но код не выпущен</b>
+
+    Платёж: <code>{ $payment_id }</code>
+    Пользователь: <code>{ $telegram_id }</code> @{ $username }
+
+    Деньги приняты, промокод создать не удалось — требуется ручная выдача.
     .refunded =
     #PaymentRefundedEvent
 

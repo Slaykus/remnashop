@@ -1,5 +1,7 @@
+import hashlib
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -14,6 +16,7 @@ from src.application.common import (
 )
 from src.application.common.dao import (
     PaymentGatewayDao,
+    PromocodeDao,
     ReferralDao,
     SubscriptionDao,
     TransactionDao,
@@ -48,6 +51,10 @@ from src.application.dto.payment_gateway import (
 )
 from src.application.events import UserPurchaseEvent
 from src.application.use_cases.gateways.queries.providers import GetPaymentGatewayInstance
+from src.application.use_cases.promocode.commands.manage import (
+    CreatePromocode,
+    CreatePromocodeDto,
+)
 from src.application.use_cases.referral.commands.rewards import (
     AssignReferralRewards,
     AssignReferralRewardsDto,
@@ -59,6 +66,8 @@ from src.application.use_cases.subscription.commands.purchase import (
 from src.core.enums import (
     Currency,
     PaymentGatewayType,
+    PromocodeAvailability,
+    PromocodeRewardType,
     PurchaseType,
     Role,
     SystemNotificationType,
@@ -142,6 +151,7 @@ class CreatePaymentDto:
     purchase_type: PurchaseType
     gateway_type: PaymentGatewayType
     return_url: Optional[str] = None
+    is_gift: bool = False
 
 
 class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
@@ -197,6 +207,7 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
                     pricing=data.pricing,
                     currency=gateway_instance.data.currency,
                     plan_snapshot=data.plan_snapshot,
+                    is_gift=data.is_gift,
                 )
                 await self.transaction_dao.create(transaction)
                 await self.uow.commit()
@@ -220,6 +231,7 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
             pricing=data.pricing,
             currency=gateway_instance.data.currency,
             plan_snapshot=data.plan_snapshot,
+            is_gift=data.is_gift,
         )
 
         async with self.uow:
@@ -290,6 +302,18 @@ class CreateTestPayment(Interactor[PaymentGatewayType, PaymentResultDto]):
         return payment
 
 
+def gift_code_for_payment(payment_id: UUID) -> str:
+    """
+    Подарочный код, выведенный из идентификатора платежа.
+
+    Детерминированность решает две задачи сразу: повторный вебхук шлюза даёт
+    тот же код и не выпускает второй подарок, а сайту не нужно отдельное
+    хранилище связи «платёж — код» — он выводит его тем же способом.
+    """
+    digest = hashlib.sha256(f"rain-gift:{payment_id}".encode()).hexdigest()
+    return f"GIFT{digest[:8].upper()}"
+
+
 @dataclass(frozen=True)
 class ProcessPaymentDto:
     payment_id: UUID
@@ -312,6 +336,8 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         redirect: Redirect,
         assign_referral_rewards: AssignReferralRewards,
         purchase_subscription: PurchaseSubscription,
+        create_promocode: CreatePromocode,
+        promocode_dao: PromocodeDao,
     ) -> None:
         self.uow = uow
         self.user_dao = user_dao
@@ -323,6 +349,8 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         self.redirect = redirect
         self.assign_referral_rewards = assign_referral_rewards
         self.purchase_subscription = purchase_subscription
+        self.create_promocode = create_promocode
+        self.promocode_dao = promocode_dao
 
     async def _execute(self, actor: UserDto, data: ProcessPaymentDto) -> None:
         payment_id = data.payment_id
@@ -423,9 +451,82 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         await self._handle_success(user, transaction)
         logger.info(f"Payment succeeded '{payment_id}' for user {user.log}")
 
+    # Срок жизни подарочного кода. Не активировали — сгорает.
+    GIFT_CODE_TTL_DAYS = 30
+
+    async def _issue_gift_promocode(self, user: UserDto, transaction: TransactionDto) -> None:
+        """
+        Превращает оплаченный подарок в одноразовый промокод.
+
+        Награда — SUBSCRIPTION со снимком плана, а не дни: награда в днях
+        молча теряется у получателя без активной подписки, а это как раз
+        типичный получатель подарка.
+        """
+        code = gift_code_for_payment(transaction.payment_id)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=self.GIFT_CODE_TTL_DAYS)
+
+        # Вебхук шлюза может прийти повторно. Код выводится из payment_id, то
+        # есть при повторе получится тот же самый — значит подарок уже выдан,
+        # и второй раз выпускать нечего.
+        existing = await self.promocode_dao.get_by_code(code)
+        if existing is not None:
+            logger.info(
+                f"Gift promocode '{code}' already issued for transaction "
+                f"'{transaction.payment_id}' — skipping"
+            )
+            return
+
+        try:
+            promo = await self.create_promocode.system(
+                CreatePromocodeDto(
+                    code=code,
+                    reward_type=PromocodeRewardType.SUBSCRIPTION,
+                    plan_snapshot=asdict(transaction.plan_snapshot),
+                    availability=PromocodeAvailability.ALL,
+                    expires_at=expires_at,
+                    max_activations=1,
+                    is_reusable=False,
+                )
+            )
+        except Exception as e:
+            # Деньги уже приняты, поэтому молчать нельзя: без кода покупатель
+            # остаётся ни с чем, и разбираться придётся вручную.
+            logger.critical(
+                f"Gift promocode not issued for paid transaction "
+                f"'{transaction.payment_id}', user {user.log}: {e}"
+            )
+            await self.notifier.notify_admins(
+                MessagePayloadDto(
+                    i18n_key="event-payment.gift-failed",
+                    i18n_kwargs={
+                        "payment_id": str(transaction.payment_id),
+                        "telegram_id": user.telegram_id or 0,
+                        "username": user.username or "",
+                    },
+                )
+            )
+            return
+
+        logger.info(
+            f"Gift promocode '{promo.code}' issued for transaction "
+            f"'{transaction.payment_id}' by user {user.log}"
+        )
+        await self.notifier.notify_user(
+            user,
+            i18n_key="ntf-gateway.gift-issued",
+            i18n_kwargs={"code": promo.code, "days": self.GIFT_CODE_TTL_DAYS},
+        )
+
     async def _handle_success(self, user: UserDto, transaction: TransactionDto) -> None:
         if transaction.is_test:
             await self.notifier.notify_user(user, i18n_key="ntf-gateway.test-payment-confirmed")
+            return
+
+        # Подарок: подписка не достаётся плательщику, вместо неё выпускается
+        # одноразовый промокод. Ветка стоит до всей обычной логики, а обычная
+        # покупка (is_gift=False) идёт дальше ровно как раньше.
+        if transaction.is_gift:
+            await self._issue_gift_promocode(user, transaction)
             return
 
         subscription = await self.subscription_dao.get_current(user.id)

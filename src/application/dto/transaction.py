@@ -35,6 +35,9 @@ class TransactionDto(BaseDto, TrackableMixin, TimestampMixin):
 
     status: TransactionStatus
     is_test: bool = False
+    # Подарочная покупка: подписка уходит не плательщику, а в одноразовый
+    # промокод. По умолчанию False — обычные покупки идут прежним путём.
+    is_gift: bool = False
 
     purchase_type: PurchaseType
     gateway_type: PaymentGatewayType

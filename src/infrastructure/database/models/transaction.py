@@ -24,6 +24,7 @@ class Transaction(BaseSql, TimestampMixin):
 
     status: Mapped[TransactionStatus] = mapped_column(index=True)
     is_test: Mapped[bool]
+    is_gift: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     purchase_type: Mapped[PurchaseType]
     gateway_type: Mapped[PaymentGatewayType]
