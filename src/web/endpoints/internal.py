@@ -301,15 +301,31 @@ async def get_plans(
 async def get_user_plans(
     telegram_id: int,
     user_dao: FromDishka[UserDao],
+    plan_dao: FromDishka[PlanDao],
     get_available_plans: FromDishka[GetAvailablePlans],
     get_available_trial: FromDishka[GetAvailableTrial],
+    trial_tag: str | None = None,
 ) -> list[PlanResponse]:
     user = await user_dao.get_by_telegram_id(telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     regular = await get_available_plans.system(user)
-    trial = await get_available_trial.system(user)
+
+    if trial_tag:
+        # Свой пробный период вызывающей стороны: пробный план в боте может
+        # быть только один, поэтому короткий период для сайта заведён обычным
+        # планом с доступом по ссылке. Ищем его по тегу и отдаём по тому же
+        # условию, по которому активация его и выдаст, — иначе кабинет
+        # показывал бы чужой план на 7 дней, а выдавал свой на один.
+        wanted = trial_tag.strip().lower()
+        candidates = await plan_dao.get_active_trial_plans()
+        candidates += await plan_dao.get_active_plans()
+        tagged = next((p for p in candidates if (p.tag or "").strip().lower() == wanted), None)
+        trial = tagged if user.is_trial_available else None
+    else:
+        trial = await get_available_trial.system(user)
+
     plans = ([trial] if trial else []) + (regular or [])
 
     result = []
