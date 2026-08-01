@@ -285,15 +285,20 @@ class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
         if not user.is_trial_available:
             raise ValueError("Trial already used")
 
-        plans = await self.plan_dao.get_active_trial_plans()
-        if not plans:
-            raise ValueError("No trial plan available")
-
         if data.plan_tag:
-            plan = next((p for p in plans if p.tag == data.plan_tag), None)
+            # Пробный план в боте может быть только один, поэтому короткий
+            # период для сайта заводится обычным планом с доступом по ссылке.
+            # Ищем по тегу среди всех активных, а не только среди пробных.
+            wanted = data.plan_tag.strip().lower()
+            candidates = await self.plan_dao.get_active_trial_plans()
+            candidates += await self.plan_dao.get_active_plans()
+            plan = next((p for p in candidates if (p.tag or "").strip().lower() == wanted), None)
             if plan is None:
-                raise ValueError(f"Trial plan with tag '{data.plan_tag}' not found")
+                raise ValueError(f"Plan with tag '{data.plan_tag}' not found")
         else:
+            plans = await self.plan_dao.get_active_trial_plans()
+            if not plans:
+                raise ValueError("No trial plan available")
             plan = plans[0]
 
         if not plan.durations:

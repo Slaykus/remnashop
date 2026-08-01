@@ -43,7 +43,7 @@ from src.core.exceptions import (
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
-from src.core.enums import PaymentGatewayType, PurchaseType, ReferralRewardType
+from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType
 from src.core.constants import API_V1
 
 router = APIRouter(prefix=API_V1 + "/internal", tags=["internal"])
@@ -231,9 +231,23 @@ async def get_subscription(
 @inject
 async def get_plans(
     plan_dao: FromDishka[PlanDao],
+    user_dao: FromDishka[UserDao],
+    get_available: FromDishka[GetAvailablePlans],
+    telegram_id: int | None = None,
 ) -> list[PlanResponse]:
-    regular = await plan_dao.get_active_plans()
     trial = await plan_dao.get_active_trial_plans()
+
+    # Без telegram_id вернуть можно только общедоступные планы: раньше
+    # отдавались вообще все, и в кабинете каждый видел закрытые тарифы —
+    # и с доступом по списку, и по ссылке.
+    if telegram_id is None:
+        regular = [p for p in await plan_dao.get_active_plans() if p.availability == PlanAvailability.ALL]
+    else:
+        user = await user_dao.get_by_telegram_id(telegram_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        regular = await get_available.system(user)
+
     # Trial plans first, then regular — consistent with bot display order
     plans = trial + regular
     result = []
