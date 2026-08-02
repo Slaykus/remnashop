@@ -522,10 +522,15 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
             f"Gift promocode '{promo.code}' issued for transaction "
             f"'{transaction.payment_id}' by user {user.log}"
         )
+        # Подстановки передаются внутри payload: у notify_user нет отдельного
+        # параметра i18n_kwargs, и вызов с ним падал уже после выпуска кода —
+        # подарок выдавался, а покупатель оставался без сообщения.
         await self.notifier.notify_user(
             user,
-            i18n_key="ntf-gateway.gift-issued",
-            i18n_kwargs={"code": promo.code, "days": self.GIFT_CODE_TTL_DAYS},
+            MessagePayloadDto(
+                i18n_key="ntf-gateway.gift-issued",
+                i18n_kwargs={"code": promo.code, "days": self.GIFT_CODE_TTL_DAYS},
+            ),
         )
 
     async def _handle_success(self, user: UserDto, transaction: TransactionDto) -> None:
