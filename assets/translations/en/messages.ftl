@@ -82,7 +82,13 @@ msg-menu-devices-confirm-reissue =
     Are you sure you want to reset the link?
 
 msg-menu-devices-confirm-delete =
-    <e id="5433693255088776864">🗑</e> Delete device <b>{ $selected_device_label }</b>?
+    <e id="5433693255088776864">🗑</e> <b>Confirm device removal</b>
+
+    <b>{ $device_model }</b>
+    <blockquote>
+    • <b>Platform</b>: { $platform_icon } { $platform }
+    • <b>Added</b>: { $created_at }
+    </blockquote>
 
 msg-menu-devices-confirm-delete-all =
     <e id="5433693255088776864">🗑</e> Delete <b>all devices</b>?
@@ -290,16 +296,24 @@ msg-statistics-promocodes =
     <b>🎁 Promo code statistics</b>
 
     <blockquote>
-    • <b>Total activations</b>: { $total_promo_activations }
-    • <b>Most popular promo code</b>: { $most_popular_promo ->
-    [0] { unknown }
-    *[HAS] { $most_popular_promo }
-    }
-    • <b>Days granted</b>: { $total_promo_days }
-    • <b>Traffic granted</b>: { $total_promo_days }
-    • <b>Subscriptions granted</b>: { $total_promo_subscriptions }
-    • <b>Personal discounts granted</b>: { $total_promo_personal_discounts }
-    • <b>One-time discounts granted</b>: { $total_promo_purchase_discounts }
+    • <b>Total promo codes</b>: { $total_promocodes }
+    • <b>Active</b>: { $active_promocodes }
+    • <b>Total activations</b>: { $total_activations }
+    </blockquote>
+
+    <blockquote>
+    • <b>Activations today</b>: { $activations_today }
+    • <b>Activations this week</b>: { $activations_week }
+    • <b>Activations this month</b>: { $activations_month }
+    </blockquote>
+
+    <blockquote>
+    • <b>Days granted</b>: { $issued_days }
+    • <b>Traffic granted (GB)</b>: { $issued_traffic }
+    • <b>Devices granted</b>: { $issued_devices }
+    • <b>Subscriptions granted</b>: { $issued_subscriptions }
+    • <b>Personal discounts granted</b>: { $issued_personal_discounts }
+    • <b>One-time discounts granted</b>: { $issued_purchase_discounts }
     </blockquote>
 
 msg-statistics-referrals =
@@ -723,9 +737,6 @@ msg-remnawave-main =
     • <b>CPU</b>: { $cpu_cores } { $cpu_cores ->
     [one] core
     *[other] cores
-    } { $cpu_threads } { $cpu_threads ->
-    [one] thread
-    *[other] threads
     }
     • <b>RAM</b>: { $ram_used } / { $ram_total } ({ $ram_used_percent }%)
     • <b>Uptime</b>: { $uptime }

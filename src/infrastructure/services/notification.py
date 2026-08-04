@@ -352,7 +352,10 @@ class NotificationService(Notifier):
         user: Union[TempUserDto, UserDto],
         payload: MessagePayloadDto,
     ) -> Optional[Message]:
-        if user.telegram_id is None:
+        # У пользователей сайта без привязанного Telegram нет чата, куда писать.
+        # Сайт присылает псевдо-id вида -user.id, поэтому проверки на None мало:
+        # на таких id Telegram отвечает "chat not found", и падало всё событие.
+        if user.telegram_id is None or user.telegram_id <= 0:
             logger.debug(f"Skipping notification for web-only user {user.log}")
             return None
 
@@ -417,6 +420,13 @@ class NotificationService(Notifier):
         except TelegramForbiddenError:
             logger.warning(f"Bot was blocked by user {user.log}")
             return None
+        except TelegramBadRequest as e:
+            # Пользователь удалил аккаунт или чат недоступен: доставить нечего,
+            # но это не сбой бота — поднимать наверх и слать в топик ошибок не надо.
+            if "chat not found" in str(e).lower():
+                logger.warning(f"Chat not found for user {user.log}, skipping")
+                return None
+            raise
         except Exception as e:
             logger.exception(f"Failed to send notification to {user.log}: {e}")
             raise
