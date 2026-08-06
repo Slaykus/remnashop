@@ -1,7 +1,6 @@
 from aiogram.enums import ButtonStyle, ContentType
 from aiogram_dialog import Dialog, StartMode, Window
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
 from aiogram_dialog.widgets.style import Style
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
@@ -10,6 +9,7 @@ from src.core.enums import BannerName
 from src.telegram.keyboards import main_menu_button
 from src.telegram.states import DashboardRemnashop, RemnashopAdvertising
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
+from src.telegram.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
 
 from .getters import (
     analytics_getter,
