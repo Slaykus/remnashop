@@ -424,7 +424,7 @@ async def on_promo_set_style(
         return
 
     if not url:
-        url = await bot_service.get_ad_url(link.code)
+        url = await bot_service.get_ad_link_url(link.code)
 
     buttons = list(link.promo_buttons or [])
     if len(buttons) < 3:
@@ -589,7 +589,7 @@ async def on_send_promo_preview(
     if not link or not link.promo_text:
         return
 
-    deep_link = await bot_service.get_ad_url(link.code)
+    deep_link = await bot_service.get_ad_link_url(link.code)
     style_map = {
         "primary": ButtonStyle.PRIMARY,
         "success": ButtonStyle.SUCCESS,

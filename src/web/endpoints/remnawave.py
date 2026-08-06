@@ -12,6 +12,9 @@ from remnapy.models.webhook import (
     UserHwidDeviceEventDto,
 )
 
+# Побочный эффект импорта: ослабляет модели remnapy под реальные payload'ы
+# панели. Должно отработать до первой валидации вебхука.
+import src.infrastructure.remnapy_compat  # noqa: F401
 from src.application.common import EventPublisher
 from src.application.events import ErrorEvent
 from src.application.services import RemnaWebhookService
