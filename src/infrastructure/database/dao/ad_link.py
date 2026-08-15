@@ -168,24 +168,34 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                     COUNT(DISTINCT alu.user_telegram_id)
                         FILTER (WHERE alu.bonus_issued = TRUE)
                         AS bonus_issued_count,
-                    COUNT(DISTINCT s.user_id)
-                        FILTER (WHERE s.is_trial = TRUE AND s.created_at >= alu.created_at)
-                        AS trial_count,
-                    COUNT(DISTINCT t.user_id)
-                        FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
-                        AS paid_count,
-                    COALESCE(
-                        SUM((t.pricing->>'final_amount')::NUMERIC)
-                            FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at),
-                        0
-                    ) AS revenue_rub
+                    COUNT(DISTINCT u.id) FILTER (WHERE tr.found) AS trial_count,
+                    COUNT(DISTINCT u.id) FILTER (WHERE pay.paid > 0) AS paid_count,
+                    COALESCE(SUM(pay.revenue), 0) AS revenue_rub
                 FROM ad_link_users alu
                 LEFT JOIN users u
                     ON u.telegram_id = alu.user_telegram_id
-                LEFT JOIN subscriptions s
-                    ON s.user_id = u.id
-                LEFT JOIN transactions t
-                    ON t.user_id = u.id
+                -- Подписки и транзакции считаются каждая отдельно. Раньше обе
+                -- присоединялись к пользователю сразу, и строки перемножались:
+                -- платёж складывался столько раз, сколько у человека записей
+                -- подписки. Количества спасал DISTINCT, а сумма врала — по
+                -- ссылке fuckaltgirl показывало 135 ₽ вместо 27 ₽.
+                LEFT JOIN LATERAL (
+                    SELECT TRUE AS found
+                    FROM subscriptions s
+                    WHERE s.user_id = u.id
+                      AND s.is_trial = TRUE
+                      AND s.created_at >= alu.created_at
+                    LIMIT 1
+                ) tr ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT
+                        COUNT(*) AS paid,
+                        COALESCE(SUM((t.pricing->>'final_amount')::NUMERIC), 0) AS revenue
+                    FROM transactions t
+                    WHERE t.user_id = u.id
+                      AND t.status = 'COMPLETED'
+                      AND t.created_at >= alu.created_at
+                ) pay ON TRUE
                 WHERE alu.ad_link_id = :ad_link_id
                 """,
             ).bindparams(ad_link_id=ad_link_id)
@@ -209,24 +219,34 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                     COUNT(DISTINCT alu.user_telegram_id)
                         FILTER (WHERE alu.bonus_issued = TRUE)
                         AS bonus_issued_count,
-                    COUNT(DISTINCT s.user_id)
-                        FILTER (WHERE s.is_trial = TRUE AND s.created_at >= alu.created_at)
-                        AS trial_count,
-                    COUNT(DISTINCT t.user_id)
-                        FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at)
-                        AS paid_count,
-                    COALESCE(
-                        SUM((t.pricing->>'final_amount')::NUMERIC)
-                            FILTER (WHERE t.status = 'COMPLETED' AND t.created_at >= alu.created_at),
-                        0
-                    ) AS revenue_rub
+                    COUNT(DISTINCT u.id) FILTER (WHERE tr.found) AS trial_count,
+                    COUNT(DISTINCT u.id) FILTER (WHERE pay.paid > 0) AS paid_count,
+                    COALESCE(SUM(pay.revenue), 0) AS revenue_rub
                 FROM ad_link_users alu
                 LEFT JOIN users u
                     ON u.telegram_id = alu.user_telegram_id
-                LEFT JOIN subscriptions s
-                    ON s.user_id = u.id
-                LEFT JOIN transactions t
-                    ON t.user_id = u.id
+                -- Подписки и транзакции считаются каждая отдельно. Раньше обе
+                -- присоединялись к пользователю сразу, и строки перемножались:
+                -- платёж складывался столько раз, сколько у человека записей
+                -- подписки. Количества спасал DISTINCT, а сумма врала — по
+                -- ссылке fuckaltgirl показывало 135 ₽ вместо 27 ₽.
+                LEFT JOIN LATERAL (
+                    SELECT TRUE AS found
+                    FROM subscriptions s
+                    WHERE s.user_id = u.id
+                      AND s.is_trial = TRUE
+                      AND s.created_at >= alu.created_at
+                    LIMIT 1
+                ) tr ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT
+                        COUNT(*) AS paid,
+                        COALESCE(SUM((t.pricing->>'final_amount')::NUMERIC), 0) AS revenue
+                    FROM transactions t
+                    WHERE t.user_id = u.id
+                      AND t.status = 'COMPLETED'
+                      AND t.created_at >= alu.created_at
+                ) pay ON TRUE
                 WHERE alu.ad_link_id = :ad_link_id
                   AND alu.created_at >= :since_date
                 """,
