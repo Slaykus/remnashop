@@ -12,6 +12,9 @@ logs/*
 .claude
 CLAUDE.md
 docs/
+# Свои документы по проекту храним в репозитории: без них решения
+# живут только в переписке и теряются.
+!docs/partner-program.md
 
 # Environment
 .venv/
