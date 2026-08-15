@@ -491,12 +491,18 @@ class SetDiscountResponse(BaseModel):
 async def set_user_discount(
     telegram_id: int,
     body: SetDiscountRequest,
+    user_dao: FromDishka[UserDao],
     set_discount: FromDishka[SetUserPersonalDiscount],
 ) -> SetDiscountResponse:
     if not (0 <= body.discount <= 100):
         raise HTTPException(status_code=400, detail="discount must be 0–100")
+
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user or user.id is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
     try:
-        await set_discount.system(SetUserPersonalDiscountDto(telegram_id=telegram_id, discount=body.discount))
+        await set_discount.system(SetUserPersonalDiscountDto(user_id=user.id, discount=body.discount))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return SetDiscountResponse(discount=body.discount)
@@ -515,12 +521,20 @@ class AddDaysResponse(BaseModel):
 async def add_subscription_days(
     telegram_id: int,
     body: AddDaysRequest,
+    user_dao: FromDishka[UserDao],
     add_duration: FromDishka[AddSubscriptionDuration],
 ) -> AddDaysResponse:
     if body.days <= 0:
         raise HTTPException(status_code=400, detail="days must be positive")
+
+    # DTO ждёт локальный id пользователя, а снаружи приходит telegram_id —
+    # как и в остальных эндпоинтах файла, резолвим его здесь.
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user or user.id is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
     try:
-        await add_duration.system(AddSubscriptionDurationDto(telegram_id=telegram_id, days=body.days))
+        await add_duration.system(AddSubscriptionDurationDto(user_id=user.id, days=body.days))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return AddDaysResponse(days_added=body.days)
@@ -603,7 +617,7 @@ async def delete_user_device(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     try:
-        await delete_device.system(DeleteUserDeviceDto(telegram_id=telegram_id, hwid=hwid))
+        await delete_device.system(DeleteUserDeviceDto(user_id=user.id or 0, hwid=hwid))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -761,7 +775,7 @@ async def migrate_telegram(
                 try:
                     await add_duration.system(
                         AddSubscriptionDurationDto(
-                            telegram_id=body.new_telegram_id,
+                            user_id=conflict.id or 0,
                             days=carried_days,
                         )
                     )
