@@ -20,10 +20,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from remnapy import RemnawaveSDK
 
-from src.application.common import Remnawave
+from src.application.common import BotService, Remnawave
 from decimal import Decimal
 
-from src.application.common.dao import PlanDao, PaymentGatewayDao, PromocodeDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
+from src.application.common.dao import AdLinkDao, PlanDao, PaymentGatewayDao, PromocodeDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
 from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
@@ -1157,3 +1157,55 @@ async def get_promocode_info(
         expires_at=promo.expires_at,
         is_used=bool(promo.max_activations and used >= promo.max_activations),
     )
+
+
+class LinkLookupResponse(BaseModel):
+    """Что стоит за кодом из рекламной или реферальной ссылки."""
+
+    kind: str  # "ad" | "referral"
+    code: str
+    is_active: bool
+    title: str | None = None
+    telegram_url: str
+
+
+@router.get("/links/{code}", response_model=LinkLookupResponse)
+async def lookup_link(
+    code: str,
+    ad_link_dao: FromDishka[AdLinkDao],
+    user_dao: FromDishka[UserDao],
+    bot_service: FromDishka[BotService],
+) -> LinkLookupResponse:
+    """
+    Разбор кода для посадочной страницы сайта.
+
+    Реклама идёт не только внутри Telegram, и у нового человека его может
+    не быть: ссылка ведёт на сайт, а сайт спрашивает здесь, что за код ему
+    принесли. Коды остаются в базе бота — один источник правды.
+
+    Ссылка на бота отдаётся готовой, чтобы сайту не пришлось повторять у
+    себя правила сборки deep link.
+    """
+    ad_link = await ad_link_dao.get_by_code(code)
+    if ad_link is not None:
+        return LinkLookupResponse(
+            kind="ad",
+            code=code,
+            is_active=ad_link.is_active,
+            title=ad_link.name,
+            telegram_url=await bot_service.get_ad_link_url(code),
+        )
+
+    referrer = await user_dao.get_by_referral_code(code)
+    if referrer is not None:
+        # Имя пригласившего наружу не отдаём: ссылку открывает посторонний
+        # человек, и знать, кто его позвал, ему незачем.
+        return LinkLookupResponse(
+            kind="referral",
+            code=code,
+            is_active=True,
+            title=None,
+            telegram_url=await bot_service.get_referral_url(code),
+        )
+
+    raise HTTPException(status_code=404, detail="Link not found")
