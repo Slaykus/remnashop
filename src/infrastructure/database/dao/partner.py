@@ -139,6 +139,10 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
                 .join(AdLink, AdLink.owner_user_id == Partner.user_id)
                 .join(AdLinkUser, AdLinkUser.ad_link_id == AdLink.id)
                 .where(AdLinkUser.user_telegram_id == user.telegram_id)
+                # Партнёр не зарабатывает на самом себе: иначе достаточно
+                # пройти по своей же ссылке и купить подписку, чтобы вернуть
+                # себе долю с каждой собственной оплаты.
+                .where(Partner.user_id != user_id)
                 .order_by(AdLinkUser.created_at.asc())
                 .limit(1)
             )
