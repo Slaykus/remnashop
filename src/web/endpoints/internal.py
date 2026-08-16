@@ -23,10 +23,11 @@ from remnapy import RemnawaveSDK
 from src.application.common import BotService, Remnawave
 from decimal import Decimal
 
+from src.core.enums import ReferralLevel
 from src.application.common.dao import AdLinkDao, PlanDao, PaymentGatewayDao, PromocodeDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
 from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
-from src.application.dto import UserDto
+from src.application.dto import ReferralDto, UserDto
 from src.application.dto.plan import PlanSnapshotDto
 from src.application.dto.transaction import PriceDetailsDto
 from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
@@ -646,6 +647,9 @@ class CreateUserRequest(BaseModel):
     telegram_id: int
     username: str | None = None
     name: str
+    # Код рекламной или реферальной ссылки, по которой человек пришёл.
+    # Сайт достаёт его из cookie, поставленной посадочной страницей.
+    attribution_code: str | None = None
 
 
 class CreateUserResponse(BaseModel):
@@ -662,6 +666,8 @@ class CreateUserResponse(BaseModel):
 async def create_user(
     body: CreateUserRequest,
     user_dao: FromDishka[UserDao],
+    ad_link_dao: FromDishka[AdLinkDao],
+    referral_dao: FromDishka[ReferralDao],
     uow: FromDishka[UnitOfWork],
 ) -> CreateUserResponse:
     existing = await user_dao.get_by_telegram_id(body.telegram_id)
@@ -676,9 +682,71 @@ async def create_user(
         referral_code=referral_code,
     )
     async with uow:
-        await user_dao.create(user_dto)
+        created = await user_dao.create(user_dto)
         await uow.commit()
+
+    if body.attribution_code:
+        await _attach_attribution(
+            body.attribution_code,
+            created or user_dto,
+            body.telegram_id,
+            ad_link_dao,
+            user_dao,
+            referral_dao,
+            uow,
+        )
+
     return CreateUserResponse(telegram_id=body.telegram_id, created=True)
+
+
+async def _attach_attribution(
+    code: str,
+    new_user: UserDto,
+    telegram_id: int,
+    ad_link_dao: AdLinkDao,
+    user_dao: UserDao,
+    referral_dao: ReferralDao,
+    uow: UnitOfWork,
+) -> None:
+    """
+    Привязывает свежего пользователя к рекламной ссылке или пригласившему.
+
+    Раньше это умел только deep link в боте, и человек, пришедший по той же
+    ссылке, но зарегистрировавшийся на сайте, для рекламы не существовал:
+    переход был, а в воронке ноль. Отсюда же вырастут партнёрские выплаты —
+    без этой привязки платить будет не за что.
+
+    Сбой привязки не отменяет регистрацию: аккаунт уже создан, и потерять
+    его из-за неудачной записи в статистику было бы хуже.
+    """
+    try:
+        link = await ad_link_dao.get_by_code(code)
+        if link is not None and link.is_active:
+            async with uow:
+                await ad_link_dao.register_user_click(link.id, telegram_id)
+                await uow.commit()
+            logger.info(f"Attribution: user '{telegram_id}' attached to ad link '{code}'")
+            return
+
+        referrer = await user_dao.get_by_referral_code(code)
+        if referrer is not None and referrer.id != new_user.id:
+            existing = await referral_dao.get_by_referred_id(new_user.id or 0)
+            if existing is None:
+                async with uow:
+                    await referral_dao.create_referral(
+                        ReferralDto(
+                            level=ReferralLevel.FIRST,
+                            referrer=referrer,
+                            referred=new_user,
+                        )
+                    )
+                    await uow.commit()
+                logger.info(f"Attribution: user '{telegram_id}' attached to referrer '{code}'")
+            return
+
+        logger.debug(f"Attribution: code '{code}' not found, nothing attached")
+    except Exception as e:
+        logger.warning(f"Attribution by code '{code}' failed for '{telegram_id}': {e}")
 
 
 @router.delete(
@@ -1169,7 +1237,11 @@ class LinkLookupResponse(BaseModel):
     telegram_url: str
 
 
-@router.get("/links/{code}", response_model=LinkLookupResponse)
+@router.get(
+    "/links/{code}",
+    response_model=LinkLookupResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
 @inject
 async def lookup_link(
     code: str,
@@ -1210,3 +1282,29 @@ async def lookup_link(
         )
 
     raise HTTPException(status_code=404, detail="Link not found")
+
+
+@router.post(
+    "/links/{code}/visit",
+    status_code=204,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def register_link_visit(
+    code: str,
+    ad_link_dao: FromDishka[AdLinkDao],
+    uow: FromDishka[UnitOfWork],
+) -> None:
+    """
+    Переход по ссылке засчитан на посадочной сайта.
+
+    Человека здесь ещё нет — только визит, поэтому растёт лишь счётчик
+    переходов. Привязка к пользователю происходит позже, при регистрации,
+    когда появляется, к чему привязывать.
+    """
+    link = await ad_link_dao.get_by_code(code)
+    if link is None or not link.is_active:
+        return
+    async with uow:
+        await ad_link_dao.increment_clicks(link.id)
+        await uow.commit()
