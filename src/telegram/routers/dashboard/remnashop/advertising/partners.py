@@ -15,9 +15,12 @@ from aiogram_dialog.widgets.kbd import Button as RawButton
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
+from src.application.common.dao import AdLinkDao
 from src.application.use_cases.partner.commands.manage import (
     CreatePartner,
     CreatePartnerDto,
+    ToggleLinkOwner,
+    ToggleLinkOwnerDto,
     PayPartner,
     PayPartnerDto,
     UpdatePartnerTerms,
@@ -231,3 +234,62 @@ async def on_pay(
         f"Оформлена выплата {payout.amount} ₽ по {payout.earnings_count} начислениям.",
         show_alert=True,
     )
+
+
+@inject
+async def partner_links_getter(
+    dialog_manager: DialogManager,
+    get_overview: FromDishka[GetPartnerOverview],
+    ad_link_dao: FromDishka[AdLinkDao],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """
+    Все рекламные ссылки с отметкой, чьи они.
+
+    Показываем и чужие тоже — иначе непонятно, почему нужной ссылки нет в
+    списке. Занятые видно сразу, и случайно перехватить их нельзя: нажатие
+    на чужую ничего не делает.
+    """
+    user = dialog_manager.middleware_data[USER_KEY]
+    partner_id = dialog_manager.dialog_data.get(_PARTNER_ID)
+    overview = await get_overview(user, int(partner_id)) if partner_id else None
+    if overview is None:
+        return {"links": [], "is_empty": True}
+
+    owner_id = overview.partner.user_id
+    links = []
+    for ln in await ad_link_dao.get_all():
+        if ln.owner_user_id == owner_id:
+            mark = "✅"
+        elif ln.owner_user_id is None:
+            mark = "▫️"
+        else:
+            mark = "🔒"
+        links.append(
+            {
+                "id": ln.id,
+                "title": f"{mark} {ln.name} ({ln.code})",
+                "busy": ln.owner_user_id is not None and ln.owner_user_id != owner_id,
+            }
+        )
+    return {"links": links, "is_empty": not links, "name": overview.name}
+
+
+@inject
+async def on_link_toggle(
+    callback: CallbackQuery,
+    widget: Any,
+    dialog_manager: DialogManager,
+    item_id: int,
+    toggle_owner: FromDishka[ToggleLinkOwner],
+) -> None:
+    user = dialog_manager.middleware_data[USER_KEY]
+    partner_id = dialog_manager.dialog_data.get(_PARTNER_ID)
+    if not partner_id:
+        return
+
+    attached = await toggle_owner(
+        user, ToggleLinkOwnerDto(link_id=int(item_id), partner_id=int(partner_id))
+    )
+    await callback.answer("Ссылка закреплена" if attached else "Закрепление снято")
+    await dialog_manager.show()

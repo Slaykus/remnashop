@@ -16,9 +16,11 @@ from .partners import (
     on_min_payout_input,
     on_partner_add_input,
     on_partner_select,
+    on_link_toggle,
     on_partner_toggle_active,
     on_pay,
     on_rate_input,
+    partner_links_getter,
     partner_view_getter,
     partners_getter,
 )
@@ -687,6 +689,35 @@ partner_edit_min = _partner_input_window(
 )
 
 
+partner_links = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-partner-links"),
+    ScrollingGroup(
+        Select(
+            text=Format("{item[title]}"),
+            id="partner_link_select",
+            item_id_getter=lambda item: item["id"],
+            items="links",
+            type_factory=int,
+            on_click=on_link_toggle,
+        ),
+        id="partner_links_scroll",
+        width=1,
+        height=8,
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PARTNER_VIEW,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PARTNER_LINKS,
+    getter=partner_links_getter,
+)
+
+
 router = Dialog(
     partners_list,
     partner_view,
@@ -694,6 +725,7 @@ router = Dialog(
     partner_edit_rate,
     partner_edit_hold,
     partner_edit_min,
+    partner_links,
     ad_list,
     ad_view,
     ad_create_name,

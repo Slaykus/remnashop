@@ -1576,3 +1576,17 @@ msg-advertising-partner-min =
 
     Below this amount a payout is not issued: small transfers cost more than
     they are worth.
+
+msg-advertising-partner-links =
+    <b>🔗 Links of partner { $name }</b>
+
+    Tapping attaches a link to the partner or detaches it.
+
+    <blockquote>
+    • ✅ — attached to this partner
+    • ▫️ — free
+    • 🔒 — taken by another partner
+    </blockquote>
+
+    Detaching does not touch what is already accrued: earnings are tied to a
+    payment and a partner, not to a link.

@@ -7,7 +7,7 @@ from typing import Optional
 from loguru import logger
 
 from src.application.common import Interactor
-from src.application.common.dao import PartnerDao, UserDao
+from src.application.common.dao import AdLinkDao, PartnerDao, UserDao
 from src.application.common.policy import Permission
 from src.application.common.uow import UnitOfWork
 from src.application.dto import PartnerDto, PartnerPayoutDto, UserDto
@@ -130,3 +130,50 @@ class MarkPartnerEarningsAvailable(Interactor[None, int]):
             count = await self.partner_dao.mark_available()
             await self.uow.commit()
         return count
+
+
+@dataclass(frozen=True)
+class ToggleLinkOwnerDto:
+    link_id: int
+    partner_id: int
+
+
+class ToggleLinkOwner(Interactor[ToggleLinkOwnerDto, bool]):
+    """
+    Закрепляет рекламную ссылку за партнёром либо снимает закрепление.
+
+    Возвращает новое состояние: True — ссылка теперь партнёрская.
+
+    Снятие не трогает уже начисленное. Начисления привязаны к платежу и
+    партнёру, а не к ссылке: иначе перестановка ссылки задним числом
+    переписывала бы историю выплат.
+    """
+
+    required_permission = Permission.MANAGE_PARTNERS
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        ad_link_dao: AdLinkDao,
+        partner_dao: PartnerDao,
+    ) -> None:
+        self.uow = uow
+        self.ad_link_dao = ad_link_dao
+        self.partner_dao = partner_dao
+
+    async def _execute(self, actor: UserDto, data: ToggleLinkOwnerDto) -> bool:
+        partner = await self.partner_dao.get_by_id(data.partner_id)
+        link = await self.ad_link_dao.get_by_id(data.link_id)
+        if partner is None or link is None:
+            return False
+
+        attach = link.owner_user_id != partner.user_id
+        async with self.uow:
+            await self.ad_link_dao.set_owner(data.link_id, partner.user_id if attach else None)
+            await self.uow.commit()
+
+        logger.info(
+            f"[Partner] Link '{link.code}' {'attached to' if attach else 'detached from'} "
+            f"partner '{partner.id}' by {actor.log}"
+        )
+        return attach

@@ -102,6 +102,21 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
         logger.debug(f"[AdLink] Updated link id={dto.id}")
         return self._convert(row)  # type: ignore[arg-type]
 
+    async def set_owner(self, link_id: int, owner_user_id: int | None) -> None:
+        """
+        Закрепляет ссылку за партнёром либо снимает закрепление.
+
+        Отдельным методом, а не полем в общем update: тот вызывается из
+        нескольких мест, и владелец там не заполняется — его бы стирало
+        при каждой правке названия или бонуса.
+        """
+        await self.session.execute(
+            update(AdLink)
+            .where(AdLink.id == link_id)
+            .values(owner_user_id=owner_user_id, updated_at=datetime.now(timezone.utc))
+        )
+        logger.info(f"[AdLink] Link '{link_id}' owner set to '{owner_user_id}'")
+
     async def delete(self, id: int) -> None:
         stmt = select(AdLink).where(AdLink.id == id)
         row = await self.session.scalar(stmt)
