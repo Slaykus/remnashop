@@ -22,6 +22,7 @@ from .partners import (
     on_pay,
     on_rate_input,
     partner_links_getter,
+    partners_comparison_getter,
     partner_view_getter,
     partners_getter,
 )
@@ -585,6 +586,11 @@ partners_list = Window(
             id="partner_add",
             state=RemnashopAdvertising.PARTNER_ADD,
         ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partners-comparison"),
+            id="partners_comparison_btn",
+            state=RemnashopAdvertising.PARTNERS_COMPARISON,
+        ),
     ),
     Row(
         SwitchTo(text=I18nFormat("btn-back.general"), id="back", state=RemnashopAdvertising.LIST),
@@ -736,6 +742,23 @@ partner_links = Window(
 )
 
 
+partners_comparison = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-partners-comparison"),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PARTNERS,
+        ),
+        *main_menu_button,
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PARTNERS_COMPARISON,
+    getter=partners_comparison_getter,
+)
+
+
 router = Dialog(
     partners_list,
     partner_view,
@@ -745,6 +768,7 @@ router = Dialog(
     partner_edit_min,
     partner_edit_bonus,
     partner_links,
+    partners_comparison,
     ad_list,
     ad_view,
     ad_create_name,

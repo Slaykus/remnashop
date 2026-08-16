@@ -1970,3 +1970,18 @@ msg-advertising-partner-bonus =
     ему выгодно ставить максимум.
 
     Сейчас: <b>{ $max_bonus_days } дн.</b>
+
+msg-advertising-partners-comparison =
+    <b>📊 Партнёры: сравнение</b>
+
+    <blockquote>
+    • <b>Партнёров</b>: { $count }
+    • <b>Выручка от них</b>: { $revenue_total } ₽
+    • <b>Начислено</b>: { $accrued_total } ₽
+    • <b>К выплате</b>: { $unpaid_total } ₽
+    </blockquote>
+
+    { $is_empty ->
+    [true] Партнёров пока нет.
+    *[false] { $rows }
+    }

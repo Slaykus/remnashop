@@ -451,3 +451,68 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
         await self.session.execute(
             update(Partner).where(Partner.id == partner_id).values(payout_requested_at=when)
         )
+
+    async def get_comparison(self) -> list[dict]:
+        """
+        Все партнёры одной строкой каждый: сколько привели и сколько стоят.
+
+        Одним запросом, а не обходом партнёров по очереди: при десятке
+        партнёров обход давал бы десятки запросов на каждое открытие экрана.
+        """
+        raw = await self.session.execute(
+            text(
+                """
+                SELECT
+                    p.id,
+                    u.name AS name,
+                    u.telegram_id,
+                    p.rate_pct,
+                    p.is_active,
+                    p.payout_requested_at IS NOT NULL AS requested,
+                    COALESCE(l.links, 0) AS links,
+                    COALESCE(l.clicks, 0) AS clicks,
+                    COALESCE(e.payments, 0) AS payments,
+                    COALESCE(e.revenue, 0) AS revenue,
+                    COALESCE(e.accrued, 0) AS accrued,
+                    COALESCE(e.unpaid, 0) AS unpaid
+                FROM partners p
+                JOIN users u ON u.id = p.user_id
+                LEFT JOIN (
+                    SELECT owner_user_id,
+                           COUNT(*) AS links,
+                           COALESCE(SUM(clicks_count), 0) AS clicks
+                    FROM ad_links
+                    WHERE owner_user_id IS NOT NULL
+                    GROUP BY owner_user_id
+                ) l ON l.owner_user_id = p.user_id
+                LEFT JOIN (
+                    SELECT partner_id,
+                           COUNT(*) AS payments,
+                           COALESCE(SUM(payment_amount), 0) AS revenue,
+                           COALESCE(SUM(amount), 0) AS accrued,
+                           COALESCE(SUM(amount) FILTER (WHERE status <> 'paid'), 0) AS unpaid
+                    FROM partner_earnings
+                    WHERE status <> 'canceled'
+                    GROUP BY partner_id
+                ) e ON e.partner_id = p.id
+                ORDER BY COALESCE(e.revenue, 0) DESC, p.id
+                """
+            )
+        )
+        return [
+            {
+                "id": r["id"],
+                "name": r["name"] or f"#{r['telegram_id']}",
+                "telegram_id": r["telegram_id"],
+                "rate_pct": float(r["rate_pct"]),
+                "is_active": bool(r["is_active"]),
+                "requested": bool(r["requested"]),
+                "links": int(r["links"]),
+                "clicks": int(r["clicks"]),
+                "payments": int(r["payments"]),
+                "revenue": float(r["revenue"]),
+                "accrued": float(r["accrued"]),
+                "unpaid": float(r["unpaid"]),
+            }
+            for r in raw.mappings().all()
+        ]

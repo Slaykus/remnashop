@@ -170,6 +170,7 @@ class RemnashopAdvertising(StatesGroup):
     PARTNER_EDIT_MIN = State()
     PARTNER_LINKS = State()
     PARTNER_EDIT_BONUS = State()
+    PARTNERS_COMPARISON = State()
 
 
 class RemnashopReferral(StatesGroup):

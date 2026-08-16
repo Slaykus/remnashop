@@ -29,6 +29,7 @@ from src.application.use_cases.partner.commands.manage import (
 from src.application.use_cases.partner.queries.list import (
     GetPartnerOverview,
     GetPartners,
+    GetPartnersComparison,
 )
 from src.core.constants import USER_KEY
 from src.telegram.states import RemnashopAdvertising
@@ -314,3 +315,40 @@ async def on_bonus_cap_input(
         await message.answer("Потолок бонуса — целое число дней от 0 до 90.")
         return
     await _apply(dialog_manager, update_terms, max_bonus_days=int(raw))
+
+
+@inject
+async def partners_comparison_getter(
+    dialog_manager: DialogManager,
+    get_comparison: FromDishka[GetPartnersComparison],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """
+    Сводная таблица по всем партнёрам.
+
+    Сортировка по выручке задана в запросе: первым идёт тот, кто принёс
+    больше денег, а не тот, кого завели раньше.
+    """
+    user = dialog_manager.middleware_data[USER_KEY]
+    rows = await get_comparison(user)
+
+    lines = []
+    for r in rows:
+        mark = "" if r["is_active"] else " (откл.)"
+        ask = " · запрос" if r["requested"] else ""
+        lines.append(
+            f"<b>{r['name']}</b>{mark}{ask}\n"
+            f"выручка {int(r['revenue'])} ₽ · начислено {int(r['accrued'])} ₽ "
+            f"· к выплате {int(r['unpaid'])} ₽\n"
+            f"ссылок {r['links']} · переходов {r['clicks']} · оплат {r['payments']} "
+            f"· ставка {r['rate_pct']:.0f}%"
+        )
+
+    return {
+        "is_empty": not rows,
+        "rows": "\n\n".join(lines),
+        "count": len(rows),
+        "revenue_total": int(sum(r["revenue"] for r in rows)),
+        "accrued_total": int(sum(r["accrued"] for r in rows)),
+        "unpaid_total": int(sum(r["unpaid"] for r in rows)),
+    }

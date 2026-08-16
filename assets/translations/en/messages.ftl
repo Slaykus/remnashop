@@ -1605,3 +1605,18 @@ msg-advertising-partner-bonus =
     better off setting the maximum.
 
     Now: <b>{ $max_bonus_days } days</b>
+
+msg-advertising-partners-comparison =
+    <b>📊 Partners: comparison</b>
+
+    <blockquote>
+    • <b>Partners</b>: { $count }
+    • <b>Revenue from them</b>: { $revenue_total } ₽
+    • <b>Accrued</b>: { $accrued_total } ₽
+    • <b>Due</b>: { $unpaid_total } ₽
+    </blockquote>
+
+    { $is_empty ->
+    [true] No partners yet.
+    *[false] { $rows }
+    }

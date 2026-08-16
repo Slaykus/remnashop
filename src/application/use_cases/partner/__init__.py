@@ -13,7 +13,7 @@ from .commands.manage import (
     ToggleLinkOwner,
     UpdatePartnerTerms,
 )
-from .queries.list import GetPartnerOverview, GetPartners
+from .queries.list import GetPartnerOverview, GetPartners, GetPartnersComparison
 
 PARTNER_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     CreatePartner,
@@ -27,4 +27,5 @@ PARTNER_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     MarkPartnerEarningsAvailable,
     GetPartners,
     GetPartnerOverview,
+    GetPartnersComparison,
 )

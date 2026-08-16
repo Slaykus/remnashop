@@ -62,3 +62,21 @@ class GetPartnerOverview(Interactor[int, Optional[PartnerOverviewDto]]):
             payouts=await self.partner_dao.get_payouts(partner_id, limit=10),
             name=(user.name if user else None) or f"#{partner.user_id}",
         )
+
+
+class GetPartnersComparison(Interactor[None, list[dict]]):
+    """
+    Все партнёры в одной таблице: кто приносит деньги, а кто занимает место.
+
+    Отдельно от карточки: сравнивать по одной карточке нельзя, а именно
+    сравнение и отвечает на вопрос, кого поднимать в ставке, а с кем
+    расставаться.
+    """
+
+    required_permission = Permission.MANAGE_PARTNERS
+
+    def __init__(self, partner_dao: PartnerDao) -> None:
+        self.partner_dao = partner_dao
+
+    async def _execute(self, actor: UserDto, data: None) -> list[dict]:
+        return await self.partner_dao.get_comparison()
