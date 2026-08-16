@@ -1339,6 +1339,9 @@ class PartnerOverviewResponse(BaseModel):
     clicks: int
     signups: int
     links: list[dict]
+    # Дневной ряд за месяц: без него партнёр видит только итог и не понимает,
+    # растёт он или затухает.
+    daily: list[dict]
 
 
 @router.get(
@@ -1397,6 +1400,7 @@ async def partner_overview(
         clicks=clicks,
         signups=signups,
         links=links,
+        daily=await partner_dao.get_daily(partner.id, user.id),
     )
 
 

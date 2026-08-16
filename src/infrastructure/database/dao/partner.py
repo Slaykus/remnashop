@@ -5,7 +5,7 @@ from typing import Optional
 from adaptix import Retort
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from src.application.common.dao.partner import PartnerDao
@@ -371,4 +371,62 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
                 created_by=p.created_by,
             )
             for p in rows
+        ]
+
+    async def get_daily(self, partner_id: int, owner_user_id: int, days: int = 30) -> list[dict]:
+        """
+        Дневной ряд по всем ссылкам партнёра: переходы, регистрации, оплаты
+        и его заработок.
+
+        Считается одним запросом с полным календарём дат: без него дни без
+        событий выпадали бы, и график рисовал бы ровную линию там, где на
+        самом деле провал.
+        """
+        raw = await self.session.execute(
+            text(
+                """
+                WITH days AS (
+                    SELECT generate_series(
+                        (now() AT TIME ZONE 'UTC')::date - (:days - 1) * INTERVAL '1 day',
+                        (now() AT TIME ZONE 'UTC')::date,
+                        INTERVAL '1 day'
+                    )::date AS day
+                ),
+                own AS (
+                    SELECT id FROM ad_links WHERE owner_user_id = :owner_id
+                ),
+                clicks AS (
+                    SELECT (alu.created_at AT TIME ZONE 'UTC')::date AS day,
+                           COUNT(DISTINCT alu.user_telegram_id) AS n
+                    FROM ad_link_users alu
+                    JOIN own ON own.id = alu.ad_link_id
+                    GROUP BY 1
+                ),
+                earned AS (
+                    SELECT (created_at AT TIME ZONE 'UTC')::date AS day,
+                           COUNT(*) AS payments,
+                           COALESCE(SUM(amount), 0) AS amount
+                    FROM partner_earnings
+                    WHERE partner_id = :partner_id AND status <> 'canceled'
+                    GROUP BY 1
+                )
+                SELECT d.day,
+                       COALESCE(c.n, 0) AS clicks,
+                       COALESCE(e.payments, 0) AS payments,
+                       COALESCE(e.amount, 0) AS earned
+                FROM days d
+                LEFT JOIN clicks c ON c.day = d.day
+                LEFT JOIN earned e ON e.day = d.day
+                ORDER BY d.day
+                """
+            ).bindparams(days=days, owner_id=owner_user_id, partner_id=partner_id)
+        )
+        return [
+            {
+                "day": row["day"].isoformat(),
+                "clicks": int(row["clicks"]),
+                "payments": int(row["payments"]),
+                "earned": float(row["earned"]),
+            }
+            for row in raw.mappings().all()
         ]
