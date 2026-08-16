@@ -565,3 +565,4 @@ btn-advertising =
     .partner-toggle = <e id="5424858262950111605">🔄</e> On/off
     .partner-pay = <e id="5427009714745517609">✅</e> Pay out
     .partner-links = <e id="5431492767249342148">🔗</e> Links
+    .partner-bonus = <e id="5433614043006903194">🎁</e> Bonus

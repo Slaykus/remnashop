@@ -169,6 +169,7 @@ class RemnashopAdvertising(StatesGroup):
     PARTNER_EDIT_HOLD = State()
     PARTNER_EDIT_MIN = State()
     PARTNER_LINKS = State()
+    PARTNER_EDIT_BONUS = State()
 
 
 class RemnashopReferral(StatesGroup):

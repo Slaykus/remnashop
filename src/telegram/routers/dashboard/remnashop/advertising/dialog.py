@@ -627,6 +627,11 @@ partner_view = Window(
             id="partner_links_btn",
             state=RemnashopAdvertising.PARTNER_LINKS,
         ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partner-bonus"),
+            id="partner_bonus_btn",
+            state=RemnashopAdvertising.PARTNER_EDIT_BONUS,
+        ),
     ),
     # Кнопка выплаты появляется, только когда есть что платить: пустая
     # кнопка выплаты выглядит как поломка.
@@ -691,6 +696,11 @@ partner_edit_rate = _partner_input_window(
 partner_edit_hold = _partner_input_window(
     RemnashopAdvertising.PARTNER_EDIT_HOLD, "msg-advertising-partner-hold", on_hold_input
 )
+partner_edit_bonus = _partner_input_window(
+    RemnashopAdvertising.PARTNER_EDIT_BONUS,
+    "msg-advertising-partner-bonus",
+    on_bonus_cap_input,
+)
 partner_edit_min = _partner_input_window(
     RemnashopAdvertising.PARTNER_EDIT_MIN, "msg-advertising-partner-min", on_min_payout_input
 )
@@ -732,6 +742,7 @@ router = Dialog(
     partner_edit_rate,
     partner_edit_hold,
     partner_edit_min,
+    partner_edit_bonus,
     partner_links,
     ad_list,
     ad_view,

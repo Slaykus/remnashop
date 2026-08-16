@@ -80,6 +80,7 @@ async def partner_view_getter(
         "min_payout": str(p.min_payout),
         "is_active": p.is_active,
         "payout_details": p.payout_details or "—",
+        "max_bonus_days": p.max_bonus_days,
         #
         "pending": str(b.pending),
         "available": str(b.available),
@@ -293,3 +294,23 @@ async def on_link_toggle(
     )
     await callback.answer("Ссылка закреплена" if attached else "Закрепление снято")
     await dialog_manager.show()
+
+
+@inject
+async def on_bonus_cap_input(
+    message: Message,
+    widget: Any,
+    dialog_manager: DialogManager,
+    update_terms: FromDishka[UpdatePartnerTerms],
+) -> None:
+    """
+    Потолок бонуса для партнёра.
+
+    Ноль означает «раздавать дни нельзя»: это и значение по умолчанию, пока
+    владелец не разрешил явно.
+    """
+    raw = (message.text or "").strip()
+    if not raw.isdigit() or int(raw) > 90:
+        await message.answer("Потолок бонуса — целое число дней от 0 до 90.")
+        return
+    await _apply(dialog_manager, update_terms, max_bonus_days=int(raw))

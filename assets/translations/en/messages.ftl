@@ -1594,3 +1594,14 @@ msg-advertising-partner-links =
 
     Detaching does not touch what is already accrued: earnings are tied to a
     payment and a partner, not to a link.
+
+msg-advertising-partner-bonus =
+    <b>🎁 Bonus cap</b>
+
+    How many days the partner may set on their own link. Zero means they may
+    not give days at all.
+
+    The cap exists because the bonus is not their money: without it they are
+    better off setting the maximum.
+
+    Now: <b>{ $max_bonus_days } days</b>
