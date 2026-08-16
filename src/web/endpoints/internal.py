@@ -1342,6 +1342,10 @@ class PartnerOverviewResponse(BaseModel):
     # Дневной ряд за месяц: без него партнёр видит только итог и не понимает,
     # растёт он или затухает.
     daily: list[dict]
+    # История: без неё «начислено 4200 ₽» — число без объяснения, и первый
+    # же вопрос партнёра будет «откуда».
+    earnings: list[dict]
+    payouts: list[dict]
 
 
 @router.get(
@@ -1401,6 +1405,25 @@ async def partner_overview(
         signups=signups,
         links=links,
         daily=await partner_dao.get_daily(partner.id, user.id),
+        earnings=[
+            {
+                "amount": float(e.amount),
+                "rate_pct": float(e.rate_pct),
+                "payment_amount": float(e.payment_amount),
+                "status": e.status,
+                "created_at": e.created_at.isoformat(),
+                "available_at": e.available_at.isoformat(),
+            }
+            for e in await partner_dao.get_earnings(partner.id, limit=50)
+        ],
+        payouts=[
+            {
+                "amount": float(p.amount),
+                "created_at": p.created_at.isoformat(),
+                "note": p.note,
+            }
+            for p in await partner_dao.get_payouts(partner.id, limit=20)
+        ],
     )
 
 
