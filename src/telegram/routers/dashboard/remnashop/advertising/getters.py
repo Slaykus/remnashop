@@ -5,6 +5,7 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
 from src.application.common.dao.ad_link import AdLinkDao
+from src.application.common.dao.user import UserDao
 from src.application.common import BotService
 from src.application.use_cases.ad_link.queries.list import (
     GetAdLinkStats,
@@ -44,6 +45,7 @@ async def list_getter(
 async def view_getter(
     dialog_manager: DialogManager,
     ad_link_dao: FromDishka[AdLinkDao],
+    user_dao: FromDishka[UserDao],
     get_ad_link_stats: FromDishka[GetAdLinkStats],
     bot_service: FromDishka[BotService],
     **kwargs: Any,
@@ -57,7 +59,16 @@ async def view_getter(
     stats = await get_ad_link_stats(user, link.id)
     deep_link = await bot_service.get_ad_link_url(link.code)
 
+    # Владелец: без него по карточке не понять, партнёрская ссылка или своя,
+    # и почему с неё идут начисления.
+    owner_name = "—"
+    if link.owner_user_id is not None:
+        owner = await user_dao.get_by_id(link.owner_user_id)
+        owner_name = (owner.name if owner else None) or f"#{link.owner_user_id}"
+
     return {
+        "is_partner_link": link.owner_user_id is not None,
+        "owner_name": owner_name,
         "link_id": link.id,
         "name": link.name,
         "code": link.code,

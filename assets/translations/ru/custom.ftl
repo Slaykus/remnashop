@@ -498,6 +498,10 @@ msg-advertising-view =
     }
     Код: <code>{ $code }</code>
     Ссылка: <code>{ $deep_link }</code>
+    { $is_partner_link ->
+    [true] Партнёр: <b>{ $owner_name }</b>
+    *[false] Своя реклама
+    }
 
     <b>Бонусы при переходе:</b>
     • Баллы: <b>{ $bonus_points }</b>

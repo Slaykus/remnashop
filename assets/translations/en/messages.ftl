@@ -1421,6 +1421,10 @@ msg-advertising-view =
     }
     Code: <code>{ $code }</code>
     Link: <code>{ $deep_link }</code>
+    { $is_partner_link ->
+    [true] Partner: <b>{ $owner_name }</b>
+    *[false] Own advertising
+    }
 
     <b>Bonuses on click:</b>
     • Points: <b>{ $bonus_points }</b>
