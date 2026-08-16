@@ -3,7 +3,7 @@ from typing import Final
 from src.application.common import Interactor
 
 from .commands.crud import CreateAdLink, DeleteAdLink, UpdateAdLink
-from .commands.process_click import ProcessAdClick
+from .commands.process_click import ApplyPendingAdBonus, ProcessAdClick
 from .queries.list import (
     GetAdLinkDailyStats,
     GetAdLinkPeriodStats,
@@ -14,6 +14,7 @@ from .queries.list import (
 
 AD_LINK_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     ProcessAdClick,
+    ApplyPendingAdBonus,
     CreateAdLink,
     UpdateAdLink,
     DeleteAdLink,

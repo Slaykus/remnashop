@@ -7,6 +7,10 @@ from loguru import logger
 from src.application.common import EventPublisher, Interactor, Remnawave
 from src.application.common.dao import PlanDao, SubscriptionDao, UserDao
 from src.application.common.uow import UnitOfWork
+from src.application.use_cases.ad_link.commands.process_click import (
+    ApplyPendingAdBonus,
+    ApplyPendingAdBonusDto,
+)
 from src.application.dto import PlanSnapshotDto, SubscriptionDto, TransactionDto, UserDto
 from src.application.events import TrialActivatedEvent
 from src.core.enums import PurchaseType, SubscriptionStatus
@@ -271,12 +275,14 @@ class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
         subscription_dao: SubscriptionDao,
         plan_dao: PlanDao,
         remnawave: Remnawave,
+        apply_ad_bonus: ApplyPendingAdBonus,
     ) -> None:
         self.uow = uow
         self.user_dao = user_dao
         self.subscription_dao = subscription_dao
         self.plan_dao = plan_dao
         self.remnawave = remnawave
+        self.apply_ad_bonus = apply_ad_bonus
 
     async def _execute(self, actor: UserDto, data: ActivateFreePlanDto) -> SubscriptionDto:
         user = await self.user_dao.get_by_telegram_id(data.telegram_id)
@@ -331,4 +337,15 @@ class ActivateFreePlan(Interactor[ActivateFreePlanDto, SubscriptionDto]):
             await self.uow.commit()
 
         logger.info(f"ActivateFreePlan: trial activated for telegram_id={data.telegram_id}")
+        # Бонусные дни рекламной ссылки выдаются здесь, а не в момент
+        # перехода: тогда подписки ещё нет, и добавлять дни не к чему.
+        # Сбой выдачи не отменяет активацию — пробный период человеку
+        # важнее, а недостающий бонус виден в логе.
+        try:
+            await self.apply_ad_bonus.system(
+                ApplyPendingAdBonusDto(telegram_id=data.telegram_id)
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось выдать отложенный бонус {data.telegram_id}: {e}")
+
         return trial_subscription

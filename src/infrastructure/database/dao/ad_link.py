@@ -102,6 +102,29 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
         logger.debug(f"[AdLink] Updated link id={dto.id}")
         return self._convert(row)  # type: ignore[arg-type]
 
+    async def get_pending_bonus(self, user_telegram_id: int) -> Optional[AdLinkDto]:
+        """
+        Ссылка, бонус по которой этому человеку ещё не выдан.
+
+        Нужна потому, что бонусные дни нельзя выдать в момент перехода: у
+        новичка ещё нет подписки, к которой их добавлять. Выдача
+        откладывается до появления подписки, а признаком служит
+        bonus_issued = false.
+        """
+        row = (
+            await self.session.execute(
+                select(AdLink)
+                .join(AdLinkUser, AdLinkUser.ad_link_id == AdLink.id)
+                .where(
+                    AdLinkUser.user_telegram_id == user_telegram_id,
+                    AdLinkUser.bonus_issued.is_(False),
+                )
+                .order_by(AdLinkUser.created_at.asc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return self._convert(row) if row else None
+
     async def set_owner(self, link_id: int, owner_user_id: int | None) -> None:
         """
         Закрепляет ссылку за партнёром либо снимает закрепление.
