@@ -11,6 +11,17 @@ from src.telegram.states import DashboardRemnashop, RemnashopAdvertising
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
 
+from .partners import (
+    on_hold_input,
+    on_min_payout_input,
+    on_partner_add_input,
+    on_partner_select,
+    on_pay,
+    on_rate_input,
+    on_toggle_active,
+    partner_view_getter,
+    partners_getter,
+)
 from .getters import (
     analytics_getter,
     comparison_getter,
