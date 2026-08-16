@@ -2,6 +2,7 @@ from dishka import Provider, Scope, provide
 
 from src.application.common.dao import (
     AdLinkDao,
+    PartnerDao,
     AuthSessionDao,
     BroadcastDao,
     NodeQuotaDao,
@@ -20,6 +21,7 @@ from src.application.common.dao import (
 )
 from src.infrastructure.database.dao import (
     AdLinkDaoImpl,
+    PartnerDaoImpl,
     BroadcastDaoImpl,
     NodeQuotaDaoImpl,
     PaymentGatewayDaoImpl,
@@ -42,6 +44,7 @@ class DaoProvider(Provider):
     scope = Scope.REQUEST
 
     ad_link = provide(source=AdLinkDaoImpl, provides=AdLinkDao)
+    partner = provide(source=PartnerDaoImpl, provides=PartnerDao)
     node_quota = provide(source=NodeQuotaDaoImpl, provides=NodeQuotaDao)
     broadcast = provide(source=BroadcastDaoImpl, provides=BroadcastDao)
     payment_gateway = provide(source=PaymentGatewayDaoImpl, provides=PaymentGatewayDao)

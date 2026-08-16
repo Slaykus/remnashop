@@ -16,6 +16,7 @@ from src.application.common import (
     TranslatorHub,
 )
 from src.application.common.dao import (
+    PartnerDao,
     PaymentGatewayDao,
     PromocodeDao,
     ReferralDao,
@@ -340,6 +341,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         purchase_subscription: PurchaseSubscription,
         create_promocode: CreatePromocode,
         promocode_dao: PromocodeDao,
+        partner_dao: PartnerDao,
         retort: Retort,
         config: AppConfig,
     ) -> None:
@@ -355,6 +357,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         self.purchase_subscription = purchase_subscription
         self.create_promocode = create_promocode
         self.promocode_dao = promocode_dao
+        self.partner_dao = partner_dao
         self.retort = retort
         self.config = config
 
@@ -533,6 +536,43 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
             ),
         )
 
+    async def _accrue_partner_share(self, user: UserDto, transaction: TransactionDto) -> None:
+        """
+        Записывает долю партнёра с подтверждённого платежа.
+
+        Начисление считается один раз и дальше не пересчитывается: запрос
+        задним числом «все оплаты этого человека» меняется со временем и
+        способен зачесть один платёж двум партнёрам сразу. Ставка тоже
+        запоминается — её повышение не должно переписывать прошлое.
+
+        Сбой начисления не отменяет покупку: подписка человеку важнее, а
+        недостающее начисление видно в журнале и восстанавливается вручную.
+        """
+        try:
+            # id по умолчанию 0, а не None: транзакция без него не сохранена,
+            # и привязывать начисление не к чему.
+            if not transaction.id:
+                logger.warning(
+                    f"[Partner] Transaction '{transaction.payment_id}' has no id, skipping accrual"
+                )
+                return
+            await self.partner_dao.accrue_for_payment(
+                transaction_id=transaction.id,
+                user_id=user.id,
+                payment_amount=transaction.pricing.final_amount,
+            )
+        except Exception as e:
+            logger.error(
+                f"[Partner] Failed to accrue for transaction '{transaction.payment_id}': {e}"
+            )
+            await self.event_publisher.publish(
+                ErrorEvent(
+                    **self.config.build.data,
+                    telegram_id=user.telegram_id,
+                    exception=e,
+                )
+            )
+
     async def _handle_success(self, user: UserDto, transaction: TransactionDto) -> None:
         if transaction.is_test:
             await self.notifier.notify_user(user, i18n_key="ntf-gateway.test-payment-confirmed")
@@ -544,6 +584,8 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         if transaction.is_gift:
             await self._issue_gift_promocode(user, transaction)
             return
+
+        await self._accrue_partner_share(user, transaction)
 
         subscription = await self.subscription_dao.get_current(user.id)
         old_plan = subscription.plan_snapshot if subscription else None

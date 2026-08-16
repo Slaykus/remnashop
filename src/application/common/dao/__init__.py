@@ -1,5 +1,6 @@
 from .activity import RecentActivityDao
 from .ad_link import AdLinkDao
+from .partner import PartnerDao
 from .auth import AuthSessionDao
 from .broadcast import BroadcastDao
 from .oauth_provider import UserOAuthProviderDao
@@ -19,6 +20,7 @@ from .ad_link import AdLinkDao
 __all__ = [
     "RecentActivityDao",
     "AdLinkDao",
+    "PartnerDao",
     "AuthSessionDao",
     "BroadcastDao",
     "UserOAuthProviderDao",

@@ -1,0 +1,48 @@
+from decimal import Decimal
+from typing import Optional, Protocol, runtime_checkable
+
+from src.application.dto.partner import (
+    PartnerBalanceDto,
+    PartnerDto,
+    PartnerEarningDto,
+)
+
+
+@runtime_checkable
+class PartnerDao(Protocol):
+    async def get_by_id(self, partner_id: int) -> Optional[PartnerDto]: ...
+
+    async def get_by_user_id(self, user_id: int) -> Optional[PartnerDto]: ...
+
+    async def get_all(self) -> list[PartnerDto]: ...
+
+    async def create(self, user_id: int) -> PartnerDto: ...
+
+    async def update_terms(
+        self,
+        partner_id: int,
+        rate_pct: Optional[Decimal] = None,
+        hold_days: Optional[int] = None,
+        min_payout: Optional[Decimal] = None,
+        is_active: Optional[bool] = None,
+        payout_details: Optional[str] = None,
+    ) -> None: ...
+
+    async def accrue_for_payment(
+        self,
+        transaction_id: int,
+        user_id: int,
+        payment_amount: Decimal,
+    ) -> Optional[PartnerEarningDto]:
+        """
+        Начисляет партнёру долю с подтверждённого платежа.
+
+        None — начислять некому либо начисление уже есть.
+        """
+        ...
+
+    async def get_balance(self, partner_id: int) -> PartnerBalanceDto: ...
+
+    async def get_earnings(
+        self, partner_id: int, limit: int = 50, offset: int = 0
+    ) -> list[PartnerEarningDto]: ...

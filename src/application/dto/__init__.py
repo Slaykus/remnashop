@@ -1,3 +1,4 @@
+from .partner import PartnerBalanceDto, PartnerDto, PartnerEarningDto
 from .ad_link import AdLinkDto, AdLinkStatsDto, AdLinkUserDto
 from .node_quota import UserNodeQuotaDto
 from .base import BaseDto, TimestampMixin, TrackableMixin
@@ -47,6 +48,9 @@ from .user import TelegramUserDto, TempUserDto, UserDto, UserOAuthProviderDto
 
 __all__ = [
     "AdLinkDto",
+    "PartnerDto",
+    "PartnerEarningDto",
+    "PartnerBalanceDto",
     "AdLinkStatsDto",
     "BaseDto",
     "TimestampMixin",

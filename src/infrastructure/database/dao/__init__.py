@@ -1,4 +1,5 @@
 from .ad_link import AdLinkDaoImpl
+from .partner import PartnerDaoImpl
 from .broadcast import BroadcastDaoImpl
 from .oauth_provider import UserOAuthProviderDaoImpl
 from .payment_gateway import PaymentGatewayDaoImpl
@@ -16,6 +17,7 @@ from .ad_link import AdLinkDaoImpl
 
 __all__ = [
     "AdLinkDaoImpl",
+    "PartnerDaoImpl",
     "BroadcastDaoImpl",
     "UserOAuthProviderDaoImpl",
     "PaymentGatewayDaoImpl",
