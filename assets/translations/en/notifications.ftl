@@ -247,6 +247,10 @@ ntf-ad =
     .code-invalid = ⚠️ <i>Ad link not found or unavailable.</i>
 
 ntf-partner =
+    .payout-confirmed =
+        <e id="5427009714745517609">✅</e> <b>Partner confirmed receipt</b>
+
+        { $name } confirmed the money arrived.
     .earning =
         <e id="5433758580765754681">💰</e> <b>Earned { $amount } ₽</b>
 

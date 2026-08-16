@@ -33,6 +33,8 @@ from src.application.dto import ReferralDto, UserDto
 from src.application.use_cases.partner.commands.manage import (
     CreatePartnerLink,
     CreatePartnerLinkDto,
+    ConfirmPayout,
+    ConfirmPayoutDto,
     RequestPayout,
     RequestPayoutDto,
     SetLinkBonus,
@@ -1458,9 +1460,11 @@ async def partner_overview(
         ],
         payouts=[
             {
+                "id": p.id,
                 "amount": float(p.amount),
                 "created_at": p.created_at.isoformat(),
                 "note": p.note,
+                "confirmed": p.confirmed_at is not None,
             }
             for p in await partner_dao.get_payouts(partner.id, limit=20)
         ],
@@ -1576,3 +1580,21 @@ async def set_link_bonus(
     if applied is None:
         raise HTTPException(status_code=404, detail="Link not found or not yours")
     return LinkBonusResponse(bonus_days=applied)
+
+
+@router.post(
+    "/partners/{telegram_id}/payouts/{payout_id}/confirm",
+    status_code=204,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def confirm_payout(
+    telegram_id: int,
+    payout_id: int,
+    confirm: FromDishka[ConfirmPayout],
+) -> None:
+    ok = await confirm.system(
+        ConfirmPayoutDto(telegram_id=telegram_id, payout_id=payout_id)
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Payout not found or already confirmed")

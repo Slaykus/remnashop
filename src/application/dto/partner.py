@@ -61,5 +61,6 @@ class PartnerPayoutDto(BaseDto):
     note: Optional[str] = field(default=None)
     created_at: datetime
     created_by: Optional[int] = field(default=None)
+    confirmed_at: Optional[datetime] = field(default=None)
     # Сколько начислений закрыто этой выплатой.
     earnings_count: int = 0

@@ -400,9 +400,28 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
                 note=p.note,
                 created_at=p.created_at,
                 created_by=p.created_by,
+                confirmed_at=p.confirmed_at,
             )
             for p in rows
         ]
+
+    async def confirm_payout(self, payout_id: int, partner_id: int) -> bool:
+        """
+        Партнёр подтверждает, что деньги дошли.
+
+        Проверяем принадлежность прямо в условии: подтвердить чужую выплату
+        нельзя, даже зная её номер. Повторное подтверждение ничего не меняет.
+        """
+        result = await self.session.execute(
+            update(PartnerPayout)
+            .where(
+                PartnerPayout.id == payout_id,
+                PartnerPayout.partner_id == partner_id,
+                PartnerPayout.confirmed_at.is_(None),
+            )
+            .values(confirmed_at=datetime.now(timezone.utc))
+        )
+        return bool(result.rowcount)
 
     async def get_daily(self, partner_id: int, owner_user_id: int, days: int = 30) -> list[dict]:
         """

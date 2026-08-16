@@ -491,3 +491,56 @@ class SetLinkBonus(Interactor[SetLinkBonusDto, Optional[int]]):
 
         logger.info(f"[Partner] Link '{link.code}' bonus set to {value} days")
         return value
+
+
+@dataclass(frozen=True)
+class ConfirmPayoutDto:
+    telegram_id: int
+    payout_id: int
+
+
+class ConfirmPayout(Interactor[ConfirmPayoutDto, bool]):
+    """
+    Партнёр подтверждает получение денег.
+
+    До подтверждения выплата остаётся словом одной стороны: владелец нажал
+    «выплатить», а перевод мог не пройти — система об этом не узнала бы.
+    Владельцу уходит уведомление, чтобы он видел, что цепочка закрылась.
+    """
+
+    required_permission = Permission.VIEW_OWN_PARTNER_STATS
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+        notifier: Notifier,
+    ) -> None:
+        self.uow = uow
+        self.partner_dao = partner_dao
+        self.user_dao = user_dao
+        self.notifier = notifier
+
+    async def _execute(self, actor: UserDto, data: ConfirmPayoutDto) -> bool:
+        user = await self.user_dao.get_by_telegram_id(data.telegram_id)
+        if user is None or user.id is None:
+            return False
+
+        partner = await self.partner_dao.get_by_user_id(user.id)
+        if partner is None:
+            return False
+
+        async with self.uow:
+            ok = await self.partner_dao.confirm_payout(data.payout_id, partner.id)
+            await self.uow.commit()
+
+        if ok:
+            await self.notifier.notify_admins(
+                MessagePayloadDto(
+                    i18n_key="ntf-partner.payout-confirmed",
+                    i18n_kwargs={"name": user.name or f"#{user.id}"},
+                )
+            )
+            logger.info(f"[Partner] Payout '{data.payout_id}' confirmed by partner '{partner.id}'")
+        return ok

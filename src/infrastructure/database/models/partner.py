@@ -157,6 +157,11 @@ class PartnerPayout(BaseSql):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
+    # Когда партнёр подтвердил получение. Пока пусто — выплата остаётся
+    # словом одной стороны.
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     # Кто отметил выплату. Нужно, когда партнёров ведёт не один человек.
     created_by: Mapped[Optional[int]] = mapped_column(
         Integer,
