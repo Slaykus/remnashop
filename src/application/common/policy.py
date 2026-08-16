@@ -39,6 +39,8 @@ class Permission(UpperStrEnum):
     VIEW_GATEWAYS = auto()
     VIEW_REFERRAL = auto()
     VIEW_ADVERTISING = auto()
+    MANAGE_PARTNERS = auto()
+    VIEW_OWN_PARTNER_STATS = auto()
     VIEW_PLANS = auto()
     VIEW_NOTIFICATIONS = auto()
     VIEW_LOGS = auto()
@@ -89,6 +91,12 @@ ROLE_PERMISSIONS: Final[dict[Role, set[Permission]]] = {
         Permission.USER_EDITOR,
         Permission.USER_SUBSCRIPTION_EDITOR,
         Permission.USER_SYNC,
+    },
+    # Партнёр видит только своё: метрики по своим ссылкам, баланс и историю
+    # начислений. Ни чужих ссылок, ни данных приглашённых людей — это и
+    # позиция по данным пользователей, и защита от увода базы.
+    Role.PARTNER: {
+        Permission.VIEW_OWN_PARTNER_STATS,
     },
     Role.PREVIEW: {  # TODO: Implement demo Bot instance
         Permission.VIEW_DASHBOARD,

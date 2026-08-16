@@ -23,6 +23,15 @@ class AdLink(BaseSql, TimestampMixin):
     promo_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     promo_photo_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     promo_buttons: Mapped[list[Any]] = mapped_column(PgJSONB, nullable=False, server_default="[]", default=list)
+    # Владелец ссылки. Пусто — своя реклама, как было; заполнено —
+    # партнёрская, и с её платежей идут начисления.
+    owner_user_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        default=None,
+    )
 
 
 class AdLinkUser(BaseSql):

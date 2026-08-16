@@ -12,9 +12,13 @@ from .transaction import Transaction
 from .user import User
 from .node_quota import UserNodeQuota
 from .ad_link import AdLink, AdLinkUser
+from .partner import Partner, PartnerEarning, PartnerPayout
 
 __all__ = [
     "AdLink",
+    "Partner",
+    "PartnerEarning",
+    "PartnerPayout",
     "BaseSql",
     "Promocode",
     "PromocodeActivation",

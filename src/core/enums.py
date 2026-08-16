@@ -230,6 +230,9 @@ class Role(IntEnum):
     DEV = auto()
     OWNER = auto()
     SYSTEM = auto()
+    # Только в конец: в базе роль лежит перечнем Postgres по имени, но
+    # порядок членов здесь всё равно не стоит трогать без нужды.
+    PARTNER = auto()
 
     def __str__(self) -> str:
         return self.name
