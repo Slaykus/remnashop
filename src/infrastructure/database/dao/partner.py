@@ -50,6 +50,7 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
             payout_details=p.payout_details,
             note=p.note,
             created_at=getattr(p, "created_at", None),
+            payout_requested_at=p.payout_requested_at,
         )
 
     def _earning_to_dto(self, e: PartnerEarning) -> PartnerEarningDto:
@@ -335,6 +336,12 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
             .values(status="paid", paid_at=now, payout_id=payout.id)
         )
 
+        # Запрос закрыт — иначе отметка висела бы вечно и следующий запрос
+        # партнёра не отличался бы от прошлого.
+        await self.session.execute(
+            update(Partner).where(Partner.id == partner_id).values(payout_requested_at=None)
+        )
+
         logger.info(
             f"[Partner] Payout {total} to partner '{partner_id}' covering {len(rows)} earnings"
         )
@@ -430,3 +437,9 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
             }
             for row in raw.mappings().all()
         ]
+
+    async def set_payout_requested(self, partner_id: int, when: Optional[datetime]) -> None:
+        """Ставит или снимает отметку о запросе выплаты."""
+        await self.session.execute(
+            update(Partner).where(Partner.id == partner_id).values(payout_requested_at=when)
+        )

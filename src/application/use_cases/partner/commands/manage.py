@@ -6,7 +6,10 @@ from typing import Optional
 
 from loguru import logger
 
-from src.application.common import Cryptographer, Interactor
+from datetime import datetime, timezone
+
+from src.application.common import Cryptographer, Interactor, Notifier
+from src.application.dto import MessagePayloadDto
 from src.application.common.dao import AdLinkDao, PartnerDao, UserDao
 from src.application.common.policy import Permission
 from src.application.common.uow import UnitOfWork
@@ -235,3 +238,115 @@ class CreatePartnerLink(Interactor[CreatePartnerLinkDto, Optional[str]]):
 
         logger.info(f"[Partner] Partner '{partner.id}' created link '{code}'")
         return code
+
+
+@dataclass(frozen=True)
+class RequestPayoutDto:
+    telegram_id: int
+
+
+class RequestPayout(Interactor[RequestPayoutDto, Optional[Decimal]]):
+    """
+    Партнёр просит выплату.
+
+    Возвращает сумму к выплате либо None, если платить нечего, сумма ниже
+    порога или запрос уже висит.
+
+    Владельцу уходит уведомление с суммой и реквизитами: без него он должен
+    был бы сам обходить всех партнёров и высматривать, у кого накопилось.
+
+    Повторный запрос уведомление не шлёт: партнёр нажмёт трижды, а владелец
+    получит три одинаковых сообщения и перестанет их читать.
+    """
+
+    required_permission = Permission.VIEW_OWN_PARTNER_STATS
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+        notifier: Notifier,
+    ) -> None:
+        self.uow = uow
+        self.partner_dao = partner_dao
+        self.user_dao = user_dao
+        self.notifier = notifier
+
+    async def _execute(self, actor: UserDto, data: RequestPayoutDto) -> Optional[Decimal]:
+        user = await self.user_dao.get_by_telegram_id(data.telegram_id)
+        if user is None or user.id is None:
+            return None
+
+        partner = await self.partner_dao.get_by_user_id(user.id)
+        if partner is None or not partner.is_active:
+            return None
+
+        if partner.payout_requested_at is not None:
+            return None
+
+        # Досчитываем отлежавшее прямо сейчас: иначе партнёр видит сумму,
+        # доступную по срокам, а запрос отказывает из-за неотработавшей задачи.
+        async with self.uow:
+            await self.partner_dao.mark_available()
+            await self.uow.commit()
+
+        balance = await self.partner_dao.get_balance(partner.id)
+        if balance.available < partner.min_payout:
+            return None
+
+        async with self.uow:
+            await self.partner_dao.set_payout_requested(partner.id, datetime.now(timezone.utc))
+            await self.uow.commit()
+
+        await self.notifier.notify_admins(
+            MessagePayloadDto(
+                i18n_key="ntf-partner.payout-requested",
+                i18n_kwargs={
+                    "name": user.name or f"#{user.id}",
+                    "amount": str(balance.available),
+                    "details": partner.payout_details or "не указаны",
+                },
+            )
+        )
+        logger.info(f"[Partner] Partner '{partner.id}' requested payout of {balance.available}")
+        return balance.available
+
+
+@dataclass(frozen=True)
+class SavePayoutDetailsDto:
+    telegram_id: int
+    details: str
+
+
+class SavePayoutDetails(Interactor[SavePayoutDetailsDto, bool]):
+    """
+    Партнёр сам вписывает, куда ему платить.
+
+    Свободный текст и никакого разбора на поля: способы у всех разные, а
+    структурированная финансовая база — лишняя ответственность там, где
+    достаточно строки для перевода.
+    """
+
+    required_permission = Permission.VIEW_OWN_PARTNER_STATS
+
+    def __init__(self, uow: UnitOfWork, partner_dao: PartnerDao, user_dao: UserDao) -> None:
+        self.uow = uow
+        self.partner_dao = partner_dao
+        self.user_dao = user_dao
+
+    async def _execute(self, actor: UserDto, data: SavePayoutDetailsDto) -> bool:
+        user = await self.user_dao.get_by_telegram_id(data.telegram_id)
+        if user is None or user.id is None:
+            return False
+
+        partner = await self.partner_dao.get_by_user_id(user.id)
+        if partner is None:
+            return False
+
+        async with self.uow:
+            await self.partner_dao.update_terms(
+                partner_id=partner.id, payout_details=data.details.strip()[:512]
+            )
+            await self.uow.commit()
+        return True

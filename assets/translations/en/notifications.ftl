@@ -245,3 +245,15 @@ ntf-ad =
         }
 
     .code-invalid = ⚠️ <i>Ad link not found or unavailable.</i>
+
+ntf-partner =
+    .payout-requested =
+        <e id="5433758580765754681">💰</e> <b>Partner requests a payout</b>
+
+        <blockquote>
+        • <b>Who</b>: { $name }
+        • <b>Amount</b>: { $amount } ₽
+        • <b>Details</b>: { $details }
+        </blockquote>
+
+        Issue it in the advertising section, partner card.

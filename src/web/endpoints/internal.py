@@ -33,6 +33,10 @@ from src.application.dto import ReferralDto, UserDto
 from src.application.use_cases.partner.commands.manage import (
     CreatePartnerLink,
     CreatePartnerLinkDto,
+    RequestPayout,
+    RequestPayoutDto,
+    SavePayoutDetails,
+    SavePayoutDetailsDto,
 )
 from src.application.dto.plan import PlanSnapshotDto
 from src.application.dto.transaction import PriceDetailsDto
@@ -1329,6 +1333,8 @@ class PartnerOverviewResponse(BaseModel):
     hold_days: int
     min_payout: float
     is_active: bool
+    payout_details: str
+    payout_requested: bool
     #
     pending: float
     available: float
@@ -1410,6 +1416,8 @@ async def partner_overview(
         hold_days=partner.hold_days,
         min_payout=float(partner.min_payout),
         is_active=partner.is_active,
+        payout_details=partner.payout_details or "",
+        payout_requested=partner.payout_requested_at is not None,
         pending=float(balance.pending),
         available=float(balance.available),
         paid=float(balance.paid),
@@ -1473,3 +1481,52 @@ async def create_partner_link(
     if code is None:
         raise HTTPException(status_code=404, detail="Not a partner")
     return CreatePartnerLinkResponse(code=code)
+
+
+class PayoutDetailsRequest(BaseModel):
+    details: str
+
+
+@router.put(
+    "/partners/{telegram_id}/payout-details",
+    status_code=204,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def save_payout_details(
+    telegram_id: int,
+    body: PayoutDetailsRequest,
+    save_details: FromDishka[SavePayoutDetails],
+) -> None:
+    ok = await save_details.system(
+        SavePayoutDetailsDto(telegram_id=telegram_id, details=body.details)
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not a partner")
+
+
+class PayoutRequestResponse(BaseModel):
+    amount: float
+
+
+@router.post(
+    "/partners/{telegram_id}/payout-request",
+    response_model=PayoutRequestResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def request_payout(
+    telegram_id: int,
+    request_payout_uc: FromDishka[RequestPayout],
+) -> PayoutRequestResponse:
+    """
+    Запрос выплаты от партнёра.
+
+    409 — платить нечего, сумма ниже порога либо запрос уже висит. Отличать
+    эти случаи снаружи незачем: партнёру во всех трёх нужно одно и то же —
+    подождать.
+    """
+    amount = await request_payout_uc.system(RequestPayoutDto(telegram_id=telegram_id))
+    if amount is None:
+        raise HTTPException(status_code=409, detail="Payout is not available yet")
+    return PayoutRequestResponse(amount=float(amount))

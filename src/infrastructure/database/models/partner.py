@@ -65,6 +65,10 @@ class Partner(BaseSql, TimestampMixin):
     # раскладывать их по колонкам сейчас значило бы гадать.
     payout_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    # Когда партнёр попросил выплату. Сбрасывается при её оформлении.
+    payout_requested_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
 
 class PartnerEarning(BaseSql):

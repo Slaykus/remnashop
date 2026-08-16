@@ -17,6 +17,7 @@ class PartnerDto(BaseDto):
     payout_details: Optional[str] = field(default=None)
     note: Optional[str] = field(default=None)
     created_at: Optional[datetime] = field(default=None)
+    payout_requested_at: Optional[datetime] = field(default=None)
 
 
 @dataclass(kw_only=True)
