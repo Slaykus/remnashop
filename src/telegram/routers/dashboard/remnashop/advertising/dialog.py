@@ -119,8 +119,8 @@ ad_view = Window(
     Row(
         Button(
             text=I18nFormat("btn-advertising.toggle-active"),
-            id="partner_toggle_active",
-            on_click=on_partner_toggle_active,
+            id="toggle_active",
+            on_click=on_toggle_active,
         ),
     ),
     Row(
@@ -617,8 +617,15 @@ partner_view = Window(
         ),
         Button(
             text=I18nFormat("btn-advertising.partner-toggle"),
-            id="toggle_active",
-            on_click=on_toggle_active,
+            id="partner_toggle_active",
+            on_click=on_partner_toggle_active,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partner-links"),
+            id="partner_links_btn",
+            state=RemnashopAdvertising.PARTNER_LINKS,
         ),
     ),
     # Кнопка выплаты появляется, только когда есть что платить: пустая
