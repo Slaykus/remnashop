@@ -16,9 +16,9 @@ from .partners import (
     on_min_payout_input,
     on_partner_add_input,
     on_partner_select,
+    on_partner_toggle_active,
     on_pay,
     on_rate_input,
-    on_toggle_active,
     partner_view_getter,
     partners_getter,
 )
@@ -118,7 +118,7 @@ ad_view = Window(
         Button(
             text=I18nFormat("btn-advertising.toggle-active"),
             id="toggle_active",
-            on_click=on_toggle_active,
+            on_click=on_partner_toggle_active,
         ),
     ),
     Row(

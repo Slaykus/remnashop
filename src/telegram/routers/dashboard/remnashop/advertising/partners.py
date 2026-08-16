@@ -186,7 +186,7 @@ async def _apply(
 
 
 @inject
-async def on_toggle_active(
+async def on_partner_toggle_active(
     callback: CallbackQuery,
     button: RawButton,
     dialog_manager: DialogManager,
@@ -206,6 +206,9 @@ async def on_toggle_active(
         user,
         UpdatePartnerTermsDto(partner_id=int(partner_id), is_active=not overview.partner.is_active),
     )
+    # Карточку надо перерисовать явно: без этого человек видит прежнее
+    # состояние и решает, что кнопка не сработала.
+    await dialog_manager.show()
 
 
 @inject
