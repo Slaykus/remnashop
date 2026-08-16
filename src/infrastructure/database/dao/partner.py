@@ -288,6 +288,22 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
             logger.info(f"[Partner] {count} earnings became available for payout")
         return count
 
+    async def get_partners_with_available(self) -> list[tuple[int, int, Decimal]]:
+        """Партнёры, у кого есть что выплачивать: (partner_id, user_id, сумма)."""
+        rows = (
+            await self.session.execute(
+                select(
+                    PartnerEarning.partner_id,
+                    Partner.user_id,
+                    func.sum(PartnerEarning.amount),
+                )
+                .join(Partner, Partner.id == PartnerEarning.partner_id)
+                .where(PartnerEarning.status == "available")
+                .group_by(PartnerEarning.partner_id, Partner.user_id)
+            )
+        ).all()
+        return [(int(r[0]), int(r[1]), Decimal(r[2])) for r in rows]
+
     async def create_payout(
         self,
         partner_id: int,

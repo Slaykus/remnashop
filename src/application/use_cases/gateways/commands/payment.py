@@ -556,11 +556,31 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                     f"[Partner] Transaction '{transaction.payment_id}' has no id, skipping accrual"
                 )
                 return
-            await self.partner_dao.accrue_for_payment(
+            earning = await self.partner_dao.accrue_for_payment(
                 transaction_id=transaction.id,
                 user_id=user.id,
                 payment_amount=transaction.pricing.final_amount,
             )
+            if earning is None:
+                return
+
+            # Партнёру сообщаем сразу: без этого он узнаёт о заработке,
+            # только если сам вспомнит открыть кабинет.
+            partner = await self.partner_dao.get_by_id(earning.partner_id)
+            owner = await self.user_dao.get_by_id(partner.user_id) if partner else None
+            if owner is not None:
+                await self.notifier.notify_user(
+                    owner,
+                    MessagePayloadDto(
+                        i18n_key="ntf-partner.earning",
+                        i18n_kwargs={
+                            "amount": str(earning.amount),
+                            "payment": str(earning.payment_amount),
+                            "rate": str(earning.rate_pct),
+                            "available": earning.available_at.strftime("%d.%m.%Y"),
+                        },
+                    ),
+                )
         except Exception as e:
             logger.error(
                 f"[Partner] Failed to accrue for transaction '{transaction.payment_id}': {e}"

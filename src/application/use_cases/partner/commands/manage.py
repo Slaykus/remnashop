@@ -69,9 +69,17 @@ class UpdatePartnerTermsDto:
 class UpdatePartnerTerms(Interactor[UpdatePartnerTermsDto, None]):
     required_permission = Permission.MANAGE_PARTNERS
 
-    def __init__(self, uow: UnitOfWork, partner_dao: PartnerDao) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+        notifier: Notifier,
+    ) -> None:
         self.uow = uow
         self.partner_dao = partner_dao
+        self.user_dao = user_dao
+        self.notifier = notifier
 
     async def _execute(self, actor: UserDto, data: UpdatePartnerTermsDto) -> None:
         async with self.uow:
@@ -90,6 +98,31 @@ class UpdatePartnerTerms(Interactor[UpdatePartnerTermsDto, None]):
         # свою ставку и пересчёту не подлежат.
         logger.info(f"[Partner] Terms updated for partner '{data.partner_id}' by {actor.log}")
 
+        # Партнёра предупреждаем: снижение ставки, о котором он узнаёт по
+        # уменьшившимся цифрам, заканчивает отношения хуже любого разговора.
+        # Про включение и выключение не пишем — это внутреннее состояние,
+        # у него для этого своя строка в кабинете.
+        if data.is_active is not None and all(
+            v is None
+            for v in (data.rate_pct, data.hold_days, data.min_payout, data.max_bonus_days)
+        ):
+            return
+
+        partner = await self.partner_dao.get_by_id(data.partner_id)
+        owner = await self.user_dao.get_by_id(partner.user_id) if partner else None
+        if partner is not None and owner is not None:
+            await self.notifier.notify_user(
+                owner,
+                MessagePayloadDto(
+                    i18n_key="ntf-partner.terms-changed",
+                    i18n_kwargs={
+                        "rate": str(partner.rate_pct),
+                        "hold": partner.hold_days,
+                        "min_payout": str(partner.min_payout),
+                    },
+                ),
+            )
+
 
 @dataclass(frozen=True)
 class PayPartnerDto:
@@ -100,9 +133,17 @@ class PayPartnerDto:
 class PayPartner(Interactor[PayPartnerDto, Optional[PartnerPayoutDto]]):
     required_permission = Permission.MANAGE_PARTNERS
 
-    def __init__(self, uow: UnitOfWork, partner_dao: PartnerDao) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+        notifier: Notifier,
+    ) -> None:
         self.uow = uow
         self.partner_dao = partner_dao
+        self.user_dao = user_dao
+        self.notifier = notifier
 
     async def _execute(self, actor: UserDto, data: PayPartnerDto) -> Optional[PartnerPayoutDto]:
         async with self.uow:
@@ -118,22 +159,63 @@ class PayPartner(Interactor[PayPartnerDto, Optional[PartnerPayoutDto]]):
 
         if payout is None:
             logger.info(f"[Partner] Nothing to pay for partner '{data.partner_id}'")
+            return None
+
+        partner = await self.partner_dao.get_by_id(data.partner_id)
+        owner = await self.user_dao.get_by_id(partner.user_id) if partner else None
+        if owner is not None:
+            await self.notifier.notify_user(
+                owner,
+                MessagePayloadDto(
+                    i18n_key="ntf-partner.paid",
+                    i18n_kwargs={"amount": str(payout.amount)},
+                ),
+            )
         return payout
 
 
 class MarkPartnerEarningsAvailable(Interactor[None, int]):
-    """Регулярный проход: отлежавшие начисления становятся доступными."""
+    """
+    Регулярный проход: отлежавшие начисления становятся доступными.
+
+    Здесь же уведомляем партнёров, у кого появились доступные деньги.
+    Уведомление шлём только тем, у кого проход что-то перевёл прямо сейчас
+    — иначе каждый час приходило бы одно и то же напоминание.
+    """
 
     required_permission = None
 
-    def __init__(self, uow: UnitOfWork, partner_dao: PartnerDao) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+        notifier: Notifier,
+    ) -> None:
         self.uow = uow
         self.partner_dao = partner_dao
+        self.user_dao = user_dao
+        self.notifier = notifier
 
     async def _execute(self, actor: UserDto, data: None) -> int:
         async with self.uow:
             count = await self.partner_dao.mark_available()
             await self.uow.commit()
+
+        if not count:
+            return 0
+
+        for partner_id, user_id, amount in await self.partner_dao.get_partners_with_available():
+            owner = await self.user_dao.get_by_id(user_id)
+            if owner is None:
+                continue
+            await self.notifier.notify_user(
+                owner,
+                MessagePayloadDto(
+                    i18n_key="ntf-partner.available",
+                    i18n_kwargs={"amount": str(amount)},
+                ),
+            )
         return count
 
 
