@@ -557,3 +557,10 @@ btn-advertising =
     *[0] ○ Clicks
     }
     .comparison-chart = 📊 Chart
+    .partners = <e id="5433614043006903194">🤝</e> Partners
+    .partner-add = <e id="5431449001532594346">➕</e> Add partner
+    .partner-rate = <e id="5433758580765754681">💰</e> Rate
+    .partner-hold = <e id="5424900830821172096">⏳</e> Hold
+    .partner-min = <e id="5433758580765754681">💳</e> Minimum
+    .partner-toggle = <e id="5424858262950111605">🔄</e> On/off
+    .partner-pay = <e id="5427009714745517609">✅</e> Pay out

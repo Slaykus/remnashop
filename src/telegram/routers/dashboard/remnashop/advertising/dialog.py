@@ -540,7 +540,142 @@ ad_comparison = Window(
     getter=comparison_getter,
 )
 
+# --- Партнёры -------------------------------------------------------------
+
+partners_list = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-partners"),
+    ScrollingGroup(
+        Select(
+            text=Format("{item[title]}"),
+            id="partner_select",
+            item_id_getter=lambda item: item["id"],
+            items="partners",
+            type_factory=int,
+            on_click=on_partner_select,
+        ),
+        id="partners_scroll",
+        width=1,
+        height=8,
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partner-add"),
+            id="partner_add",
+            state=RemnashopAdvertising.PARTNER_ADD,
+        ),
+    ),
+    Row(
+        SwitchTo(text=I18nFormat("btn-back.general"), id="back", state=RemnashopAdvertising.LIST),
+        *main_menu_button,
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PARTNERS,
+    getter=partners_getter,
+)
+
+partner_view = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-partner-view"),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partner-rate"),
+            id="edit_rate",
+            state=RemnashopAdvertising.PARTNER_EDIT_RATE,
+        ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partner-hold"),
+            id="edit_hold",
+            state=RemnashopAdvertising.PARTNER_EDIT_HOLD,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partner-min"),
+            id="edit_min",
+            state=RemnashopAdvertising.PARTNER_EDIT_MIN,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.partner-toggle"),
+            id="toggle_active",
+            on_click=on_toggle_active,
+        ),
+    ),
+    # Кнопка выплаты появляется, только когда есть что платить: пустая
+    # кнопка выплаты выглядит как поломка.
+    Button(
+        text=I18nFormat("btn-advertising.partner-pay"),
+        id="pay",
+        on_click=on_pay,
+        when=F["can_pay"],
+        style=Style(ButtonStyle.SUCCESS),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PARTNERS,
+        ),
+        *main_menu_button,
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PARTNER_VIEW,
+    getter=partner_view_getter,
+)
+
+partner_add = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-partner-add"),
+    MessageInput(func=on_partner_add_input),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PARTNERS,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PARTNER_ADD,
+)
+
+
+def _partner_input_window(state, key: str, handler):
+    """Три окна ввода условий отличаются только текстом и обработчиком."""
+    return Window(
+        Banner(BannerName.DASHBOARD),
+        I18nFormat(key),
+        MessageInput(func=handler),
+        Row(
+            SwitchTo(
+                text=I18nFormat("btn-back.general"),
+                id="back",
+                state=RemnashopAdvertising.PARTNER_VIEW,
+            ),
+        ),
+        IgnoreUpdate(),
+        state=state,
+        getter=partner_view_getter,
+    )
+
+
+partner_edit_rate = _partner_input_window(
+    RemnashopAdvertising.PARTNER_EDIT_RATE, "msg-advertising-partner-rate", on_rate_input
+)
+partner_edit_hold = _partner_input_window(
+    RemnashopAdvertising.PARTNER_EDIT_HOLD, "msg-advertising-partner-hold", on_hold_input
+)
+partner_edit_min = _partner_input_window(
+    RemnashopAdvertising.PARTNER_EDIT_MIN, "msg-advertising-partner-min", on_min_payout_input
+)
+
+
 router = Dialog(
+    partners_list,
+    partner_view,
+    partner_add,
+    partner_edit_rate,
+    partner_edit_hold,
+    partner_edit_min,
     ad_list,
     ad_view,
     ad_create_name,

@@ -159,6 +159,15 @@ class RemnashopAdvertising(StatesGroup):
     PROMO_BUTTON_STYLE = State()
     ANALYTICS = State()
     COMPARISON = State()
+    # Партнёры живут в разделе рекламы: партнёрская ссылка — это рекламная
+    # ссылка с владельцем, и разводить их по разным разделам значило бы
+    # дублировать всю воронку.
+    PARTNERS = State()
+    PARTNER_VIEW = State()
+    PARTNER_ADD = State()
+    PARTNER_EDIT_RATE = State()
+    PARTNER_EDIT_HOLD = State()
+    PARTNER_EDIT_MIN = State()
 
 
 class RemnashopReferral(StatesGroup):

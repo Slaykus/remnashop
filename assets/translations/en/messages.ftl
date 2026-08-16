@@ -1518,3 +1518,61 @@ msg-advertising-comparison =
     📊 <b>Campaign comparison</b>  ({ $count } links)
 
     { $comparison_text }
+
+msg-advertising-partners =
+    <b>🤝 Partners</b>
+
+    A partner link is an ad link with an owner. Terms are per partner, and
+    earnings come from every payment their referrals make.
+
+    <blockquote>
+    • <b>Partners total</b>: { $count }
+    </blockquote>
+
+msg-advertising-partner-view =
+    <b>🤝 Partner { $name }</b>
+
+    <blockquote>
+    • <b>Rate</b>: { $rate_pct }%
+    • <b>Hold</b>: { $hold_days } days
+    • <b>Minimum payout</b>: { $min_payout } ₽
+    • <b>State</b>: { $is_active ->
+    [true] active
+    *[false] disabled
+    }
+    </blockquote>
+
+    <blockquote>
+    • <b>On hold</b>: { $pending } ₽
+    • <b>Available</b>: { $available } ₽
+    • <b>Paid out</b>: { $paid } ₽
+    • <b>Accrued total</b>: { $total } ₽
+    • <b>Payments counted</b>: { $payments_count }
+    </blockquote>
+
+msg-advertising-partner-add =
+    <b>🤝 New partner</b>
+
+    Send the person's telegram id. They must be known to the bot — that is,
+    have started it at least once.
+
+    Default terms will be applied; you can change them right after.
+
+msg-advertising-partner-rate =
+    <b>💰 Partner rate</b>
+
+    A number from 0 to 100 — the share of every payment their referrals make.
+
+    A new rate applies going forward only: past earnings are not recalculated.
+
+msg-advertising-partner-hold =
+    <b>⏳ Hold period</b>
+
+    How many days an earning waits before it becomes available for payout.
+    Keeps a refunded payment from turning into the partner's debt.
+
+msg-advertising-partner-min =
+    <b>💳 Minimum payout</b>
+
+    Below this amount a payout is not issued: small transfers cost more than
+    they are worth.
