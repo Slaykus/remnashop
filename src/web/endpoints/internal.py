@@ -26,7 +26,7 @@ from src.application.common import BotService, Remnawave
 from decimal import Decimal
 
 from src.core.enums import ReferralLevel
-from src.application.common.dao import AdLinkDao, PlanDao, PaymentGatewayDao, PromocodeDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
+from src.application.common.dao import AdLinkDao, PartnerDao, PlanDao, PaymentGatewayDao, PromocodeDao, ReferralDao, SubscriptionDao, TransactionDao, UserDao, NodeQuotaDao
 from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
 from src.application.dto import ReferralDto, UserDto
@@ -1310,3 +1310,87 @@ async def register_link_visit(
     async with uow:
         await ad_link_dao.increment_clicks(link.id)
         await uow.commit()
+
+
+class PartnerOverviewResponse(BaseModel):
+    """
+    Сводка для кабинета партнёра.
+
+    Ни имён, ни telegram id приглашённых: партнёр видит числа и деньги, но
+    не людей. Это и позиция по данным пользователей, и защита от того,
+    чтобы базу можно было увести вместе с уходом партнёра.
+    """
+
+    rate_pct: float
+    hold_days: int
+    min_payout: float
+    is_active: bool
+    #
+    pending: float
+    available: float
+    paid: float
+    total: float
+    payments_count: int
+    #
+    clicks: int
+    signups: int
+    links: list[dict]
+
+
+@router.get(
+    "/partners/{telegram_id}/overview",
+    response_model=PartnerOverviewResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def partner_overview(
+    telegram_id: int,
+    user_dao: FromDishka[UserDao],
+    partner_dao: FromDishka[PartnerDao],
+    ad_link_dao: FromDishka[AdLinkDao],
+) -> PartnerOverviewResponse:
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if user is None or user.id is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    partner = await partner_dao.get_by_user_id(user.id)
+    if partner is None:
+        raise HTTPException(status_code=404, detail="Not a partner")
+
+    balance = await partner_dao.get_balance(partner.id)
+
+    # Воронка собирается по ссылкам партнёра. Считаем по тем же данным, что
+    # видит владелец в разделе рекламы, чтобы цифры у обеих сторон сходились.
+    own_links = [ln for ln in await ad_link_dao.get_all() if ln.owner_user_id == user.id]
+    links: list[dict] = []
+    clicks = signups = 0
+    for ln in own_links:
+        stats = await ad_link_dao.get_stats(ln.id)
+        clicks += ln.clicks_count
+        signups += stats.unique_clicks
+        links.append(
+            {
+                "code": ln.code,
+                "name": ln.name,
+                "is_active": ln.is_active,
+                "clicks": ln.clicks_count,
+                "signups": stats.unique_clicks,
+                "trials": stats.trial_count,
+                "paid": stats.paid_count,
+            }
+        )
+
+    return PartnerOverviewResponse(
+        rate_pct=float(partner.rate_pct),
+        hold_days=partner.hold_days,
+        min_payout=float(partner.min_payout),
+        is_active=partner.is_active,
+        pending=float(balance.pending),
+        available=float(balance.available),
+        paid=float(balance.paid),
+        total=float(balance.total),
+        payments_count=balance.payments_count,
+        clicks=clicks,
+        signups=signups,
+        links=links,
+    )

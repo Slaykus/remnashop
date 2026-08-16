@@ -16,6 +16,8 @@ class AdLinkDto(BaseDto):
     bonus_days: int = 0
     bonus_discount_pct: int = 0
     clicks_count: int = 0
+    # Владелец ссылки: пусто — своя реклама, заполнено — партнёрская.
+    owner_user_id: Optional[int] = field(default=None)
     promo_text: Optional[str] = field(default=None)
     promo_photo_id: Optional[str] = field(default=None)
     promo_buttons: list[Any] = field(default_factory=list)
