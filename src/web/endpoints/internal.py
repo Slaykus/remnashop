@@ -1170,6 +1170,7 @@ class LinkLookupResponse(BaseModel):
 
 
 @router.get("/links/{code}", response_model=LinkLookupResponse)
+@inject
 async def lookup_link(
     code: str,
     ad_link_dao: FromDishka[AdLinkDao],
