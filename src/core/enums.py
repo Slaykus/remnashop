@@ -256,6 +256,10 @@ class SystemNotificationType(UpperStrEnum):
     PROMOCODE_ACTIVATED = auto()
     TRIAL_ACTIVATED = auto()
     #
+    # Партнёрская программа: запросы выплат и подтверждения получения.
+    # Отдельным типом, чтобы деньги не терялись среди прочих уведомлений.
+    PARTNER = auto()
+    #
     NODE_STATUS_CHANGED = auto()
     NODE_TRAFFIC_REACHED = auto()
     TORRENT_BLOCKER = auto()

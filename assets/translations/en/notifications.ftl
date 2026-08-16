@@ -248,11 +248,11 @@ ntf-ad =
 
 ntf-partner =
     .payout-confirmed =
-        <e id="5427009714745517609">✅</e> <b>Partner confirmed receipt</b>
+        ✅ <b>Partner confirmed receipt</b>
 
         { $name } confirmed the money arrived.
     .earning =
-        <e id="5433758580765754681">💰</e> <b>Earned { $amount } ₽</b>
+        💰 <b>Earned { $amount } ₽</b>
 
         Someone you referred paid { $payment } ₽ for a subscription.
         Your share at { $rate }% is <b>{ $amount } ₽</b>.
@@ -260,17 +260,17 @@ ntf-partner =
         Available for payout on { $available }.
 
     .available =
-        <e id="5427009714745517609">✅</e> <b>{ $amount } ₽ ready to withdraw</b>
+        ✅ <b>{ $amount } ₽ ready to withdraw</b>
 
         The hold period is over. Request a payout in your cabinet.
 
     .paid =
-        <e id="5433758580765754681">💸</e> <b>Payout of { $amount } ₽ sent</b>
+        💸 <b>Payout of { $amount } ₽ sent</b>
 
         If the money did not arrive — let us know and we will sort it out.
 
     .terms-changed =
-        <e id="5424858262950111605">🔄</e> <b>Your terms changed</b>
+        🔄 <b>Your terms changed</b>
 
         <blockquote>
         • <b>Rate</b>: { $rate }%
@@ -281,7 +281,7 @@ ntf-partner =
         Past earnings are not recalculated: each one keeps the rate it was
         calculated at.
     .payout-requested =
-        <e id="5433758580765754681">💰</e> <b>Partner requests a payout</b>
+        💰 <b>Partner requests a payout</b>
 
         <blockquote>
         • <b>Who</b>: { $name }

@@ -14,7 +14,7 @@ from src.application.common.dao import AdLinkDao, PartnerDao, UserDao
 from src.application.common.policy import Permission
 from src.application.common.uow import UnitOfWork
 from src.application.dto import PartnerDto, PartnerPayoutDto, UserDto
-from src.core.enums import Role
+from src.core.enums import Role, SystemNotificationType
 
 
 @dataclass(frozen=True)
@@ -383,7 +383,7 @@ class RequestPayout(Interactor[RequestPayoutDto, Optional[Decimal]]):
             await self.partner_dao.set_payout_requested(partner.id, datetime.now(timezone.utc))
             await self.uow.commit()
 
-        await self.notifier.notify_admins(
+        await self.notifier.notify_system(
             MessagePayloadDto(
                 i18n_key="ntf-partner.payout-requested",
                 i18n_kwargs={
@@ -391,7 +391,8 @@ class RequestPayout(Interactor[RequestPayoutDto, Optional[Decimal]]):
                     "amount": str(balance.available),
                     "details": partner.payout_details or "не указаны",
                 },
-            )
+            ),
+            notification_type=SystemNotificationType.PARTNER,
         )
         logger.info(f"[Partner] Partner '{partner.id}' requested payout of {balance.available}")
         return balance.available
@@ -536,11 +537,12 @@ class ConfirmPayout(Interactor[ConfirmPayoutDto, bool]):
             await self.uow.commit()
 
         if ok:
-            await self.notifier.notify_admins(
+            await self.notifier.notify_system(
                 MessagePayloadDto(
                     i18n_key="ntf-partner.payout-confirmed",
                     i18n_kwargs={"name": user.name or f"#{user.id}"},
-                )
+                ),
+                notification_type=SystemNotificationType.PARTNER,
             )
             logger.info(f"[Partner] Payout '{data.payout_id}' confirmed by partner '{partner.id}'")
         return ok
