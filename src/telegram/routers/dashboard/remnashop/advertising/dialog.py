@@ -91,6 +91,13 @@ ad_list = Window(
         ),
     ),
     Row(
+        SwitchTo(
+            text=I18nFormat("btn-advertising.partners"),
+            id="partners",
+            state=RemnashopAdvertising.PARTNERS,
+        ),
+    ),
+    Row(
         Start(
             text=I18nFormat("btn-back.general"),
             id="back",
