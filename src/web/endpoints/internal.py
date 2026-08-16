@@ -812,6 +812,7 @@ async def migrate_telegram(
     old_telegram_id: int,
     body: MigrateTelegramRequest,
     user_dao: FromDishka[UserDao],
+    ad_link_dao: FromDishka[AdLinkDao],
     subscription_dao: FromDishka[SubscriptionDao],
     remnawave: FromDishka[Remnawave],
     add_duration: FromDishka[AddSubscriptionDuration],
@@ -821,6 +822,12 @@ async def migrate_telegram(
     user = await user_dao.get_by_telegram_id(old_telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Привязка к рекламной ссылке лежит по telegram_id, а при переносе он
+    # меняется с псевдо-id сайта на настоящий. Без переноса строки человек
+    # для рекламы исчезает, а партнёр перестаёт получать долю с его оплат —
+    # причём именно тогда, когда клиент становится полноценным.
+    await ad_link_dao.move_user(old_telegram_id, body.new_telegram_id)
 
     conflict = await user_dao.get_by_telegram_id(body.new_telegram_id)
     if conflict:

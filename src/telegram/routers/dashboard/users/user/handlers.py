@@ -966,7 +966,7 @@ async def on_node_quota_reset(
     quota.warned_at = None
 
     if config.node_quota.enabled and config.node_quota.squad_uuid:
-        sub = await subscription_dao.get_current(target_telegram_id)
+        sub = await subscription_dao.get_current_by_telegram_id(target_telegram_id)
         squad_restored = False
         if sub and sub.user_remna_id:
             try:
@@ -1031,7 +1031,7 @@ async def on_node_quota_toggle_restrict(
             period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
         )
 
-    sub = await subscription_dao.get_current(target_telegram_id)
+    sub = await subscription_dao.get_current_by_telegram_id(target_telegram_id)
     squad_uuid = UUID(config.node_quota.squad_uuid) if config.node_quota.squad_uuid else None
 
     if quota.is_restricted:

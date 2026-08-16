@@ -102,6 +102,43 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
         logger.debug(f"[AdLink] Updated link id={dto.id}")
         return self._convert(row)  # type: ignore[arg-type]
 
+    async def move_user(self, old_telegram_id: int, new_telegram_id: int) -> None:
+        """
+        Переносит привязку к рекламным ссылкам на новый telegram_id.
+
+        Нужно при связывании веб-аккаунта с телеграмом: id меняется с
+        псевдо-id сайта на настоящий, и без переноса вся история переходов
+        остаётся висеть на несуществующем человеке — а партнёр перестаёт
+        получать долю с оплат клиента, которого сам же и привёл.
+
+        Сначала убираем те строки, для которых по той же ссылке уже есть
+        запись с новым id: переход был засчитан раньше, и уникальный ключ
+        не даст перенести поверх.
+        """
+        await self.session.execute(
+            text(
+                """
+                DELETE FROM ad_link_users AS old
+                WHERE old.user_telegram_id = :old_id
+                  AND EXISTS (
+                      SELECT 1 FROM ad_link_users AS cur
+                      WHERE cur.user_telegram_id = :new_id
+                        AND cur.ad_link_id = old.ad_link_id
+                  )
+                """
+            ).bindparams(old_id=old_telegram_id, new_id=new_telegram_id)
+        )
+        result = await self.session.execute(
+            update(AdLinkUser)
+            .where(AdLinkUser.user_telegram_id == old_telegram_id)
+            .values(user_telegram_id=new_telegram_id)
+        )
+        moved = int(result.rowcount or 0)
+        if moved:
+            logger.info(
+                f"[AdLink] Moved {moved} click(s) from '{old_telegram_id}' to '{new_telegram_id}'"
+            )
+
     async def get_pending_bonus(self, user_telegram_id: int) -> Optional[AdLinkDto]:
         """
         Ссылка, бонус по которой этому человеку ещё не выдан.

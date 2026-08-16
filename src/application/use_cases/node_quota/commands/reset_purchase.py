@@ -63,7 +63,7 @@ class PurchaseTrafficReset(Interactor[PurchaseTrafficResetDto, None]):
         used_bytes_before_reset = quota.used_bytes
         was_restricted = quota.is_restricted
 
-        sub = await self.subscription_dao.get_current(user.telegram_id)
+        sub = await self.subscription_dao.get_current_by_telegram_id(user.telegram_id)
         squad_restored = False
         if sub and sub.user_remna_id:
             try:
