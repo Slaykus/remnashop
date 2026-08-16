@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from aiogram.types import CallbackQuery, Message
-from aiogram_dialog import DialogManager
+from aiogram_dialog import DialogManager, ShowMode
 from aiogram_dialog.widgets.kbd import Button as RawButton
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
@@ -79,7 +79,10 @@ async def partner_view_getter(
         "rate_pct": str(p.rate_pct),
         "hold_days": p.hold_days,
         "min_payout": str(p.min_payout),
-        "is_active": p.is_active,
+        # Строкой, а не булевым: селектор в тексте сравнивает со строкой
+        # "true", и с настоящим bool не совпадал никогда — карточка всегда
+        # показывала «отключён», даже у активного партнёра.
+        "is_active": "true" if p.is_active else "false",
         "payout_details": p.payout_details or "—",
         "max_bonus_days": p.max_bonus_days,
         #
@@ -198,6 +201,9 @@ async def on_partner_toggle_active(
     get_overview: FromDishka[GetPartnerOverview],
     update_terms: FromDishka[UpdatePartnerTerms],
 ) -> None:
+    # Без явного режима правки aiogram_dialog не перерисовывает сообщение:
+    # состояние менялось, а на экране оставалось прежним.
+    dialog_manager.show_mode = ShowMode.EDIT
     user = dialog_manager.middleware_data[USER_KEY]
     partner_id = dialog_manager.dialog_data.get(_PARTNER_ID)
     if not partner_id:
@@ -211,8 +217,6 @@ async def on_partner_toggle_active(
         user,
         UpdatePartnerTermsDto(partner_id=int(partner_id), is_active=not overview.partner.is_active),
     )
-    # Карточку надо перерисовать явно: без этого человек видит прежнее
-    # состояние и решает, что кнопка не сработала.
     await dialog_manager.show()
 
 
