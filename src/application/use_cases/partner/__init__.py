@@ -9,6 +9,7 @@ from .commands.manage import (
     PayPartner,
     RequestPayout,
     SavePayoutDetails,
+    SetLinkBonus,
     ToggleLinkOwner,
     UpdatePartnerTerms,
 )
@@ -21,6 +22,7 @@ PARTNER_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     PayPartner,
     RequestPayout,
     SavePayoutDetails,
+    SetLinkBonus,
     ToggleLinkOwner,
     MarkPartnerEarningsAvailable,
     GetPartners,

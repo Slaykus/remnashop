@@ -13,6 +13,7 @@ class PartnerDto(BaseDto):
     rate_pct: Decimal
     hold_days: int
     min_payout: Decimal
+    max_bonus_days: int = 0
     is_active: bool = True
     payout_details: Optional[str] = field(default=None)
     note: Optional[str] = field(default=None)

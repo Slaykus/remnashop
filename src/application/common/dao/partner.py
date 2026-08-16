@@ -27,6 +27,7 @@ class PartnerDao(Protocol):
         min_payout: Optional[Decimal] = None,
         is_active: Optional[bool] = None,
         payout_details: Optional[str] = None,
+        max_bonus_days: Optional[int] = None,
     ) -> None: ...
 
     async def accrue_for_payment(

@@ -35,6 +35,8 @@ from src.application.use_cases.partner.commands.manage import (
     CreatePartnerLinkDto,
     RequestPayout,
     RequestPayoutDto,
+    SetLinkBonus,
+    SetLinkBonusDto,
     SavePayoutDetails,
     SavePayoutDetailsDto,
 )
@@ -1245,6 +1247,10 @@ class LinkLookupResponse(BaseModel):
     is_active: bool
     title: str | None = None
     telegram_url: str
+    # Что человек получит за переход. Поля у ссылки были с самого начала,
+    # но посадочная их не показывала — механика была настроена и молчала.
+    bonus_days: int = 0
+    bonus_discount_pct: int = 0
 
 
 @router.get(
@@ -1277,6 +1283,8 @@ async def lookup_link(
             is_active=ad_link.is_active,
             title=ad_link.name,
             telegram_url=await bot_service.get_ad_link_url(code),
+            bonus_days=ad_link.bonus_days,
+            bonus_discount_pct=ad_link.bonus_discount_pct,
         )
 
     referrer = await user_dao.get_by_referral_code(code)
@@ -1335,6 +1343,7 @@ class PartnerOverviewResponse(BaseModel):
     is_active: bool
     payout_details: str
     payout_requested: bool
+    max_bonus_days: int
     #
     pending: float
     available: float
@@ -1404,6 +1413,7 @@ async def partner_overview(
                 "signups": stats.unique_clicks,
                 "trials": stats.trial_count,
                 "paid": stats.paid_count,
+                "bonus_days": ln.bonus_days,
                 "daily": [
                     {"day": day, "clicks": by_day.get(day, 0)}
                     for day in calendar
@@ -1418,6 +1428,7 @@ async def partner_overview(
         is_active=partner.is_active,
         payout_details=partner.payout_details or "",
         payout_requested=partner.payout_requested_at is not None,
+        max_bonus_days=partner.max_bonus_days,
         pending=float(balance.pending),
         available=float(balance.available),
         paid=float(balance.paid),
@@ -1530,3 +1541,31 @@ async def request_payout(
     if amount is None:
         raise HTTPException(status_code=409, detail="Payout is not available yet")
     return PayoutRequestResponse(amount=float(amount))
+
+
+class LinkBonusRequest(BaseModel):
+    bonus_days: int
+
+
+class LinkBonusResponse(BaseModel):
+    bonus_days: int
+
+
+@router.put(
+    "/partners/{telegram_id}/links/{code}/bonus",
+    response_model=LinkBonusResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def set_link_bonus(
+    telegram_id: int,
+    code: str,
+    body: LinkBonusRequest,
+    set_bonus: FromDishka[SetLinkBonus],
+) -> LinkBonusResponse:
+    applied = await set_bonus.system(
+        SetLinkBonusDto(telegram_id=telegram_id, code=code, bonus_days=body.bonus_days)
+    )
+    if applied is None:
+        raise HTTPException(status_code=404, detail="Link not found or not yours")
+    return LinkBonusResponse(bonus_days=applied)

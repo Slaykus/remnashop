@@ -46,6 +46,7 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
             rate_pct=p.rate_pct,
             hold_days=p.hold_days,
             min_payout=p.min_payout,
+            max_bonus_days=p.max_bonus_days,
             is_active=p.is_active,
             payout_details=p.payout_details,
             note=p.note,
@@ -100,8 +101,11 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
         min_payout: Optional[Decimal] = None,
         is_active: Optional[bool] = None,
         payout_details: Optional[str] = None,
+        max_bonus_days: Optional[int] = None,
     ) -> None:
         values: dict = {}
+        if max_bonus_days is not None:
+            values["max_bonus_days"] = max_bonus_days
         if rate_pct is not None:
             values["rate_pct"] = rate_pct
         if hold_days is not None:

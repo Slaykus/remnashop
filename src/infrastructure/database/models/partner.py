@@ -60,6 +60,11 @@ class Partner(BaseSql, TimestampMixin):
         Numeric(12, 2), nullable=False, server_default="500.00"
     )
 
+    # Сколько дней бонуса партнёр вправе поставить на свою ссылку. Ноль —
+    # не вправе вовсе. Ограничение нужно потому, что бонус раздаётся не его
+    # деньгами: без потолка выгодно ставить максимум.
+    max_bonus_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # Куда и как платить. Свободный текст: способы у всех разные, и
     # раскладывать их по колонкам сейчас значило бы гадать.

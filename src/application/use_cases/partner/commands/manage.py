@@ -63,6 +63,7 @@ class UpdatePartnerTermsDto:
     min_payout: Optional[Decimal] = None
     is_active: Optional[bool] = None
     payout_details: Optional[str] = None
+    max_bonus_days: Optional[int] = None
 
 
 class UpdatePartnerTerms(Interactor[UpdatePartnerTermsDto, None]):
@@ -81,6 +82,7 @@ class UpdatePartnerTerms(Interactor[UpdatePartnerTermsDto, None]):
                 min_payout=data.min_payout,
                 is_active=data.is_active,
                 payout_details=data.payout_details,
+                max_bonus_days=data.max_bonus_days,
             )
             await self.uow.commit()
 
@@ -350,3 +352,60 @@ class SavePayoutDetails(Interactor[SavePayoutDetailsDto, bool]):
             )
             await self.uow.commit()
         return True
+
+
+@dataclass(frozen=True)
+class SetLinkBonusDto:
+    telegram_id: int
+    code: str
+    bonus_days: int
+
+
+class SetLinkBonus(Interactor[SetLinkBonusDto, Optional[int]]):
+    """
+    Партнёр назначает бонус своей ссылке.
+
+    Потолок задаёт владелец: бонус раздаётся не деньгами партнёра, и без
+    ограничения ему выгодно ставить максимум. Значение выше потолка не
+    отклоняем, а подрезаем до него — партнёр видит, что именно применилось,
+    и это понятнее отказа без объяснения.
+
+    Возвращает применённое значение либо None, если ссылка не его.
+    """
+
+    required_permission = Permission.VIEW_OWN_PARTNER_STATS
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        ad_link_dao: AdLinkDao,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+    ) -> None:
+        self.uow = uow
+        self.ad_link_dao = ad_link_dao
+        self.partner_dao = partner_dao
+        self.user_dao = user_dao
+
+    async def _execute(self, actor: UserDto, data: SetLinkBonusDto) -> Optional[int]:
+        user = await self.user_dao.get_by_telegram_id(data.telegram_id)
+        if user is None or user.id is None:
+            return None
+
+        partner = await self.partner_dao.get_by_user_id(user.id)
+        if partner is None:
+            return None
+
+        link = await self.ad_link_dao.get_by_code(data.code)
+        # Чужую ссылку тронуть нельзя, даже зная её код.
+        if link is None or link.owner_user_id != user.id:
+            return None
+
+        value = max(0, min(int(data.bonus_days), partner.max_bonus_days))
+        link.bonus_days = value
+        async with self.uow:
+            await self.ad_link_dao.update(link)
+            await self.uow.commit()
+
+        logger.info(f"[Partner] Link '{link.code}' bonus set to {value} days")
+        return value
