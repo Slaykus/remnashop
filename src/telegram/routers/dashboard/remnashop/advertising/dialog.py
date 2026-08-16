@@ -12,6 +12,7 @@ from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
 
 from .partners import (
+    on_bonus_cap_input,
     on_hold_input,
     on_min_payout_input,
     on_partner_add_input,
