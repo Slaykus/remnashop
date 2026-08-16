@@ -10,7 +10,7 @@ import hashlib
 import math
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from typing import Annotated
 
@@ -1373,12 +1373,22 @@ async def partner_overview(
     # Воронка собирается по ссылкам партнёра. Считаем по тем же данным, что
     # видит владелец в разделе рекламы, чтобы цифры у обеих сторон сходились.
     own_links = [ln for ln in await ad_link_dao.get_all() if ln.owner_user_id == user.id]
+
+    # Общий календарь на месяц: дни без переходов должны оставаться в ряду,
+    # иначе график сглаживает провалы и врёт.
+    since = datetime.now(timezone.utc) - timedelta(days=29)
+    calendar = [(since + timedelta(days=i)).date().isoformat() for i in range(30)]
     links: list[dict] = []
     clicks = signups = 0
     for ln in own_links:
         stats = await ad_link_dao.get_stats(ln.id)
         clicks += ln.clicks_count
         signups += stats.unique_clicks
+        # Ряд по каждой ссылке отдельно: без него партнёр видит общую сумму
+        # и не может сравнить размещения между собой, а ради этого их и
+        # заводят по одной на площадку.
+        daily_link = await ad_link_dao.get_daily_clicks(ln.id, since)
+        by_day = {d.day.isoformat(): d.unique_clicks for d in daily_link}
         links.append(
             {
                 "code": ln.code,
@@ -1388,6 +1398,10 @@ async def partner_overview(
                 "signups": stats.unique_clicks,
                 "trials": stats.trial_count,
                 "paid": stats.paid_count,
+                "daily": [
+                    {"day": day, "clicks": by_day.get(day, 0)}
+                    for day in calendar
+                ],
             }
         )
 
