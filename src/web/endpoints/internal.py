@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from uuid import UUID
 from typing import Annotated
 
+from loguru import logger
+
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
 from fastapi import APIRouter, Depends, Header, HTTPException
