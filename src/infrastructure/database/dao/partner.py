@@ -2,7 +2,9 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
+from adaptix import Retort
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
@@ -25,6 +27,14 @@ from .base import BaseDaoImpl
 
 
 class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
+    # Конструктор объявлен явно, хотя ничего не добавляет к базовому.
+    # Без него механика Protocol подменяет __init__ заглушкой, которая
+    # вызывается без аргументов, и контейнер зависимостей падает при
+    # выдаче DAO — то есть при первом же платеже. У соседних DAO свой
+    # конструктор есть, поэтому там это не проявлялось.
+    def __init__(self, session: AsyncSession, retort: Retort) -> None:
+        super().__init__(session, retort)
+
     def _to_dto(self, p: Partner) -> PartnerDto:
         return PartnerDto(
             id=p.id,
