@@ -5,6 +5,7 @@ from src.application.dto.partner import (
     PartnerBalanceDto,
     PartnerDto,
     PartnerEarningDto,
+    PartnerPayoutDto,
 )
 
 
@@ -46,3 +47,19 @@ class PartnerDao(Protocol):
     async def get_earnings(
         self, partner_id: int, limit: int = 50, offset: int = 0
     ) -> list[PartnerEarningDto]: ...
+
+    async def mark_available(self) -> int:
+        """Переводит начисления с вышедшим сроком удержания в доступные."""
+        ...
+
+    async def create_payout(
+        self, partner_id: int, created_by: Optional[int] = None, note: Optional[str] = None
+    ) -> Optional[PartnerPayoutDto]:
+        """
+        Оформляет выплату всем доступным начислениям партнёра.
+
+        None — платить нечего либо сумма ниже минимальной.
+        """
+        ...
+
+    async def get_payouts(self, partner_id: int, limit: int = 20) -> list[PartnerPayoutDto]: ...

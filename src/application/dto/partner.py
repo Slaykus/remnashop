@@ -49,3 +49,15 @@ class PartnerBalanceDto(BaseDto):
     total: Decimal
     # Сколько платежей учтено.
     payments_count: int
+
+
+@dataclass(kw_only=True)
+class PartnerPayoutDto(BaseDto):
+    id: int
+    partner_id: int
+    amount: Decimal
+    note: Optional[str] = field(default=None)
+    created_at: datetime
+    created_by: Optional[int] = field(default=None)
+    # Сколько начислений закрыто этой выплатой.
+    earnings_count: int = 0

@@ -11,11 +11,13 @@ from src.application.dto.partner import (
     PartnerBalanceDto,
     PartnerDto,
     PartnerEarningDto,
+    PartnerPayoutDto,
 )
 from src.infrastructure.database.models.ad_link import AdLink, AdLinkUser
 from src.infrastructure.database.models.partner import (
     Partner,
     PartnerEarning,
+    PartnerPayout,
 )
 from src.infrastructure.database.models.user import User
 
@@ -192,9 +194,12 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
                         ),
                         0,
                     ),
+                    # Доступно — и отмеченные проходом, и те, у кого срок уже
+                    # вышел, но проход ещё не отработал: иначе баланс скакал бы
+                    # в зависимости от того, когда в последний раз шла задача.
                     func.coalesce(
                         func.sum(PartnerEarning.amount).filter(
-                            PartnerEarning.status == "pending",
+                            PartnerEarning.status.in_(("pending", "available")),
                             PartnerEarning.available_at <= now,
                         ),
                         0,
@@ -237,3 +242,119 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
             .all()
         )
         return [self._earning_to_dto(e) for e in rows]
+
+    async def mark_available(self) -> int:
+        """
+        Переводит отлежавшие начисления в доступные к выплате.
+
+        Статус меняется отдельным проходом, а не вычисляется на лету, чтобы
+        «доступно» было фактом в базе: по нему оформляется выплата, и он не
+        должен зависеть от того, в какую секунду выполнился запрос.
+        """
+        now = datetime.now(timezone.utc)
+        result = await self.session.execute(
+            update(PartnerEarning)
+            .where(
+                PartnerEarning.status == "pending",
+                PartnerEarning.available_at <= now,
+            )
+            .values(status="available")
+        )
+        count = int(result.rowcount or 0)
+        if count:
+            logger.info(f"[Partner] {count} earnings became available for payout")
+        return count
+
+    async def create_payout(
+        self,
+        partner_id: int,
+        created_by: Optional[int] = None,
+        note: Optional[str] = None,
+    ) -> Optional[PartnerPayoutDto]:
+        partner = (
+            await self.session.execute(select(Partner).where(Partner.id == partner_id))
+        ).scalar_one_or_none()
+        if partner is None:
+            return None
+
+        rows = (
+            (
+                await self.session.execute(
+                    select(PartnerEarning).where(
+                        PartnerEarning.partner_id == partner_id,
+                        PartnerEarning.status == "available",
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not rows:
+            return None
+
+        total = sum((Decimal(e.amount) for e in rows), Decimal(0))
+        # Порог оформления — у партнёра свой. Мелкие выплаты дороже
+        # обходятся в переводах, чем стоят сами.
+        if total < Decimal(partner.min_payout):
+            logger.debug(
+                f"[Partner] Payout for '{partner_id}' is {total}, below minimum "
+                f"{partner.min_payout} — skipping"
+            )
+            return None
+
+        now = datetime.now(timezone.utc)
+        payout = PartnerPayout(
+            partner_id=partner_id,
+            amount=total,
+            note=note,
+            created_at=now,
+            created_by=created_by,
+        )
+        self.session.add(payout)
+        await self.session.flush()
+
+        # Начисления закрываются ссылкой на выплату: по ней потом видно,
+        # что именно вошло в конкретный перевод.
+        await self.session.execute(
+            update(PartnerEarning)
+            .where(PartnerEarning.id.in_([e.id for e in rows]))
+            .values(status="paid", paid_at=now, payout_id=payout.id)
+        )
+
+        logger.info(
+            f"[Partner] Payout {total} to partner '{partner_id}' covering {len(rows)} earnings"
+        )
+        return PartnerPayoutDto(
+            id=payout.id,
+            partner_id=partner_id,
+            amount=total,
+            note=note,
+            created_at=now,
+            created_by=created_by,
+            earnings_count=len(rows),
+        )
+
+    async def get_payouts(self, partner_id: int, limit: int = 20) -> list[PartnerPayoutDto]:
+        rows = (
+            (
+                await self.session.execute(
+                    select(PartnerPayout)
+                    .where(PartnerPayout.partner_id == partner_id)
+                    .order_by(PartnerPayout.created_at.desc())
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return [
+            PartnerPayoutDto(
+                id=p.id,
+                partner_id=p.partner_id,
+                amount=p.amount,
+                note=p.note,
+                created_at=p.created_at,
+                created_by=p.created_by,
+            )
+            for p in rows
+        ]

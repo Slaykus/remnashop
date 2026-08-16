@@ -1,4 +1,4 @@
-from .partner import PartnerBalanceDto, PartnerDto, PartnerEarningDto
+from .partner import PartnerBalanceDto, PartnerDto, PartnerEarningDto, PartnerPayoutDto
 from .ad_link import AdLinkDto, AdLinkStatsDto, AdLinkUserDto
 from .node_quota import UserNodeQuotaDto
 from .base import BaseDto, TimestampMixin, TrackableMixin
@@ -51,6 +51,7 @@ __all__ = [
     "PartnerDto",
     "PartnerEarningDto",
     "PartnerBalanceDto",
+    "PartnerPayoutDto",
     "AdLinkStatsDto",
     "BaseDto",
     "TimestampMixin",

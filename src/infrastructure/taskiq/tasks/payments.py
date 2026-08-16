@@ -4,6 +4,7 @@ from dishka.integrations.taskiq import FromDishka, inject
 
 from src.application.use_cases.gateways.commands.payment import ProcessPayment, ProcessPaymentDto
 from src.application.use_cases.misc.commands.maintenance import CancelOldTransactions
+from src.application.use_cases.partner.commands.manage import MarkPartnerEarningsAvailable
 from src.core.enums import PaymentGatewayType, TransactionStatus
 from src.infrastructure.taskiq.broker import broker
 
@@ -31,3 +32,17 @@ async def cancel_old_transactions_task(
     cancel_old_transactions: FromDishka[CancelOldTransactions],
 ) -> None:
     await cancel_old_transactions.system()
+
+
+@broker.task(schedule=[{"cron": "17 * * * *"}])
+@inject(patch_module=True)
+async def mark_partner_earnings_available_task(
+    mark_available: FromDishka[MarkPartnerEarningsAvailable],
+) -> None:
+    """
+    Раз в час переводит отлежавшие начисления в доступные к выплате.
+
+    Не в полночь и не в ноль минут: в эти моменты и так толпятся другие
+    задачи, а спешки здесь нет — счёт идёт на дни удержания, не на минуты.
+    """
+    await mark_available.system()
