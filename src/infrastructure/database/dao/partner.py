@@ -32,8 +32,12 @@ class PartnerDaoImpl(PartnerDao, BaseDaoImpl):
     # вызывается без аргументов, и контейнер зависимостей падает при
     # выдаче DAO — то есть при первом же платеже. У соседних DAO свой
     # конструктор есть, поэтому там это не проявлялось.
+    # Поля присваиваются здесь, а не через super(): в цепочке наследования
+    # следующим стоит Protocol, и его __init__ аргументы проглатывает. Так
+    # же сделано у соседних DAO.
     def __init__(self, session: AsyncSession, retort: Retort) -> None:
-        super().__init__(session, retort)
+        self.session = session
+        self.retort = retort
 
     def _to_dto(self, p: Partner) -> PartnerDto:
         return PartnerDto(
