@@ -68,7 +68,10 @@ class ProcessAdClick(Interactor[ProcessAdClickDto, None]):
             )
 
         if link.bonus_days > 0:
-            sub = await self.subscription_dao.get_current(actor.telegram_id)
+            # get_current ждёт локальный id, а не телеграмный — для этого есть
+            # отдельный метод. Из-за подмены подписка не находилась никогда, и
+            # бонусные дни не выдавались ни разу за всё время.
+            sub = await self.subscription_dao.get_current_by_telegram_id(actor.telegram_id)
             if sub:
                 sub.expire_at = sub.expire_at + timedelta(days=link.bonus_days)
                 await self.subscription_dao.update(sub)
@@ -155,7 +158,7 @@ class ApplyPendingAdBonus(Interactor[ApplyPendingAdBonusDto, int]):
             return 0
 
         user = await self.user_dao.get_by_telegram_id(data.telegram_id)
-        subscription = await self.subscription_dao.get_current(data.telegram_id)
+        subscription = await self.subscription_dao.get_current_by_telegram_id(data.telegram_id)
         if user is None or subscription is None:
             return 0
 
