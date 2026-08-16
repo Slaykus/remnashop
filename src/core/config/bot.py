@@ -18,6 +18,11 @@ class BotConfig(BaseConfig, env_prefix="BOT_"):
     mini_app: Union[bool, SecretStr] = False
     proxy_url: Optional[SecretStr] = None
 
+    # Адрес сайта для посадочной рекламных и реферальных ссылок. Пока не
+    # задан, ссылки строятся по-старому — прямо на бота, поэтому выкатка
+    # кода ничего не меняет сама по себе.
+    site_url: Optional[SecretStr] = None
+
     reset_webhook: bool = False
     drop_pending_updates: bool = False
     setup_commands: bool = True
@@ -26,6 +31,14 @@ class BotConfig(BaseConfig, env_prefix="BOT_"):
     @property
     def webhook_path(self) -> str:
         return f"{API_V1}{BOT_WEBHOOK_PATH}"
+
+    @property
+    def landing_base_url(self) -> Optional[str]:
+        """Основание для ссылки вида {сайт}/r/{код}. None — сайт не настроен."""
+        if self.site_url is None:
+            return None
+        value = self.site_url.get_secret_value().strip().rstrip("/")
+        return value if value and is_valid_url(value) else None
 
     @property
     def is_mini_app(self) -> bool:

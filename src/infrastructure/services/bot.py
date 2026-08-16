@@ -53,7 +53,23 @@ class BotService:
         result = await self.bot.get_my_name()
         return result.name
 
+    def _landing_url(self, code: str) -> Optional[str]:
+        """
+        Ссылка на посадочную сайта вместо прямого входа в бота.
+
+        Реклама идёт не только внутри Telegram, и у нового человека его может
+        не быть — прямая ссылка на бота была для него тупиком. На посадочной
+        он выбирает сам, а привязка срабатывает по любому пути.
+
+        Пока адрес сайта не задан, возвращаем None и всё работает по-старому.
+        """
+        base = self.config.bot.landing_base_url
+        return f"{base}/r/{code}" if base and code else None
+
     async def get_referral_url(self, referral_code: str) -> str:
+        landing = self._landing_url(referral_code)
+        if landing:
+            return landing
         base_url = await self._get_bot_redirect_url()
         return Deeplink.REFERRAL.build_url(base_url, referral_code)
 
@@ -62,6 +78,9 @@ class BotService:
         return Deeplink.PLAN.build_url(base_url, public_code)
 
     async def get_ad_link_url(self, code: str) -> str:
+        landing = self._landing_url(code)
+        if landing:
+            return landing
         base_url = await self._get_bot_redirect_url()
         return Deeplink.ADVERTISING.build_url(base_url, code)
 
