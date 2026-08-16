@@ -6,7 +6,7 @@ from typing import Optional
 
 from loguru import logger
 
-from src.application.common import Interactor
+from src.application.common import Cryptographer, Interactor
 from src.application.common.dao import AdLinkDao, PartnerDao, UserDao
 from src.application.common.policy import Permission
 from src.application.common.uow import UnitOfWork
@@ -177,3 +177,61 @@ class ToggleLinkOwner(Interactor[ToggleLinkOwnerDto, bool]):
             f"partner '{partner.id}' by {actor.log}"
         )
         return attach
+
+
+@dataclass(frozen=True)
+class CreatePartnerLinkDto:
+    telegram_id: int
+    name: str
+
+
+class CreatePartnerLink(Interactor[CreatePartnerLinkDto, Optional[str]]):
+    """
+    Партнёр заводит себе рекламную ссылку сам.
+
+    Прежняя схема делала владельца посредником: партнёр просит ссылку под
+    размещение, владелец идёт в бота, создаёт, закрепляет. С пятью
+    партнёрами уже неудобно, с двадцатью невозможно.
+
+    Бонусы за переход здесь не задаются: баллы, дни и скидка — деньги
+    владельца, и раздавать их партнёр не должен. Владелец проставляется
+    сразу, поэтому закреплять вручную ничего не надо.
+
+    Возвращает код созданной ссылки либо None, если человек не партнёр.
+    """
+
+    required_permission = Permission.VIEW_OWN_PARTNER_STATS
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        ad_link_dao: AdLinkDao,
+        partner_dao: PartnerDao,
+        user_dao: UserDao,
+        cryptographer: Cryptographer,
+    ) -> None:
+        self.uow = uow
+        self.ad_link_dao = ad_link_dao
+        self.partner_dao = partner_dao
+        self.user_dao = user_dao
+        self.cryptographer = cryptographer
+
+    async def _execute(self, actor: UserDto, data: CreatePartnerLinkDto) -> Optional[str]:
+        user = await self.user_dao.get_by_telegram_id(data.telegram_id)
+        if user is None or user.id is None:
+            return None
+
+        partner = await self.partner_dao.get_by_user_id(user.id)
+        if partner is None or not partner.is_active:
+            return None
+
+        name = data.name.strip()[:64] or "Ссылка"
+        code = await self.cryptographer.generate_unique_code(self.ad_link_dao.get_by_code)
+
+        async with self.uow:
+            link = await self.ad_link_dao.create(name=name, code=code)
+            await self.ad_link_dao.set_owner(link.id, user.id)
+            await self.uow.commit()
+
+        logger.info(f"[Partner] Partner '{partner.id}' created link '{code}'")
+        return code

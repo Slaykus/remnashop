@@ -4,6 +4,7 @@ from src.application.common import Interactor
 
 from .commands.manage import (
     CreatePartner,
+    CreatePartnerLink,
     MarkPartnerEarningsAvailable,
     PayPartner,
     ToggleLinkOwner,
@@ -13,6 +14,7 @@ from .queries.list import GetPartnerOverview, GetPartners
 
 PARTNER_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     CreatePartner,
+    CreatePartnerLink,
     UpdatePartnerTerms,
     PayPartner,
     ToggleLinkOwner,

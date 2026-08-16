@@ -30,6 +30,10 @@ from src.application.common.dao import AdLinkDao, PartnerDao, PlanDao, PaymentGa
 from src.core.config import AppConfig
 from src.application.common.uow import UnitOfWork
 from src.application.dto import ReferralDto, UserDto
+from src.application.use_cases.partner.commands.manage import (
+    CreatePartnerLink,
+    CreatePartnerLinkDto,
+)
 from src.application.dto.plan import PlanSnapshotDto
 from src.application.dto.transaction import PriceDetailsDto
 from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
@@ -1394,3 +1398,37 @@ async def partner_overview(
         signups=signups,
         links=links,
     )
+
+
+class CreatePartnerLinkRequest(BaseModel):
+    name: str
+
+
+class CreatePartnerLinkResponse(BaseModel):
+    code: str
+
+
+@router.post(
+    "/partners/{telegram_id}/links",
+    response_model=CreatePartnerLinkResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def create_partner_link(
+    telegram_id: int,
+    body: CreatePartnerLinkRequest,
+    create_link: FromDishka[CreatePartnerLink],
+) -> CreatePartnerLinkResponse:
+    """
+    Партнёр заводит себе ссылку из кабинета на сайте.
+
+    Кто именно партнёр, решается внутри по telegram_id: снаружи прийти
+    может только сайт с внутренним ключом, но полагаться на это одно было
+    бы неосторожно.
+    """
+    code = await create_link.system(
+        CreatePartnerLinkDto(telegram_id=telegram_id, name=body.name)
+    )
+    if code is None:
+        raise HTTPException(status_code=404, detail="Not a partner")
+    return CreatePartnerLinkResponse(code=code)
