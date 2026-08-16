@@ -119,7 +119,7 @@ ad_view = Window(
     Row(
         Button(
             text=I18nFormat("btn-advertising.toggle-active"),
-            id="toggle_active",
+            id="partner_toggle_active",
             on_click=on_partner_toggle_active,
         ),
     ),
