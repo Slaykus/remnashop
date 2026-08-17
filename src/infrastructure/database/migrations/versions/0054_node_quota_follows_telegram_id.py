@@ -19,11 +19,14 @@ _FK = "user_yandex_quota_user_telegram_id_fkey"
 
 
 def _fk_exists(conn, name: str) -> bool:
+    # Без ::regclass намеренно: приведение типа сталкивается с плейсхолдером
+    # и запрос до базы не доходит.
     return bool(
         conn.execute(
             sa.text(
-                "SELECT EXISTS (SELECT 1 FROM pg_constraint "
-                "WHERE conname = :n AND conrelid = :t::regclass)"
+                "SELECT EXISTS (SELECT 1 FROM pg_constraint c "
+                "JOIN pg_class t ON t.oid = c.conrelid "
+                "WHERE c.conname = :n AND t.relname = :t)"
             ),
             {"n": name, "t": _TABLE},
         ).scalar()
