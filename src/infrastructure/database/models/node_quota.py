@@ -14,7 +14,9 @@ class UserNodeQuota(BaseSql, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_telegram_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("users.telegram_id", ondelete="CASCADE"),
+        # onupdate обязателен: telegram_id меняется при привязке телеграма к
+        # аккаунту сайта, и без каскада база отклоняет переименование.
+        ForeignKey("users.telegram_id", ondelete="CASCADE", onupdate="CASCADE"),
         unique=True,
         index=True,
     )
