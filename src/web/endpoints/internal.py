@@ -844,14 +844,27 @@ async def migrate_telegram(
         carried_days = 0
         if virtual_sub and virtual_sub.id and not real_sub:
             async with uow:
+                # Владельца подписки меняем до удаления старой записи. У
+                # внешнего ключа каскад: если сначала удалить пользователя,
+                # подписка уйдёт вместе с ним — человек оставался без дней,
+                # а его аккаунт в панели висел ничьим.
+                await subscription_dao.move_to_user(virtual_sub.id, conflict.id or 0)
                 await user_dao.set_current_subscription_by_id(conflict.id or 0, virtual_sub.id)
                 await user_dao.delete(user.id or 0)
                 await uow.commit()
 
+            # Раньше здесь звали update_user без плана и подписки, а он на
+            # такой паре аргументов бросает ValueError — вызов не делал ничего
+            # и молча падал. Имя в панели так и оставалось от псевдо-id сайта.
+            # Ссылка в приложении привязана к uuid и работает под любым именем,
+            # поэтому неудачу не считаем провалом слияния, но и не прячем.
             try:
-                await remnawave.update_user(user=conflict, uuid=str(virtual_sub.user_remna_id))
-            except Exception:
-                pass
+                await remnawave.rename_user(user=conflict, uuid=virtual_sub.user_remna_id)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to rename Remnawave user '{virtual_sub.user_remna_id}' "
+                    f"after merging '{old_telegram_id}' into '{body.new_telegram_id}': {e}"
+                )
 
             return MigrateTelegramResponse(migrated=True, message="Merged with existing account")
 
@@ -877,12 +890,18 @@ async def migrate_telegram(
                     )
 
             # Лишний аккаунт в Remnawave надо убрать, иначе он продолжит
-            # занимать место, а его старая ссылка — работать.
+            # занимать место, а его старая ссылка — работать. Если не вышло,
+            # человек сохраняет доступ по обеим ссылкам: слияние из-за этого
+            # не отменяем, но след в логах нужен, чтобы такой аккаунт нашли.
             if virtual_sub.user_remna_id:
                 try:
                     await sdk.users.delete_user(uuid=str(virtual_sub.user_remna_id))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to delete leftover Remnawave user "
+                        f"'{virtual_sub.user_remna_id}' after merging "
+                        f"'{old_telegram_id}' into '{body.new_telegram_id}': {e}"
+                    )
 
         async with uow:
             await user_dao.delete(user.id or 0)
@@ -903,12 +922,17 @@ async def migrate_telegram(
         await user_dao.update(user)
         await uow.commit()
 
-    # Update Remnawave username from remnashop{old_id} → remnashop{new_id} (best effort)
+    # Имя в панели меняется с rs_{старый} на rs_{новый}. Ссылка привязана к
+    # uuid, поэтому неудача доступ не рвёт — но оставляет имя, по которому
+    # аккаунт больше не найти, так что пишем в лог.
     if sub and sub.user_remna_id:
         try:
-            await remnawave.update_user(user=user, uuid=str(sub.user_remna_id))
-        except Exception:
-            pass  # Don't fail the migration if Remnawave update fails
+            await remnawave.rename_user(user=user, uuid=sub.user_remna_id)
+        except Exception as e:
+            logger.warning(
+                f"Failed to rename Remnawave user '{sub.user_remna_id}' "
+                f"while migrating '{old_telegram_id}' to '{body.new_telegram_id}': {e}"
+            )
 
     return MigrateTelegramResponse(migrated=True, message="Migrated successfully")
 

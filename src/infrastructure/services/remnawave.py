@@ -126,6 +126,24 @@ class RemnawaveImpl(Remnawave):
 
         return remna_user
 
+    async def rename_user(self, user: UserDto, uuid: UUID) -> None:
+        """
+        Привести имя и telegram_id аккаунта в панели к текущему владельцу.
+
+        Нужно после слияния: аккаунт заводился под псевдо-id сайта и остаётся
+        с именем вида rs_-38, по которому его уже не найти. Трогаем только имя
+        и telegram_id — срок, сквады и лимиты берутся из подписки и меняться
+        здесь не должны.
+        """
+        await self.sdk.users.update_user(
+            UpdateUserRequestDto(
+                uuid=uuid,
+                username=user.remna_name,
+                telegram_id=user.telegram_id,
+            )
+        )
+        logger.info(f"RemnaUser '{uuid}' renamed to '{user.remna_name}'")
+
     async def enable_user(self, uuid: UUID) -> None:
         try:
             await self.sdk.users.enable_user(uuid)

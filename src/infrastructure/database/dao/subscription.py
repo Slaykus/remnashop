@@ -154,6 +154,28 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         logger.warning(f"Failed to update subscription '{subscription.id}'")
         return None
 
+    async def move_to_user(self, subscription_id: int, user_id: int) -> bool:
+        """
+        Передать подписку другому владельцу.
+
+        Нужно при слиянии аккаунтов: у внешнего ключа стоит каскадное
+        удаление, поэтому подписку надо перевесить до того, как исчезнет
+        старая запись, иначе она уйдёт вместе с ней.
+        """
+        stmt = (
+            update(Subscription)
+            .where(Subscription.id == subscription_id)
+            .values(user_id=user_id)
+            .returning(Subscription.id)
+        )
+        moved = await self.session.scalar(stmt) is not None
+
+        if moved:
+            logger.info(f"Subscription '{subscription_id}' moved to user '{user_id}'")
+        else:
+            logger.warning(f"Subscription '{subscription_id}' not found, move skipped")
+        return moved
+
     async def update_status(
         self,
         subscription_id: int,

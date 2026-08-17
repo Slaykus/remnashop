@@ -21,6 +21,8 @@ class SubscriptionDao(Protocol):
 
     async def update(self, subscription: SubscriptionDto) -> Optional[SubscriptionDto]: ...
 
+    async def move_to_user(self, subscription_id: int, user_id: int) -> bool: ...
+
     async def update_status(
         self,
         subscription_id: int,
