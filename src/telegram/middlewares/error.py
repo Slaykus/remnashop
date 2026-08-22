@@ -1,5 +1,6 @@
 from typing import Any, Awaitable, Callable, Final, Optional, cast
 
+from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import ErrorEvent as AiogramErrorEvent
 from aiogram.types import TelegramObject
@@ -11,6 +12,7 @@ from aiogram_dialog.api.exceptions import (
     UnknownState,
 )
 from dishka import AsyncContainer
+from dishka.integrations.aiogram import AiogramMiddlewareData
 from loguru import logger
 
 from src.application.common import BotService, EventPublisher, Notifier
@@ -39,16 +41,38 @@ _IGNORED_BAD_REQUESTS: Final[tuple[str, ...]] = (
 class ErrorMiddleware(EventTypedMiddleware):
     __event_types__ = [MiddlewareEventType.ERROR]
 
-    async def middleware_logic(  # noqa: C901
+    async def middleware_logic(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        """
+        Разобрать ошибку в собственной области видимости контейнера.
+
+        Контейнер запроса к этому моменту уже закрыт: dishka оборачивает
+        обработку апдейта, а обработчик ошибок стоит выше неё и получает
+        управление ровно тогда, когда исключение оттуда вышло. Всё, что
+        бралось из закрытого контейнера, создавалось без владельца —
+        сессия базы не возвращалась в пул, и соединение висело до сборщика
+        мусора, который ругался в логи на невозвращённое подключение.
+        """
+        stale: AsyncContainer = data[CONTAINER_KEY]
+        async with (stale.parent_container or stale)(
+            {TelegramObject: event, AiogramMiddlewareData: data},
+        ) as container:
+            return await self._handle_error(handler, event, data, container)
+
+    async def _handle_error(  # noqa: C901
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+        container: AsyncContainer,
+    ) -> Any:
         event = cast(AiogramErrorEvent, event)
         aiogram_user: Optional[AiogramUser] = self._get_aiogram_user(data)
         config: AppConfig = data[CONFIG_KEY]
-        container: AsyncContainer = data[CONTAINER_KEY]
 
         bot_service = await container.get(BotService)
         event_publisher = await container.get(EventPublisher)
@@ -115,7 +139,12 @@ class ErrorMiddleware(EventTypedMiddleware):
                     )
 
         if is_context_loss:
-            return await handler(event, data)
+            result = await handler(event, data)
+            # Человек уже возвращён в меню и получил уведомление — ошибка
+            # отработана. Без явного ответа aiogram считает её необработанной,
+            # пробрасывает дальше и печатает полный traceback: мониторинг
+            # поднимал тревогу на штатном нажатии устаревшей кнопки.
+            return True if result is UNHANDLED else result
 
         error_event = ErrorEvent(
             **config.build.data,
