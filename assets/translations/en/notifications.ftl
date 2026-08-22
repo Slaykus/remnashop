@@ -1,5 +1,6 @@
 ntf-error =
     .unknown = ⚠️ <i>An error occurred.</i>
+    .network = ⚠️ <i>The service is temporarily unavailable. Please try again in a minute.</i>
     .permission-denied = ⚠️ <i>You don't have sufficient permissions.</i>
     .log-not-found = ⚠️ <i>Log file not found.</i>
     .logs-disabled = ⚠️ <i>File logging is disabled.</i>

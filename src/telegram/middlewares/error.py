@@ -1,7 +1,13 @@
+import socket
 from typing import Any, Awaitable, Callable, Final, Optional, cast
 
+import httpx
 from aiogram.dispatcher.event.bases import UNHANDLED
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNetworkError,
+)
 from aiogram.types import ErrorEvent as AiogramErrorEvent
 from aiogram.types import TelegramObject
 from aiogram.types import User as AiogramUser
@@ -27,6 +33,15 @@ from src.core.exceptions import MenuRenderError, PermissionDeniedError
 from src.telegram.keyboards import get_contact_support_keyboard
 
 from .base import EventTypedMiddleware
+
+# Сеть моргнула: панель, телеграм или внешний сервис не ответили. Код тут ни
+# при чём, и повтор через минуту обычно всё чинит.
+_NETWORK_ERRORS: Final[tuple[type[BaseException], ...]] = (
+    httpx.TransportError,
+    TelegramNetworkError,
+    socket.gaierror,
+    TimeoutError,
+)
 
 _IGNORED_BAD_REQUESTS: Final[tuple[str, ...]] = (
     "message is not modified",
@@ -127,6 +142,13 @@ class ErrorMiddleware(EventTypedMiddleware):
                             else "ntf-error.lost-context-restart"
                         )
                         await notifier.notify_user(user, i18n_key=i18n_key)
+                elif isinstance(event.exception, _NETWORK_ERRORS):
+                    # Кнопку поддержки не показываем: обращаться не с чем,
+                    # человеку достаточно повторить попытку.
+                    await notifier.notify_user(
+                        user=TempUserDto.from_aiogram(aiogram_user),
+                        i18n_key="ntf-error.network",
+                    )
                 else:
                     await notifier.notify_user(
                         user=TempUserDto.from_aiogram(aiogram_user),
