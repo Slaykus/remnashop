@@ -90,8 +90,13 @@ async def on_get_trial(
     plan = await get_available_trial.system(user)
 
     if not plan:
+        # Обычно это второе нажатие подряд: первое уже выдало пробный, и
+        # доступного плана больше нет. Раньше отсюда летело исключение, и
+        # человек сразу после успешной выдачи получал «неизвестная ошибка,
+        # напишите в поддержку» и вылет в главное меню.
+        logger.info(f"{user.log} No trial plan available, activation skipped")
         await notifier.notify_user(user=user, i18n_key="ntf-common.trial-unavailable")
-        raise ValueError("Trial plan not exist")
+        return
 
     settings = await settings_dao.get()
     currency = settings.default_currency
