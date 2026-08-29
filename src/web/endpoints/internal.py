@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -18,7 +19,7 @@ from loguru import logger
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel
 from remnapy import RemnawaveSDK
 
@@ -1323,6 +1324,85 @@ async def links_stats(
         )
         for row in rows
     ]
+
+
+class CreateAdLinkRequest(BaseModel):
+    """Заявка на рекламную ссылку от внешнего инструмента."""
+
+    code: str
+    name: str
+
+
+class CreateAdLinkResponse(BaseModel):
+    code: str
+    name: str
+    # Как выглядит ссылка, решает бот: есть адрес сайта — ведём на посадочную,
+    # нет — на deep link. Отдаём готовой, чтобы снаружи это правило не повторяли.
+    telegram_url: str
+
+
+# Разрешаем ровно то, что переживает Telegram deep link: payload там ASCII и
+# не длиннее 64 символов, а три уходят на префикс 'ad_'. Админка бота проверяет
+# код через isalnum(), но он пропускает кириллицу — с ней ссылка перестала бы
+# открываться. Здесь правило строже и явное.
+_AD_CODE_RE = re.compile(r"^[A-Za-z0-9]{1,61}$")
+
+
+@router.post(
+    "/links",
+    response_model=CreateAdLinkResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def create_ad_link(
+    body: CreateAdLinkRequest,
+    response: Response,
+    ad_link_dao: FromDishka[AdLinkDao],
+    bot_service: FromDishka[BotService],
+    uow: FromDishka[UnitOfWork],
+) -> CreateAdLinkResponse:
+    """
+    Завести рекламную ссылку снаружи.
+
+    До сих пор ссылку можно было создать только руками в админке бота, и
+    внешний инструмент упирался в это: метку он придумывал, а бот о ней не
+    знал — переход по такой ссылке не привязывался ни к чему.
+
+    Повтор запроса с тем же кодом безопасен: занятый код отдаётся как есть,
+    со статусом 200 вместо 201. Так обрыв связи не превращается в ошибку, а
+    чужой код видно по имени в ответе.
+    """
+    code = body.code.strip()
+    name = body.name.strip()
+
+    if not _AD_CODE_RE.match(code):
+        raise HTTPException(
+            status_code=422,
+            detail="Код: латинские буквы и цифры, до 61 символа",
+        )
+    if not name:
+        raise HTTPException(status_code=422, detail="Название не может быть пустым")
+
+    existing = await ad_link_dao.get_by_code(code)
+    if existing is not None:
+        response.status_code = 200
+        return CreateAdLinkResponse(
+            code=existing.code,
+            name=existing.name,
+            telegram_url=await bot_service.get_ad_link_url(existing.code),
+        )
+
+    async with uow:
+        link = await ad_link_dao.create(name=name, code=code)
+        await uow.commit()
+
+    logger.info(f"[AdLink] Created link '{code}' via internal API")
+    response.status_code = 201
+    return CreateAdLinkResponse(
+        code=link.code,
+        name=link.name,
+        telegram_url=await bot_service.get_ad_link_url(link.code),
+    )
 
 
 class LinkLookupResponse(BaseModel):
