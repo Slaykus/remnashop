@@ -28,6 +28,11 @@ TAG_REGEX: Pattern[str] = re.compile(r"^[A-Z0-9_]{1,16}$")
 URL_PATTERN: Pattern[str] = re.compile(r"^https://\S+$")
 USERNAME_PATTERN: Pattern[str] = re.compile(r"^@[a-zA-Z0-9_]{5,32}$")
 INVITE_LINK_PATTERN: Pattern[str] = re.compile(r"^https://t\.me/(\+|joinchat/)[A-Za-z0-9_\-]+")
+# Код рекламной ссылки уезжает в deep link как "ad_<код>", а payload у
+# Telegram — ASCII не длиннее 64 символов. Отсюда потолок 61 и запрет на
+# всё, кроме латиницы с цифрами: раньше проверка шла через isalnum(), а он
+# пропускает кириллицу — такую ссылку Telegram открыть уже не мог.
+AD_LINK_CODE_PATTERN: Pattern[str] = re.compile(r"^[A-Za-z0-9]{1,61}$")
 
 REMNAWAVE_MIN_VERSION: Final[Version] = Version("2.7.0")
 REMNAWAVE_MAX_VERSION: Final[Version] = Version("2.8.0")

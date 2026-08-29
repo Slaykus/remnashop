@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import math
-import re
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -63,7 +62,7 @@ from src.core.exceptions import (
     PromocodeNotFoundError,
 )
 from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, TransactionStatus
-from src.core.constants import API_V1
+from src.core.constants import AD_LINK_CODE_PATTERN, API_V1
 
 router = APIRouter(prefix=API_V1 + "/internal", tags=["internal"])
 
@@ -1341,13 +1340,6 @@ class CreateAdLinkResponse(BaseModel):
     telegram_url: str
 
 
-# Разрешаем ровно то, что переживает Telegram deep link: payload там ASCII и
-# не длиннее 64 символов, а три уходят на префикс 'ad_'. Админка бота проверяет
-# код через isalnum(), но он пропускает кириллицу — с ней ссылка перестала бы
-# открываться. Здесь правило строже и явное.
-_AD_CODE_RE = re.compile(r"^[A-Za-z0-9]{1,61}$")
-
-
 @router.post(
     "/links",
     response_model=CreateAdLinkResponse,
@@ -1375,7 +1367,7 @@ async def create_ad_link(
     code = body.code.strip()
     name = body.name.strip()
 
-    if not _AD_CODE_RE.match(code):
+    if not AD_LINK_CODE_PATTERN.match(code):
         raise HTTPException(
             status_code=422,
             detail="Код: латинские буквы и цифры, до 61 символа",

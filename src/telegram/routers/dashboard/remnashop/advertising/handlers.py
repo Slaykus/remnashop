@@ -31,7 +31,7 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAdLinkPeriodStatsInput,
     GetAllAdLinksComparison,
 )
-from src.core.constants import USER_KEY
+from src.core.constants import AD_LINK_CODE_PATTERN, USER_KEY
 from src.telegram.charts import (
     build_comparison_chart,
     build_daily_clicks_chart,
@@ -111,10 +111,13 @@ async def on_create_code_input(
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
     code = (message.text or "").strip()
 
-    if not code or not code.isalnum():
+    # Ключ 'ntf-ad.code-invalid' говорит «ссылка не найдена» — текст достался
+    # ему от другого сценария и здесь только путал. Берём общий про
+    # некорректное значение, тот же, что ниже показывается на занятый код.
+    if not AD_LINK_CODE_PATTERN.match(code):
         await notifier.notify_user(
             user,
-            payload=MessagePayloadDto(i18n_key="ntf-ad.code-invalid", delete_after=5),
+            payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5),
         )
         return
 
