@@ -1272,6 +1272,59 @@ async def get_promocode_info(
     )
 
 
+class AdLinkStatsItem(BaseModel):
+    """Итог по одной рекламной ссылке."""
+
+    code: str
+    name: str
+    is_active: bool
+    clicks_count: int
+    unique_clicks: int
+    paid_count: int
+    # Деньгами в этом файле везде отдаётся float — держим один формат,
+    # чтобы читающей стороне не пришлось разбирать два разных.
+    revenue_rub: float
+    conversion_pct: float
+
+
+# Объявлено выше '/links/{code}': FastAPI разбирает роуты по порядку, и при
+# обратном порядке 'stats' уехало бы в тот обработчик как код ссылки.
+@router.get(
+    "/links/stats",
+    response_model=list[AdLinkStatsItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def links_stats(
+    ad_link_dao: FromDishka[AdLinkDao],
+) -> list[AdLinkStatsItem]:
+    """
+    Клики, оплаты и выручка по каждой рекламной ссылке.
+
+    То же, что показывает админка бота, но машинно: внешний инструмент
+    сверяет это со своими размещениями и считает окупаемость закупки.
+    Отдаётся накопленный итог — динамику считает тот, кто спрашивает,
+    по разнице между снимками.
+
+    Внутренний id ссылки наружу не отдаём: снаружи её опознают по коду,
+    а ключ таблицы бота знать никому не нужно.
+    """
+    rows = await ad_link_dao.get_all_links_comparison()
+    return [
+        AdLinkStatsItem(
+            code=row.code,
+            name=row.name,
+            is_active=row.is_active,
+            clicks_count=row.clicks_count,
+            unique_clicks=row.unique_clicks,
+            paid_count=row.paid_count,
+            revenue_rub=float(row.revenue_rub),
+            conversion_pct=row.conversion_pct,
+        )
+        for row in rows
+    ]
+
+
 class LinkLookupResponse(BaseModel):
     """Что стоит за кодом из рекламной или реферальной ссылки."""
 
