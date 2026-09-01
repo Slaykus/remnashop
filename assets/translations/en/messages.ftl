@@ -1489,6 +1489,13 @@ msg-advertising-promo-edit-photo =
     *[0] { "" }
     }
 
+msg-advertising-promo-send-target =
+    🚀 <b>Send as the bot</b>
+
+    Forward any message from the channel here — or send its @name or id.
+
+    <i>The bot must be an admin there with permission to post. The message is sent as the bot, so premium emoji and formatting survive.</i>
+
 msg-advertising-promo-button-label =
     ✏️ Enter button label (up to 100 characters):
 

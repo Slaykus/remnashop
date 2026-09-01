@@ -1,5 +1,6 @@
 from typing import Any, Optional
 
+from aiogram import Bot
 from aiogram.enums import ButtonStyle, ContentType
 from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -31,6 +32,7 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAdLinkPeriodStatsInput,
     GetAllAdLinksComparison,
 )
+from src.application.dto import AdLinkDto
 from src.core.enums import MediaType
 from src.telegram.keyboards import get_promo_keyboard
 from src.core.constants import AD_LINK_CODE_PATTERN, USER_KEY
@@ -613,6 +615,124 @@ async def on_send_comparison_chart(
 
 
 @inject
+async def on_promo_send_target(
+    message: Message,
+    widget: MessageInput,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    bot_service: FromDishka[BotService],
+    notifier: FromDishka[Notifier],
+) -> None:
+    """
+    Публикация от имени бота в указанный чат.
+
+    Адресат берётся из пересланного сообщения либо из @имени или id —
+    первый способ надёжнее, потому что не требует помнить формат.
+    """
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+
+    target: int | str | None = None
+    if message.forward_from_chat is not None:
+        target = message.forward_from_chat.id
+    elif message.text:
+        raw = message.text.strip()
+        if raw.startswith("@") and len(raw) > 1:
+            target = raw
+        elif raw.lstrip("-").isdigit():
+            target = int(raw)
+
+    if target is None:
+        await notifier.notify_user(
+            user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)
+        )
+        return
+
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link or not link.promo_text:
+        return
+
+    try:
+        await send_promo_post(message.bot, target, link, bot_service)
+    except Exception as e:
+        # Показываем причину как есть: почти всегда это «бот не админ» или
+        # опечатка в имени, и человеку важнее текст телеграма, чем общая фраза.
+        logger.warning(f"{user.log} Failed to publish promo to '{target}': {e}")
+        await notifier.notify_user(
+            user,
+            payload=MessagePayloadDto(
+                i18n_key="ntf-ad.publish-failed",
+                i18n_kwargs={"reason": str(e)[:200]},
+                delete_after=15,
+            ),
+        )
+        return
+
+    logger.info(f"{user.log} Published promo for '{link.code}' to '{target}'")
+    await notifier.notify_user(
+        user, payload=MessagePayloadDto(i18n_key="ntf-ad.publish-ok", delete_after=5)
+    )
+    await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
+
+
+async def on_promo_send(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    await dialog_manager.switch_to(RemnashopAdvertising.PROMO_SEND_TARGET)
+
+
+async def send_promo_post(
+    bot: Bot,
+    chat_id: int | str,
+    link: AdLinkDto,
+    bot_service: BotService,
+) -> Message:
+    """
+    Отправить рекламный пост в чат от имени бота.
+
+    Именно от имени бота, а не через inline: телеграм не пропускает
+    премиум-эмодзи в inline-результатах, и разметка приходила к читателю
+    обеднённой. Прямая отправка идёт по правам самого бота, и эмодзи
+    доезжают — так же, как в превью владельцу.
+    """
+    ad_url = await bot_service.get_ad_link_url(link.code)
+    bot_url = await bot_service.get_ad_deeplink_url(link.code)
+    markup = get_promo_keyboard(link.promo_buttons or [], ad_url, bot_url)
+
+    if link.promo_photo_id:
+        # Тип пуст у ссылок, заведённых до поддержки видео — это фото.
+        send = {
+            MediaType.VIDEO: bot.send_video,
+            MediaType.GIF: bot.send_animation,
+        }.get(link.promo_media_type, bot.send_photo)
+        return await send(
+            chat_id=chat_id,
+            **{_MEDIA_ARG[link.promo_media_type or MediaType.PHOTO]: link.promo_photo_id},
+            caption=link.promo_text,
+            parse_mode="HTML",
+            reply_markup=markup,
+        )
+
+    return await bot.send_message(
+        chat_id=chat_id,
+        text=link.promo_text or "",
+        parse_mode="HTML",
+        reply_markup=markup,
+    )
+
+
+_MEDIA_ARG = {
+    MediaType.PHOTO: "photo",
+    MediaType.VIDEO: "video",
+    MediaType.GIF: "animation",
+}
+
+
+@inject
 async def on_send_promo_preview(
     callback: CallbackQuery,
     widget: Button,
@@ -629,24 +749,4 @@ async def on_send_promo_preview(
     if not callback.message:
         return
 
-    ad_url = await bot_service.get_ad_link_url(link.code)
-    bot_url = await bot_service.get_ad_deeplink_url(link.code)
-    markup = get_promo_keyboard(link.promo_buttons or [], ad_url, bot_url)
-    if link.promo_photo_id:
-        # Тип пуст у ссылок, заведённых до поддержки видео — это фото.
-        send = {
-            MediaType.VIDEO: callback.message.answer_video,
-            MediaType.GIF: callback.message.answer_animation,
-        }.get(link.promo_media_type, callback.message.answer_photo)
-        await send(
-            link.promo_photo_id,
-            caption=link.promo_text,
-            parse_mode="HTML",
-            reply_markup=markup,
-        )
-    else:
-        await callback.message.answer(
-            link.promo_text,
-            parse_mode="HTML",
-            reply_markup=markup,
-        )
+    await send_promo_post(callback.message.bot, callback.message.chat.id, link, bot_service)

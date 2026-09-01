@@ -229,6 +229,8 @@ ntf-node-quota =
         }
 
 ntf-ad =
+    .publish-ok = ✅ <i>Post sent.</i>
+    .publish-failed = ⚠️ <i>Could not send: { $reason }</i>
     .bonus-received =
         🎁 <b>You received a bonus for following the ad link!</b>
         { $bonus_points ->

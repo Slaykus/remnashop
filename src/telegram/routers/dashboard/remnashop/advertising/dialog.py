@@ -65,6 +65,8 @@ from .handlers import (
     on_promo_remove_photo,
     on_promo_set_photo,
     on_promo_set_style,
+    on_promo_send,
+    on_promo_send_target,
     on_promo_set_text,
     on_promo_use_ad_url,
     on_send_comparison_chart,
@@ -363,6 +365,17 @@ ad_promo = Window(
         ),
     ),
     Row(
+        # Отправка ботом. Отличается от кнопки ниже тем, что пост уходит от
+        # имени бота: телеграм срезает премиум-эмодзи в inline-результатах,
+        # а при прямой отправке применяются права бота и разметка доезжает.
+        Button(
+            text=I18nFormat("btn-advertising.promo-send"),
+            id="promo_send",
+            on_click=on_promo_send,
+            when=F["promo_has_text"],
+        ),
+    ),
+    Row(
         # Публикация поста прямо в канал. Пересылка превью руками теряла
         # кнопки, а значение запроса геттер готовил уже давно — не хватало
         # только этой кнопки и обработчика на той стороне.
@@ -448,6 +461,22 @@ ad_promo_button_label = Window(
     state=RemnashopAdvertising.PROMO_BUTTON_LABEL,
     getter=edit_getter,
 )
+
+ad_promo_send_target = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-send-target"),
+    MessageInput(func=on_promo_send_target),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PROMO_SEND_TARGET,
+)
+
 
 ad_promo_button_url = Window(
     Banner(BannerName.DASHBOARD),
@@ -823,6 +852,7 @@ router = Dialog(
     ad_edit_promo_text,
     ad_edit_promo_photo,
     ad_promo_button_label,
+    ad_promo_send_target,
     ad_promo_button_url,
     ad_promo_button_style,
     ad_analytics,

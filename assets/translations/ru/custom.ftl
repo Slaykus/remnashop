@@ -438,7 +438,8 @@ btn-advertising =
     .promo-use-bot-url = 🤖 Ссылка на бота
     .promo-use-site-url = 🌐 Ссылка на сайт
     .promo-preview = 👁 Отправить мне превью
-    .promo-publish = 📣 Опубликовать в канал
+    .promo-send = 🚀 Отправить ботом
+    .promo-publish = 📣 Опубликовать через себя
     .promo-style-default = ⚪ Обычная
     .promo-style-primary = 🔵 Синяя
     .promo-style-success = 🟢 Зелёная
@@ -570,6 +571,13 @@ msg-advertising-promo-edit-photo =
     *[0] { "" }
     }
 
+msg-advertising-promo-send-target =
+    🚀 <b>Отправить ботом</b>
+
+    Перешлите сюда любое сообщение из канала — или пришлите его @имя либо id.
+
+    <i>Бот должен быть админом канала с правом публикации. Отправка идёт от его имени, поэтому премиум-эмодзи и разметка сохраняются.</i>
+
 msg-advertising-promo-button-label =
     ✏️ Введите текст кнопки (до 100 символов):
 
@@ -670,6 +678,8 @@ event-referral =
 
 # Уведомления рекламных ссылок
 ntf-ad =
+    .publish-ok = ✅ <i>Пост отправлен.</i>
+    .publish-failed = ⚠️ <i>Не удалось отправить: { $reason }</i>
     .bonus-received =
         <e id="5431744001361352063">🎁</e> <b>Вам начислен бонус за переход по рекламной ссылке!</b>
         { $bonus_points ->
