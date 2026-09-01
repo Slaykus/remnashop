@@ -454,9 +454,17 @@ ad_promo_button_url = Window(
     I18nFormat("msg-advertising-promo-button-url"),
     MessageInput(func=on_promo_button_url_input),
     Row(
+        # Две цели вместо одной: в канале уместнее вести прямо в бота, а на
+        # сайт отправлять отдельной кнопкой. Раньше выбора не было — как
+        # только задан адрес сайта, туда уходило всё.
         Button(
-            text=I18nFormat("btn-advertising.promo-use-ad-url"),
-            id="use_ad_url",
+            text=I18nFormat("btn-advertising.promo-use-bot-url"),
+            id="promo_use_bot_url",
+            on_click=on_promo_use_ad_url,
+        ),
+        Button(
+            text=I18nFormat("btn-advertising.promo-use-site-url"),
+            id="promo_use_site_url",
             on_click=on_promo_use_ad_url,
         ),
     ),

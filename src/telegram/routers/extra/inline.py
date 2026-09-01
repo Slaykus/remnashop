@@ -137,7 +137,8 @@ async def handle_promo_inline_query(
     # одной строкой: прогнать promo_text через _strip_custom_emoji для тех
     # же типов чатов, что и приглашение.
     ad_url = await bot_service.get_ad_link_url(link.code)
-    markup = get_promo_keyboard(link.promo_buttons or [], ad_url)
+    bot_url = await bot_service.get_ad_deeplink_url(link.code)
+    markup = get_promo_keyboard(link.promo_buttons or [], ad_url, bot_url)
     result_id = hashlib.md5(f"{INLINE_QUERY_PROMO_PREFIX}{code}".encode()).hexdigest()
 
     result: InlineQueryResultUnion

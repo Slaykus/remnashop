@@ -376,8 +376,12 @@ async def on_promo_button_label_input(
 ) -> None:
     dialog_manager.show_mode = ShowMode.EDIT
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
-    label = (message.text or "").strip()
-    if not label or len(label) > 100:
+    # html_text: премиум-эмодзи в подписи живёт в entities, и при сохранении
+    # голого текста от него оставался только запасной символ. На самой кнопке
+    # телеграм эмодзи в тексте не рисует — сборщик клавиатуры переносит его
+    # в отдельное поле иконки.
+    label = (message.html_text or "").strip() if message.text else ""
+    if not label or len(message.text or "") > 100:
         await notifier.notify_user(
             user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)
         )
@@ -413,6 +417,11 @@ async def on_promo_use_ad_url(
 ) -> None:
     dialog_manager.show_mode = ShowMode.EDIT
     dialog_manager.dialog_data["new_btn_url"] = ""
+    # Куда вести, решаем по нажатой кнопке, а адрес подставляется при показе
+    # поста: вмороженный адрес не переживал смену настроек.
+    dialog_manager.dialog_data["new_btn_target"] = (
+        "bot" if widget.widget_id == "promo_use_bot_url" else "site"
+    )
     await dialog_manager.switch_to(RemnashopAdvertising.PROMO_BUTTON_STYLE)
 
 
@@ -446,17 +455,22 @@ async def on_promo_set_style(
     if not link:
         return
 
-    if not url:
+    target: str = dialog_manager.dialog_data.get("new_btn_target", "")
+    if not url and not target:
         url = await bot_service.get_ad_link_url(link.code)
 
     buttons = list(link.promo_buttons or [])
     if len(buttons) < 3:
-        buttons.append({"label": label, "url": url, "style": style_name})
+        button = {"label": label, "url": url, "style": style_name}
+        if target:
+            button["target"] = target
+        buttons.append(button)
     link.promo_buttons = buttons
     await update_ad_link(user, UpdateAdLinkDto(link=link))
 
     dialog_manager.dialog_data.pop("new_btn_label", None)
     dialog_manager.dialog_data.pop("new_btn_url", None)
+    dialog_manager.dialog_data.pop("new_btn_target", None)
     await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
 
 
@@ -616,7 +630,8 @@ async def on_send_promo_preview(
         return
 
     ad_url = await bot_service.get_ad_link_url(link.code)
-    markup = get_promo_keyboard(link.promo_buttons or [], ad_url)
+    bot_url = await bot_service.get_ad_deeplink_url(link.code)
+    markup = get_promo_keyboard(link.promo_buttons or [], ad_url, bot_url)
     if link.promo_photo_id:
         # Тип пуст у ссылок, заведённых до поддержки видео — это фото.
         send = {

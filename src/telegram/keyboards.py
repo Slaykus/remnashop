@@ -12,6 +12,7 @@ from src.core.constants import DOCS, GOTO_PREFIX, PAYMENT_PREFIX, REPOSITORY, T_
 from src.core.enums import ButtonType, PurchaseType
 from src.telegram.states import DashboardUser, MainMenu, Notification, Subscription
 from src.telegram.widgets import I18nFormat
+from src.telegram.widgets.tg_emoji import extract_tg_emoji
 from src.telegram.widgets.kbd import Button, CopyText, Group, ListGroup, Row, Start, Url, WebApp
 
 CALLBACK_CHANNEL_CONFIRM: Final[str] = "channel_confirm"
@@ -233,23 +234,47 @@ _PROMO_STYLES = {
 }
 
 
-def get_promo_keyboard(promo_buttons: list, ad_url: str) -> Optional[InlineKeyboardMarkup]:
+def get_promo_keyboard(
+    promo_buttons: list,
+    ad_url: str,
+    bot_url: Optional[str] = None,
+) -> Optional[InlineKeyboardMarkup]:
     """
     Клавиатура рекламного поста.
 
     Собирается в одном месте: пост уходит и превью владельцу, и через inline
     в канал, и раньше две сборки разъезжались бы при первой же правке.
 
-    Пустой url у кнопки означает «вести на саму рекламную ссылку» — какой она
-    будет, решает бот: посадочная сайта, если адрес задан, иначе deep link.
+    Куда ведёт кнопка, решает её поле target: 'bot' — прямо в бота, 'site' —
+    на посадочную. Адрес вычисляется здесь, а не при создании кнопки: раньше
+    он в неё вмораживался, и смена настроек старые кнопки не трогала.
+    Кнопки без target остались от прежнего порядка — у них свой сохранённый
+    адрес, его и берём.
+
+    Премиум-эмодзи в подписи уезжает в отдельное поле иконки: в тексте кнопки
+    телеграм их не показывает, поэтому раньше от них оставался запасной
+    символ и лишний пробел.
     """
     if not promo_buttons:
         return None
 
     builder = InlineKeyboardBuilder()
     for btn in promo_buttons:
+        target = btn.get("target")
+        if target == "bot" and bot_url:
+            url = bot_url
+        elif target == "site":
+            url = ad_url
+        else:
+            url = btn.get("url") or ad_url
+
+        label, emoji_id = extract_tg_emoji(btn["label"])
+        button = InlineKeyboardButton(
+            text=label or btn["label"],
+            url=url,
+            icon_custom_emoji_id=emoji_id,
+        )
         style = _PROMO_STYLES.get(btn.get("style", "default"))
-        button = InlineKeyboardButton(text=btn["label"], url=btn.get("url") or ad_url)
         if style:
             button.style = style
         builder.row(button)

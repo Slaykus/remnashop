@@ -522,7 +522,8 @@ btn-advertising =
     }
     .promo-remove-photo = 🗑 Remove attachment
     .promo-add-button = ➕ Add button
-    .promo-use-ad-url = 🔗 Use bot link
+    .promo-use-bot-url = 🤖 Bot link
+    .promo-use-site-url = 🌐 Website link
     .promo-preview = 👁 Send me preview
     .promo-publish = 📣 Publish to channel
     .promo-style-default = ⚪ Default

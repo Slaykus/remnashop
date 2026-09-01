@@ -81,6 +81,16 @@ class BotService:
         landing = self._landing_url(code)
         if landing:
             return landing
+        return await self.get_ad_deeplink_url(code)
+
+    async def get_ad_deeplink_url(self, code: str) -> str:
+        """
+        Прямой вход в бота, мимо посадочной.
+
+        Нужен рекламному посту: в канале уместнее вести сразу в бота, а на
+        сайт отправлять отдельной кнопкой. Один общий адрес не давал выбора —
+        как только задан адрес сайта, туда уходило всё.
+        """
         base_url = await self._get_bot_redirect_url()
         return Deeplink.ADVERTISING.build_url(base_url, code)
 

@@ -435,7 +435,8 @@ btn-advertising =
     }
     .promo-remove-photo = 🗑 Удалить вложение
     .promo-add-button = ➕ Добавить кнопку
-    .promo-use-ad-url = 🔗 Использовать ссылку бота
+    .promo-use-bot-url = 🤖 Ссылка на бота
+    .promo-use-site-url = 🌐 Ссылка на сайт
     .promo-preview = 👁 Отправить мне превью
     .promo-publish = 📣 Опубликовать в канал
     .promo-style-default = ⚪ Обычная
