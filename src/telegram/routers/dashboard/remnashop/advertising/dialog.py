@@ -407,7 +407,12 @@ ad_edit_promo_text = Window(
 ad_edit_promo_photo = Window(
     Banner(BannerName.DASHBOARD),
     I18nFormat("msg-advertising-promo-edit-photo"),
-    MessageInput(func=on_promo_set_photo, content_types=[ContentType.PHOTO]),
+    # Типы перечислены здесь же: обработчик разбирает видео и гифки, но при
+    # фильтре на одно фото они до него не доезжали и выглядели как молчание.
+    MessageInput(
+        func=on_promo_set_photo,
+        content_types=[ContentType.PHOTO, ContentType.VIDEO, ContentType.ANIMATION],
+    ),
     Row(
         Button(
             text=I18nFormat("btn-advertising.promo-remove-photo"),
