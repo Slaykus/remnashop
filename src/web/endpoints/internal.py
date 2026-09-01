@@ -1330,11 +1330,16 @@ class CreateAdLinkRequest(BaseModel):
 
     code: str
     name: str
+    # Чья это ссылка. Без владельца карточка в боте показывает «без партнёра»,
+    # и с оплат по ней никому не начисляется — для размещения, которое ведёт
+    # партнёр, это неверно.
+    owner_telegram_id: int | None = None
 
 
 class CreateAdLinkResponse(BaseModel):
     code: str
     name: str
+    owner_telegram_id: int | None = None
     # Как выглядит ссылка, решает бот: есть адрес сайта — ведём на посадочную,
     # нет — на deep link. Отдаём готовой, чтобы снаружи это правило не повторяли.
     telegram_url: str
@@ -1351,6 +1356,8 @@ async def create_ad_link(
     response: Response,
     ad_link_dao: FromDishka[AdLinkDao],
     bot_service: FromDishka[BotService],
+    partner_dao: FromDishka[PartnerDao],
+    user_dao: FromDishka[UserDao],
     uow: FromDishka[UnitOfWork],
 ) -> CreateAdLinkResponse:
     """
@@ -1375,17 +1382,38 @@ async def create_ad_link(
     if not name:
         raise HTTPException(status_code=422, detail="Название не может быть пустым")
 
+    # Владельцем может быть только заведённый партнёр: иначе ссылка
+    # закрепилась бы за тем, кому начислять некуда, и это вскрылось бы
+    # только при первой оплате.
+    owner_user_id: int | None = None
+    if body.owner_telegram_id is not None:
+        owner = await user_dao.get_by_telegram_id(body.owner_telegram_id)
+        partner = (
+            await partner_dao.get_by_user_id(owner.id)
+            if owner is not None and owner.id is not None
+            else None
+        )
+        if partner is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Владелец не найден среди партнёров",
+            )
+        owner_user_id = owner.id
+
     existing = await ad_link_dao.get_by_code(code)
     if existing is not None:
         response.status_code = 200
         return CreateAdLinkResponse(
             code=existing.code,
             name=existing.name,
+            owner_telegram_id=body.owner_telegram_id if existing.owner_user_id else None,
             telegram_url=await bot_service.get_ad_link_url(existing.code),
         )
 
     async with uow:
         link = await ad_link_dao.create(name=name, code=code)
+        if owner_user_id is not None and link.id is not None:
+            await ad_link_dao.set_owner(link.id, owner_user_id)
         await uow.commit()
 
     logger.info(f"[AdLink] Created link '{code}' via internal API")
@@ -1393,6 +1421,7 @@ async def create_ad_link(
     return CreateAdLinkResponse(
         code=link.code,
         name=link.name,
+        owner_telegram_id=body.owner_telegram_id if owner_user_id else None,
         telegram_url=await bot_service.get_ad_link_url(link.code),
     )
 

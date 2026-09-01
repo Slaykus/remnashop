@@ -11,6 +11,7 @@ from magic_filter import F
 from src.core.constants import DOCS, GOTO_PREFIX, PAYMENT_PREFIX, REPOSITORY, T_ME
 from src.core.enums import ButtonType, PurchaseType
 from src.telegram.states import DashboardUser, MainMenu, Notification, Subscription
+from src.core.utils.converters import strip_html
 from src.telegram.widgets import I18nFormat
 from src.telegram.widgets.tg_emoji import extract_tg_emoji
 from src.telegram.widgets.kbd import Button, CopyText, Group, ListGroup, Row, Start, Url, WebApp
@@ -268,9 +269,13 @@ def get_promo_keyboard(
         else:
             url = btn.get("url") or ad_url
 
+        # Сначала вынимаем премиум-эмодзи в поле иконки, потом снимаем всё
+        # остальное: подпись кнопки разметку не понимает совсем, и теги
+        # показывались в ней как есть — «<b>Кнопка</b>».
         label, emoji_id = extract_tg_emoji(btn["label"])
+        label = strip_html(label).strip()
         button = InlineKeyboardButton(
-            text=label or btn["label"],
+            text=label or strip_html(btn["label"]).strip() or " ",
             url=url,
             icon_custom_emoji_id=emoji_id,
         )
