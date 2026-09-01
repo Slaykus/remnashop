@@ -32,6 +32,7 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAllAdLinksComparison,
 )
 from src.core.enums import MediaType
+from src.telegram.keyboards import get_promo_keyboard
 from src.core.constants import AD_LINK_CODE_PATTERN, USER_KEY
 from src.telegram.charts import (
     build_comparison_chart,
@@ -608,25 +609,11 @@ async def on_send_promo_preview(
     if not link or not link.promo_text:
         return
 
-    deep_link = await bot_service.get_ad_link_url(link.code)
-    style_map = {
-        "primary": ButtonStyle.PRIMARY,
-        "success": ButtonStyle.SUCCESS,
-        "danger": ButtonStyle.DANGER,
-    }
-
-    builder = InlineKeyboardBuilder()
-    for btn in (link.promo_buttons or []):
-        url = btn.get("url") or deep_link
-        style = style_map.get(btn.get("style", "default"))
-        if style:
-            builder.row(InlineKeyboardButton(text=btn["label"], url=url, style=style))
-        else:
-            builder.row(InlineKeyboardButton(text=btn["label"], url=url))
-
     if not callback.message:
         return
-    markup = builder.as_markup() if link.promo_buttons else None
+
+    ad_url = await bot_service.get_ad_link_url(link.code)
+    markup = get_promo_keyboard(link.promo_buttons or [], ad_url)
     if link.promo_photo_id:
         # Тип пуст у ссылок, заведённых до поддержки видео — это фото.
         send = {

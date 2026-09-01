@@ -524,6 +524,7 @@ btn-advertising =
     .promo-add-button = ➕ Add button
     .promo-use-ad-url = 🔗 Use bot link
     .promo-preview = 👁 Send me preview
+    .promo-publish = 📣 Publish to channel
     .promo-style-default = ⚪ Default
     .promo-style-primary = 🔵 Blue
     .promo-style-success = 🟢 Green

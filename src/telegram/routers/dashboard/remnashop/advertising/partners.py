@@ -27,6 +27,7 @@ from src.application.use_cases.partner.commands.manage import (
     UpdatePartnerTermsDto,
 )
 from src.application.use_cases.partner.queries.list import (
+    PartnerListItemDto,
     GetPartnerOverview,
     GetPartners,
     GetPartnersComparison,
@@ -35,6 +36,16 @@ from src.core.constants import USER_KEY
 from src.telegram.states import RemnashopAdvertising
 
 _PARTNER_ID = "partner_id"
+
+_TITLE_LIMIT = 60
+
+
+def _partner_title(item: PartnerListItemDto) -> str:
+    """Имя, тег и ставка одной строкой, обрезанные под ширину кнопки."""
+    tag = f" @{item.username}" if item.username else ""
+    mark = "" if item.partner.is_active else " · откл."
+    title = f"{item.name}{tag} · {item.partner.rate_pct:.0f}%{mark}"
+    return title if len(title) <= _TITLE_LIMIT else title[: _TITLE_LIMIT - 1] + "…"
 
 
 @inject
@@ -48,11 +59,14 @@ async def partners_getter(
     return {
         "partners": [
             {
-                "id": p.id,
-                "title": f"#{p.user_id} · {p.rate_pct}%",
-                "is_active": p.is_active,
+                "id": item.partner.id,
+                # Имя, тег и ставка: по одному номеру нельзя было понять, кто
+                # это, и владельцу приходилось открывать карточки подряд.
+                # Отключённых помечаем здесь же, чтобы не открывать ради этого.
+                "title": _partner_title(item),
+                "is_active": item.partner.is_active,
             }
-            for p in partners
+            for item in partners
         ],
         "is_empty": not partners,
         "count": len(partners),

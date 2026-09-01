@@ -14,7 +14,13 @@ from .commands.manage import (
     ToggleLinkOwner,
     UpdatePartnerTerms,
 )
-from .queries.list import GetPartnerOverview, GetPartners, GetPartnersComparison
+from .queries.list import (
+    GetPartnerOverview,
+    GetPartners,
+    PartnerListItemDto,
+    GetPartnersComparison,
+    PartnerListItemDto,
+)
 
 PARTNER_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     ConfirmPayout,

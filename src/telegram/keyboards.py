@@ -226,6 +226,36 @@ def get_rules_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+_PROMO_STYLES = {
+    "primary": ButtonStyle.PRIMARY,
+    "success": ButtonStyle.SUCCESS,
+    "danger": ButtonStyle.DANGER,
+}
+
+
+def get_promo_keyboard(promo_buttons: list, ad_url: str) -> Optional[InlineKeyboardMarkup]:
+    """
+    Клавиатура рекламного поста.
+
+    Собирается в одном месте: пост уходит и превью владельцу, и через inline
+    в канал, и раньше две сборки разъезжались бы при первой же правке.
+
+    Пустой url у кнопки означает «вести на саму рекламную ссылку» — какой она
+    будет, решает бот: посадочная сайта, если адрес задан, иначе deep link.
+    """
+    if not promo_buttons:
+        return None
+
+    builder = InlineKeyboardBuilder()
+    for btn in promo_buttons:
+        style = _PROMO_STYLES.get(btn.get("style", "default"))
+        button = InlineKeyboardButton(text=btn["label"], url=btn.get("url") or ad_url)
+        if style:
+            button.style = style
+        builder.row(button)
+    return builder.as_markup()
+
+
 def get_contact_support_keyboard(support_url: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="btn-goto.contact-support", url=support_url))

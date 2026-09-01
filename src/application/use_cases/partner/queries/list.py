@@ -15,14 +15,37 @@ from src.application.dto import (
 )
 
 
-class GetPartners(Interactor[None, list[PartnerDto]]):
+@dataclass(frozen=True)
+class PartnerListItemDto:
+    """Строка списка партнёров."""
+
+    partner: PartnerDto
+    # Имя и тег берём здесь, а не в экране: по одному номеру владельцу
+    # приходилось открывать карточки подряд, чтобы понять, кто есть кто.
+    name: str
+    username: Optional[str]
+
+
+class GetPartners(Interactor[None, list[PartnerListItemDto]]):
     required_permission = Permission.MANAGE_PARTNERS
 
-    def __init__(self, partner_dao: PartnerDao) -> None:
+    def __init__(self, partner_dao: PartnerDao, user_dao: UserDao) -> None:
         self.partner_dao = partner_dao
+        self.user_dao = user_dao
 
-    async def _execute(self, actor: UserDto, data: None) -> list[PartnerDto]:
-        return await self.partner_dao.get_all()
+    async def _execute(self, actor: UserDto, data: None) -> list[PartnerListItemDto]:
+        partners = await self.partner_dao.get_all()
+        items = []
+        for partner in partners:
+            user = await self.user_dao.get_by_id(partner.user_id)
+            items.append(
+                PartnerListItemDto(
+                    partner=partner,
+                    name=(user.name if user else None) or f"#{partner.user_id}",
+                    username=user.username if user else None,
+                )
+            )
+        return items
 
 
 @dataclass(frozen=True)

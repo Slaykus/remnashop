@@ -437,6 +437,7 @@ btn-advertising =
     .promo-add-button = ➕ Добавить кнопку
     .promo-use-ad-url = 🔗 Использовать ссылку бота
     .promo-preview = 👁 Отправить мне превью
+    .promo-publish = 📣 Опубликовать в канал
     .promo-style-default = ⚪ Обычная
     .promo-style-primary = 🔵 Синяя
     .promo-style-success = 🟢 Зелёная

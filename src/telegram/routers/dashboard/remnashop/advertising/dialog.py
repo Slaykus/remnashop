@@ -11,7 +11,15 @@ from src.telegram.keyboards import main_menu_button
 from src.telegram.states import DashboardRemnashop, RemnashopAdvertising
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.utils import require_permission
-from src.telegram.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
+from src.telegram.widgets.kbd import (
+    Button,
+    Row,
+    ScrollingGroup,
+    Select,
+    Start,
+    SwitchInlineQueryChosenChatButton,
+    SwitchTo,
+)
 
 from .partners import (
     on_bonus_cap_input,
@@ -351,6 +359,20 @@ ad_promo = Window(
             text=I18nFormat("btn-advertising.promo-preview"),
             id="promo_preview",
             on_click=on_send_promo_preview,
+            when=F["promo_has_text"],
+        ),
+    ),
+    Row(
+        # Публикация поста прямо в канал. Пересылка превью руками теряла
+        # кнопки, а значение запроса геттер готовил уже давно — не хватало
+        # только этой кнопки и обработчика на той стороне.
+        SwitchInlineQueryChosenChatButton(
+            text=I18nFormat("btn-advertising.promo-publish"),
+            id="promo_publish",
+            query=Format("{inline_query}"),
+            allow_user_chats=True,
+            allow_group_chats=True,
+            allow_channel_chats=True,
             when=F["promo_has_text"],
         ),
     ),

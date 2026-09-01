@@ -7,6 +7,9 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineQuery,
     InlineQueryResultArticle,
+    InlineQueryResultCachedGif,
+    InlineQueryResultCachedPhoto,
+    InlineQueryResultCachedVideo,
     InlineQueryResultUnion,
     InputTextMessageContent,
 )
@@ -16,8 +19,11 @@ from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
 
 from src.application.common import BotService, TranslatorRunner
-from src.application.common.dao import UserDao
-from src.core.constants import INLINE_QUERY_INVITE
+from src.application.common.dao import AdLinkDao, UserDao
+from src.application.common.policy import Permission, PermissionPolicy
+from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROMO_PREFIX
+from src.core.enums import MediaType
+from src.telegram.keyboards import get_promo_keyboard
 from src.telegram.widgets import extract_tg_emoji
 
 router = Router(name=__name__)
@@ -93,3 +99,75 @@ async def handle_inline_query(
     ]
 
     await inline_query.answer(results, cache_time=1, is_personal=True)
+
+
+@inject
+@router.inline_query(F.query.startswith(INLINE_QUERY_PROMO_PREFIX))
+async def handle_promo_inline_query(
+    inline_query: InlineQuery,
+    user_dao: FromDishka[UserDao],
+    ad_link_dao: FromDishka[AdLinkDao],
+    bot_service: FromDishka[BotService],
+) -> None:
+    """
+    Отдать готовый рекламный пост прямо в канал.
+
+    Раньше пост можно было только получить себе превью и переслать руками,
+    теряя по дороге кнопки. Значение запроса готовил геттер экрана, но
+    принимающей стороны у него не было.
+
+    Право проверяем: код рекламной ссылки виден в строке запроса, и без
+    проверки любой, кто его подсмотрел, публиковал бы посты от лица бота.
+    """
+    user = await user_dao.get_by_telegram_id(inline_query.from_user.id)
+    if not user or not PermissionPolicy.has_permission(user, Permission.VIEW_ADVERTISING):
+        await inline_query.answer([], cache_time=1, is_personal=True)
+        return
+
+    code = inline_query.query[len(INLINE_QUERY_PROMO_PREFIX) :].strip()
+    link = await ad_link_dao.get_by_code(code)
+    if link is None or not link.promo_text:
+        await inline_query.answer([], cache_time=1, is_personal=True)
+        return
+
+    ad_url = await bot_service.get_ad_link_url(link.code)
+    markup = get_promo_keyboard(link.promo_buttons or [], ad_url)
+    result_id = hashlib.md5(f"{INLINE_QUERY_PROMO_PREFIX}{code}".encode()).hexdigest()
+
+    result: InlineQueryResultUnion
+    if link.promo_photo_id:
+        # Вложение уже лежит у телеграма, поэтому берём кэшированные варианты:
+        # заново выгружать файл ради каждой публикации незачем.
+        cached = {
+            MediaType.VIDEO: InlineQueryResultCachedVideo,
+            MediaType.GIF: InlineQueryResultCachedGif,
+        }.get(link.promo_media_type, InlineQueryResultCachedPhoto)
+        kwargs: dict = {
+            "id": result_id,
+            "caption": link.promo_text,
+            "parse_mode": "HTML",
+            "reply_markup": markup,
+        }
+        if cached is InlineQueryResultCachedPhoto:
+            kwargs["photo_file_id"] = link.promo_photo_id
+        elif cached is InlineQueryResultCachedVideo:
+            # У видео заголовок обязателен по Bot API.
+            kwargs["video_file_id"] = link.promo_photo_id
+            kwargs["title"] = link.name
+        else:
+            kwargs["gif_file_id"] = link.promo_photo_id
+        result = cached(**kwargs)
+    else:
+        result = InlineQueryResultArticle(
+            id=result_id,
+            title=link.name,
+            description=link.promo_text[:100],
+            input_message_content=InputTextMessageContent(
+                message_text=link.promo_text,
+                parse_mode="HTML",
+            ),
+            reply_markup=markup,
+        )
+
+    logger.info(f"{user.log} Requested promo post for ad link '{code}'")
+    await inline_query.answer([result], cache_time=1, is_personal=True)
