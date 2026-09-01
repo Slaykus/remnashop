@@ -526,6 +526,7 @@ btn-advertising =
     .promo-use-site-url = 🌐 Website link
     .promo-preview = 👁 Send me preview
     .promo-send = 🚀 Send as the bot
+    .promo-send-confirm = ✅ Send
     .promo-publish = 📣 Publish as yourself
     .promo-style-default = ⚪ Default
     .promo-style-primary = 🔵 Blue

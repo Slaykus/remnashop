@@ -439,6 +439,7 @@ btn-advertising =
     .promo-use-site-url = 🌐 Ссылка на сайт
     .promo-preview = 👁 Отправить мне превью
     .promo-send = 🚀 Отправить ботом
+    .promo-send-confirm = ✅ Отправить
     .promo-publish = 📣 Опубликовать через себя
     .promo-style-default = ⚪ Обычная
     .promo-style-primary = 🔵 Синяя
@@ -568,6 +569,16 @@ msg-advertising-promo-edit-photo =
 
     { $promo_has_photo ->
     [1] <i>Текущее вложение будет заменено.</i>
+    *[0] { "" }
+    }
+
+msg-advertising-promo-send-confirm =
+    🚀 <b>Отправить пост</b>
+
+    Адресат: <b>{ $target_title }</b>
+
+    { $is_channel ->
+    [1] ⚠️ <i>Это канал. Телеграм вырезает премиум-эмодзи из сообщений бота в каналах — в тексте останутся обычные, а иконка на кнопке пропадёт. Жирный, курсив и ссылки сохранятся.</i>
     *[0] { "" }
     }
 

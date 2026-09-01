@@ -158,6 +158,7 @@ class RemnashopAdvertising(StatesGroup):
     PROMO_BUTTON_URL = State()
     PROMO_BUTTON_STYLE = State()
     PROMO_SEND_TARGET = State()
+    PROMO_SEND_CONFIRM = State()
     ANALYTICS = State()
     COMPARISON = State()
     # Партнёры живут в разделе рекламы: партнёрская ссылка — это рекламная

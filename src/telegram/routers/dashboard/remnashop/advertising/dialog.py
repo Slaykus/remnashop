@@ -48,6 +48,7 @@ from .getters import (
     promo_button_url_getter,
     promo_getter,
     promo_photo_getter,
+    promo_send_confirm_getter,
     view_getter,
 )
 from .handlers import (
@@ -66,6 +67,7 @@ from .handlers import (
     on_promo_set_photo,
     on_promo_set_style,
     on_promo_send,
+    on_promo_send_confirm,
     on_promo_send_target,
     on_promo_set_text,
     on_promo_use_ad_url,
@@ -478,6 +480,29 @@ ad_promo_send_target = Window(
 )
 
 
+ad_promo_send_confirm = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-send-confirm"),
+    Row(
+        Button(
+            text=I18nFormat("btn-advertising.promo-send-confirm"),
+            id="promo_send_go",
+            on_click=on_promo_send_confirm,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.PROMO_SEND_CONFIRM,
+    getter=promo_send_confirm_getter,
+)
+
+
 ad_promo_button_url = Window(
     Banner(BannerName.DASHBOARD),
     I18nFormat("msg-advertising-promo-button-url"),
@@ -853,6 +878,7 @@ router = Dialog(
     ad_edit_promo_photo,
     ad_promo_button_label,
     ad_promo_send_target,
+    ad_promo_send_confirm,
     ad_promo_button_url,
     ad_promo_button_style,
     ad_analytics,

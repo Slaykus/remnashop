@@ -256,3 +256,23 @@ async def comparison_getter(
         "is_sort_clicks": int(sort == "clicks"),
         "count": len(items),
     }
+
+
+async def promo_send_confirm_getter(
+    dialog_manager: DialogManager,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """
+    Куда уйдёт пост и чего он лишится по дороге.
+
+    Про канал предупреждаем отдельно: телеграм вырезает премиум-эмодзи из
+    сообщений бота в каналах — проверено ответом API, сущность не доезжает.
+    В личке и группах они сохраняются, поэтому запрет не общий.
+    """
+    is_channel = bool(dialog_manager.dialog_data.get("send_is_channel"))
+    link_id = dialog_manager.dialog_data.get("link_id")
+    return {
+        "target_title": dialog_manager.dialog_data.get("send_chat_title", "—"),
+        "is_channel": int(is_channel),
+        "link_id": link_id,
+    }

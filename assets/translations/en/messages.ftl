@@ -1489,6 +1489,16 @@ msg-advertising-promo-edit-photo =
     *[0] { "" }
     }
 
+msg-advertising-promo-send-confirm =
+    🚀 <b>Send the post</b>
+
+    To: <b>{ $target_title }</b>
+
+    { $is_channel ->
+    [1] ⚠️ <i>This is a channel. Telegram strips premium emoji from a bot's messages in channels — the text keeps the plain ones and the button icon disappears. Bold, italics and links survive.</i>
+    *[0] { "" }
+    }
+
 msg-advertising-promo-send-target =
     🚀 <b>Send as the bot</b>
 

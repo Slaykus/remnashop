@@ -648,17 +648,12 @@ async def on_promo_send_target(
         )
         return
 
-    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
-    link = await ad_link_dao.get_by_id(link_id)
-    if not link or not link.promo_text:
-        return
-
+    # Адресата разбираем сразу: опечатка в имени должна всплыть здесь, а не
+    # после подтверждения, когда человек уже решил, что пост ушёл.
     try:
-        await send_promo_post(message.bot, target, link, bot_service)
+        chat = await message.bot.get_chat(target)
     except Exception as e:
-        # Показываем причину как есть: почти всегда это «бот не админ» или
-        # опечатка в имени, и человеку важнее текст телеграма, чем общая фраза.
-        logger.warning(f"{user.log} Failed to publish promo to '{target}': {e}")
+        logger.warning(f"{user.log} Unknown promo target '{target}': {e}")
         await notifier.notify_user(
             user,
             payload=MessagePayloadDto(
@@ -669,7 +664,46 @@ async def on_promo_send_target(
         )
         return
 
-    logger.info(f"{user.log} Published promo for '{link.code}' to '{target}'")
+    dialog_manager.dialog_data["send_chat_id"] = chat.id
+    dialog_manager.dialog_data["send_chat_title"] = chat.title or chat.full_name or str(chat.id)
+    dialog_manager.dialog_data["send_is_channel"] = chat.type == "channel"
+    await dialog_manager.switch_to(RemnashopAdvertising.PROMO_SEND_CONFIRM)
+
+
+@inject
+async def on_promo_send_confirm(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    bot_service: FromDishka[BotService],
+    notifier: FromDishka[Notifier],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    chat_id = dialog_manager.dialog_data.get("send_chat_id")
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link or not link.promo_text or chat_id is None:
+        return
+
+    try:
+        await send_promo_post(callback.message.bot, chat_id, link, bot_service)  # type: ignore[union-attr]
+    except Exception as e:
+        # Показываем причину как есть: почти всегда это «бот не админ» или
+        # закрытая публикация, и человеку важнее текст телеграма, чем общая фраза.
+        logger.warning(f"{user.log} Failed to publish promo to '{chat_id}': {e}")
+        await notifier.notify_user(
+            user,
+            payload=MessagePayloadDto(
+                i18n_key="ntf-ad.publish-failed",
+                i18n_kwargs={"reason": str(e)[:200]},
+                delete_after=15,
+            ),
+        )
+        return
+
+    logger.info(f"{user.log} Published promo for '{link.code}' to '{chat_id}'")
     await notifier.notify_user(
         user, payload=MessagePayloadDto(i18n_key="ntf-ad.publish-ok", delete_after=5)
     )
