@@ -1402,11 +1402,17 @@ async def create_ad_link(
 
     existing = await ad_link_dao.get_by_code(code)
     if existing is not None:
+        # Отдаём настоящего владельца, а не присланного: код мог быть занят
+        # чужой ссылкой, и эхо запроса выглядело бы как подтверждение.
+        existing_owner = None
+        if existing.owner_user_id is not None:
+            owner_user = await user_dao.get_by_id(existing.owner_user_id)
+            existing_owner = owner_user.telegram_id if owner_user else None
         response.status_code = 200
         return CreateAdLinkResponse(
             code=existing.code,
             name=existing.name,
-            owner_telegram_id=body.owner_telegram_id if existing.owner_user_id else None,
+            owner_telegram_id=existing_owner,
             telegram_url=await bot_service.get_ad_link_url(existing.code),
         )
 
