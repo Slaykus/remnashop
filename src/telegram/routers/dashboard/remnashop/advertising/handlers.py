@@ -349,7 +349,10 @@ async def on_promo_set_text(
 ) -> None:
     dialog_manager.show_mode = ShowMode.EDIT
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
-    text = (message.text or "").strip()
+    # html_text, а не text: жирный, ссылки и премиум-эмодзи живут в entities,
+    # и при сохранении голого текста терялись без следа. Пост уходит с
+    # parse_mode=HTML, так что разметка доезжает до читателя как есть.
+    text = (message.html_text or "").strip() if message.text else ""
     if not text:
         await notifier.notify_user(
             user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)

@@ -23,6 +23,7 @@ from src.application.common.dao import AdLinkDao, UserDao
 from src.application.common.policy import Permission, PermissionPolicy
 from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROMO_PREFIX
 from src.core.enums import MediaType
+from src.core.utils.converters import strip_html
 from src.telegram.keyboards import get_promo_keyboard
 from src.telegram.widgets import extract_tg_emoji
 
@@ -130,6 +131,11 @@ async def handle_promo_inline_query(
         await inline_query.answer([], cache_time=1, is_personal=True)
         return
 
+    # Премиум-эмодзи здесь не вырезаем, в отличие от приглашения выше.
+    # Рекламный пост ради них и собирают, а у бота есть право их слать.
+    # Если телеграм вдруг откажется принимать такой пост в канал, лечится
+    # одной строкой: прогнать promo_text через _strip_custom_emoji для тех
+    # же типов чатов, что и приглашение.
     ad_url = await bot_service.get_ad_link_url(link.code)
     markup = get_promo_keyboard(link.promo_buttons or [], ad_url)
     result_id = hashlib.md5(f"{INLINE_QUERY_PROMO_PREFIX}{code}".encode()).hexdigest()
@@ -161,7 +167,7 @@ async def handle_promo_inline_query(
         result = InlineQueryResultArticle(
             id=result_id,
             title=link.name,
-            description=link.promo_text[:100],
+            description=strip_html(link.promo_text)[:100],
             input_message_content=InputTextMessageContent(
                 message_text=link.promo_text,
                 parse_mode="HTML",

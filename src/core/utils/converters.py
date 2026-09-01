@@ -123,3 +123,17 @@ def limits_to_plan_type(traffic: int, devices: int) -> PlanType:
         return PlanType.DEVICES
     else:
         return PlanType.UNLIMITED
+
+
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def strip_html(text: str) -> str:
+    """
+    Убрать разметку, оставив читаемый текст.
+
+    Нужно там, где размеченная строка показывается внутри другого сообщения
+    или обрезается по длине: половина тега ломает разбор всего сообщения,
+    и экран перестаёт открываться целиком.
+    """
+    return _HTML_TAG_RE.sub("", text)

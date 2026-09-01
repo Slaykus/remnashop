@@ -15,6 +15,7 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAllAdLinksComparison,
 )
 from src.core.constants import INLINE_QUERY_PROMO_PREFIX, USER_KEY
+from src.core.utils.converters import strip_html
 from src.telegram.charts import mini_bar
 
 
@@ -140,7 +141,9 @@ async def promo_getter(
         "name": link.name,
         "code": link.code,
         "inline_query": f"{INLINE_QUERY_PROMO_PREFIX}{link.code}",
-        "promo_text_preview": (link.promo_text or "—")[:300],
+        # Без тегов: строка показывается внутри другого HTML-сообщения и
+        # режется по длине — обрубок тега сломал бы разбор всего экрана.
+        "promo_text_preview": strip_html(link.promo_text or "—")[:300],
         "promo_has_text": int(bool(link.promo_text)),
         "promo_has_photo": int(bool(link.promo_photo_id)),
         "promo_buttons_info": "\n".join(lines) if lines else "—",
