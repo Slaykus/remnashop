@@ -430,10 +430,10 @@ btn-advertising =
     .promo = ✉️ Promo-сообщение
     .promo-edit-text = ✏️ Изменить текст
     .promo-photo = { $promo_has_photo ->
-    [1] 📷 Изменить фото
-    *[0] 📷 Добавить фото
+    [1] 🖼 Изменить вложение
+    *[0] 🖼 Добавить вложение
     }
-    .promo-remove-photo = 🗑 Удалить фото
+    .promo-remove-photo = 🗑 Удалить вложение
     .promo-add-button = ➕ Добавить кнопку
     .promo-use-ad-url = 🔗 Использовать ссылку бота
     .promo-preview = 👁 Отправить мне превью
@@ -561,10 +561,10 @@ msg-advertising-promo-edit-text =
     ✏️ Введите текст promo-сообщения (поддерживается HTML):
 
 msg-advertising-promo-edit-photo =
-    📷 Отправьте фото для promo-сообщения.
+    🖼 Отправьте вложение для promo-сообщения: фото, видео или гифку.
 
     { $promo_has_photo ->
-    [1] <i>Текущее фото будет заменено.</i>
+    [1] <i>Текущее вложение будет заменено.</i>
     *[0] { "" }
     }
 

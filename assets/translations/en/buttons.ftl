@@ -517,10 +517,10 @@ btn-advertising =
     .promo = ✉️ Promo message
     .promo-edit-text = ✏️ Edit text
     .promo-photo = { $promo_has_photo ->
-    [1] 📷 Change photo
-    *[0] 📷 Add photo
+    [1] 🖼 Change attachment
+    *[0] 🖼 Add attachment
     }
-    .promo-remove-photo = 🗑 Remove photo
+    .promo-remove-photo = 🗑 Remove attachment
     .promo-add-button = ➕ Add button
     .promo-use-ad-url = 🔗 Use bot link
     .promo-preview = 👁 Send me preview

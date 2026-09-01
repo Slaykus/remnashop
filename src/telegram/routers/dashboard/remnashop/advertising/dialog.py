@@ -5,10 +5,12 @@ from aiogram_dialog.widgets.style import Style
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
+from src.application.common.policy import Permission
 from src.core.enums import BannerName
 from src.telegram.keyboards import main_menu_button
 from src.telegram.states import DashboardRemnashop, RemnashopAdvertising
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
+from src.telegram.utils import require_permission
 from src.telegram.widgets.kbd import Button, Row, ScrollingGroup, Select, Start, SwitchTo
 
 from .partners import (
@@ -99,6 +101,10 @@ ad_list = Window(
             text=I18nFormat("btn-advertising.partners"),
             id="partners",
             state=RemnashopAdvertising.PARTNERS,
+            # Экраны за кнопкой закрыты правом на уровне операций, так что
+            # рекламный партнёр всё равно упёрся бы в отказ. Прячем саму
+            # кнопку, чтобы он не жал заведомо неработающее.
+            when=require_permission(Permission.MANAGE_PARTNERS),
         ),
     ),
     Row(

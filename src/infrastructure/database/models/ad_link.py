@@ -5,6 +5,8 @@ from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String, Text, U
 from sqlalchemy.dialects.postgresql import JSONB as PgJSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.core.enums import MediaType
+
 from .base import BaseSql
 from .timestamp import TimestampMixin
 
@@ -22,6 +24,8 @@ class AdLink(BaseSql, TimestampMixin):
     clicks_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     promo_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     promo_photo_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    # Пусто у записей, созданных до поддержки видео и гифок — они фото.
+    promo_media_type: Mapped[Optional[MediaType]] = mapped_column(nullable=True, default=None)
     promo_buttons: Mapped[list[Any]] = mapped_column(PgJSONB, nullable=False, server_default="[]", default=list)
     # Владелец ссылки. Пусто — своя реклама, как было; заполнено —
     # партнёрская, и с её платежей идут начисления.

@@ -250,15 +250,22 @@ frg-promocode-reward = { $promocode_type ->
 role-owner = Владелец
 role-dev = Разработчик
 role-admin = Администратор
+role-advertiser = Рекламный партнёр
 role-preview = Наблюдатель
 role-user = Пользователь
+role-partner = Партнёр
+# Ветки выбираются по числовому значению роли из Role. Порядок членов там
+# менялся вместе с этим списком: партнёр и рекламный партнёр раньше сюда не
+# попадали и показывались как «Пользователь».
 role = 
     { $role ->
-    [5] { role-owner }
-    [4] { role-dev }
-    [3] { role-admin }
-    [2] { role-preview }
-    *[1] { role-user }
+    [7] { role-owner }
+    [6] { role-dev }
+    [5] { role-admin }
+    [4] { role-preview }
+    [3] { role-advertiser }
+    [1] { role-partner }
+    *[2] { role-user }
 }
 
 unlimited = ∞

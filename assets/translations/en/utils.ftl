@@ -223,15 +223,22 @@ frg-build-info =
 role-owner = Owner
 role-dev = Developer
 role-admin = Administrator
+role-advertiser = Ad partner
 role-preview = Observer
 role-user = User
+role-partner = Partner
+# Branches are picked by the numeric value of Role. Member order there changed
+# along with this list: partner and ad partner used to fall through and show
+# up as "User".
 role =
     { $role ->
-    [5] { role-owner }
-    [4] { role-dev }
-    [3] { role-admin }
-    [2] { role-preview }
-    *[1] { role-user }
+    [7] { role-owner }
+    [6] { role-dev }
+    [5] { role-admin }
+    [4] { role-preview }
+    [3] { role-advertiser }
+    [1] { role-partner }
+    *[2] { role-user }
 }
 
 unlimited = ∞

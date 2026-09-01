@@ -3,6 +3,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
+from src.core.enums import MediaType
+
 from .base import BaseDto
 
 
@@ -19,7 +21,11 @@ class AdLinkDto(BaseDto):
     # Владелец ссылки: пусто — своя реклама, заполнено — партнёрская.
     owner_user_id: Optional[int] = field(default=None)
     promo_text: Optional[str] = field(default=None)
+    # file_id вложения и его тип. Имя поля осталось от времён, когда промо
+    # умело только фото; переименовывать не стали, чтобы не тащить миграцию
+    # ради косметики. Пусто в типе — фото, так читаются старые записи.
     promo_photo_id: Optional[str] = field(default=None)
+    promo_media_type: Optional[MediaType] = field(default=None)
     promo_buttons: list[Any] = field(default_factory=list)
     created_at: Optional[datetime] = field(default=None)
     updated_at: Optional[datetime] = field(default=None)

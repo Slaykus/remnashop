@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from aiogram.enums import ButtonStyle, ContentType
 from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
@@ -31,6 +31,7 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAdLinkPeriodStatsInput,
     GetAllAdLinksComparison,
 )
+from src.core.enums import MediaType
 from src.core.constants import AD_LINK_CODE_PATTERN, USER_KEY
 from src.telegram.charts import (
     build_comparison_chart,
@@ -287,17 +288,31 @@ async def on_promo_set_photo(
 ) -> None:
     dialog_manager.show_mode = ShowMode.EDIT
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
-    if not message.photo:
+    # Тип определяем так же, как в рассылке. Документы и стикеры сюда не
+    # берём: рекламный пост — это картинка, ролик или гифка.
+    media_type: Optional[MediaType] = None
+    file_id: Optional[str] = None
+    if message.photo:
+        media_type = MediaType.PHOTO
+        file_id = message.photo[-1].file_id
+    elif message.video:
+        media_type = MediaType.VIDEO
+        file_id = message.video.file_id
+    elif message.animation:
+        media_type = MediaType.GIF
+        file_id = message.animation.file_id
+
+    if not file_id:
         await notifier.notify_user(
             user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)
         )
         return
-    file_id = message.photo[-1].file_id
     link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
     link = await ad_link_dao.get_by_id(link_id)
     if not link:
         return
     link.promo_photo_id = file_id
+    link.promo_media_type = media_type
     await update_ad_link(user, UpdateAdLinkDto(link=link))
     await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
 
@@ -317,6 +332,7 @@ async def on_promo_remove_photo(
     if not link:
         return
     link.promo_photo_id = None
+    link.promo_media_type = None
     await update_ad_link(user, UpdateAdLinkDto(link=link))
     await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
 
@@ -612,8 +628,13 @@ async def on_send_promo_preview(
         return
     markup = builder.as_markup() if link.promo_buttons else None
     if link.promo_photo_id:
-        await callback.message.answer_photo(
-            photo=link.promo_photo_id,
+        # Тип пуст у ссылок, заведённых до поддержки видео — это фото.
+        send = {
+            MediaType.VIDEO: callback.message.answer_video,
+            MediaType.GIF: callback.message.answer_animation,
+        }.get(link.promo_media_type, callback.message.answer_photo)
+        await send(
+            link.promo_photo_id,
             caption=link.promo_text,
             parse_mode="HTML",
             reply_markup=markup,

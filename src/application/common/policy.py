@@ -98,6 +98,14 @@ ROLE_PERMISSIONS: Final[dict[Role, set[Permission]]] = {
     Role.PARTNER: {
         Permission.VIEW_OWN_PARTNER_STATS,
     },
+    # Рекламный партнёр доходит до раздела рекламы и там останавливается.
+    # Дашборд и раздел Remnashop нужны только как дорога к нему: остальные
+    # пункты в обоих меню закрыты своими правами и ему не покажутся.
+    Role.ADVERTISER: {
+        Permission.VIEW_DASHBOARD,
+        Permission.VIEW_REMNASHOP,
+        Permission.VIEW_ADVERTISING,
+    },
     Role.PREVIEW: {  # TODO: Implement demo Bot instance
         Permission.VIEW_DASHBOARD,
         Permission.VIEW_STATISTICS,

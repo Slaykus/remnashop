@@ -14,6 +14,7 @@ from src.core.enums import (
     BroadcastStatus,
     Currency,
     Locale,
+    MediaType,
     PaymentGatewayType,
     PlanAvailability,
     PlanType,
@@ -38,6 +39,7 @@ mapper_registry = registry(
         datetime: DateTime(timezone=True),
         #
         Locale: Enum(Locale, name="locale"),
+        MediaType: Enum(MediaType, name="media_type"),
         Role: Enum(Role, name="user_role"),
         Currency: Enum(Currency, name="currency"),
         PaymentGatewayType: Enum(PaymentGatewayType, name="payment_gateway_type"),

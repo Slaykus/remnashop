@@ -1482,10 +1482,10 @@ msg-advertising-promo-edit-text =
     ✏️ Enter the promo message text (HTML supported):
 
 msg-advertising-promo-edit-photo =
-    📷 Send a photo for the promo message.
+    🖼 Send an attachment for the promo message: a photo, video or GIF.
 
     { $promo_has_photo ->
-    [1] <i>The current photo will be replaced.</i>
+    [1] <i>The current attachment will be replaced.</i>
     *[0] { "" }
     }
 
