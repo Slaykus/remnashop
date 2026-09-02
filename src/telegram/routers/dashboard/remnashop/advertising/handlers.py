@@ -689,7 +689,13 @@ async def on_promo_send_confirm(
         return
 
     try:
-        await send_promo_post(callback.message.bot, chat_id, link, bot_service)  # type: ignore[union-attr]
+        await send_promo_post(
+            callback.message.bot,  # type: ignore[union-attr]
+            chat_id,
+            link,
+            bot_service,
+            staging_chat_id=user.telegram_id,
+        )
     except Exception as e:
         # Показываем причину как есть: почти всегда это «бот не админ» или
         # закрытая публикация, и человеку важнее текст телеграма, чем общая фраза.
@@ -725,15 +731,35 @@ async def send_promo_post(
     chat_id: int | str,
     link: AdLinkDto,
     bot_service: BotService,
+    staging_chat_id: int | None = None,
 ) -> Message:
     """
-    Отправить рекламный пост в чат от имени бота.
+    Отправить рекламный пост от имени бота.
 
-    Именно от имени бота, а не через inline: телеграм не пропускает
-    премиум-эмодзи в inline-результатах, и разметка приходила к читателю
-    обеднённой. Прямая отправка идёт по правам самого бота, и эмодзи
-    доезжают — так же, как в превью владельцу.
+    Премиум-эмодзи телеграм срезает у сообщений бота в каналах — проверено
+    ответом API: сущность не доезжает. Зато при пересылке она переносится
+    как есть, потому что сообщение не создаётся заново. Поэтому в канал
+    отправляем в два шага: сначала в личку, где эмодзи принимаются, оттуда
+    пересылаем. URL-кнопки пересылку тоже переживают.
+
+    Без staging_chat_id шлём напрямую: в личке и группах эмодзи и так
+    доезжают, лишний шаг там ни к чему.
     """
+    if staging_chat_id is not None and str(staging_chat_id) != str(chat_id):
+        staged = await send_promo_post(bot, staging_chat_id, link, bot_service)
+        sent = await bot.forward_message(
+            chat_id=chat_id,
+            from_chat_id=staging_chat_id,
+            message_id=staged.message_id,
+        )
+        # Промежуточную копию убираем: она нужна была только как источник
+        # пересылки. Уже отправленный пост от её удаления не страдает.
+        try:
+            await bot.delete_message(chat_id=staging_chat_id, message_id=staged.message_id)
+        except Exception as e:
+            logger.debug(f"[AdLink] Staging copy left in chat '{staging_chat_id}': {e}")
+        return sent
+
     ad_url = await bot_service.get_ad_link_url(link.code)
     bot_url = await bot_service.get_ad_deeplink_url(link.code)
     markup = get_promo_keyboard(link.promo_buttons or [], ad_url, bot_url)

@@ -1495,7 +1495,7 @@ msg-advertising-promo-send-confirm =
     To: <b>{ $target_title }</b>
 
     { $is_channel ->
-    [1] ⚠️ <i>This is a channel. Telegram strips premium emoji from a bot's messages in channels — the text keeps the plain ones and the button icon disappears. Bold, italics and links survive.</i>
+    [1] <i>This is a channel. The post goes as a forward through your chat with the bot — otherwise Telegram strips premium emoji. It will carry a "Forwarded" header.</i>
     *[0] { "" }
     }
 
