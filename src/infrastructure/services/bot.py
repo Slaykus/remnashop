@@ -70,6 +70,10 @@ class BotService:
         landing = self._landing_url(referral_code)
         if landing:
             return landing
+        return await self.get_referral_deeplink_url(referral_code)
+
+    async def get_referral_deeplink_url(self, referral_code: str) -> str:
+        """Прямой вход в бота по реферальному коду, мимо посадочной."""
         base_url = await self._get_bot_redirect_url()
         return Deeplink.REFERRAL.build_url(base_url, referral_code)
 

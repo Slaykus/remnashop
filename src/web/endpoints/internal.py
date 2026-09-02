@@ -1340,6 +1340,10 @@ class CreateAdLinkResponse(BaseModel):
     code: str
     name: str
     owner_telegram_id: int | None = None
+    # Оба адреса, а не выбор одного: какой нужен, решает размещение, а не
+    # момент создания ссылки. telegram_url оставлен прежним, чтобы уже
+    # написанные вызовы получали ровно то же, что получали.
+    deeplink_url: str = ""
     # Как выглядит ссылка, решает бот: есть адрес сайта — ведём на посадочную,
     # нет — на deep link. Отдаём готовой, чтобы снаружи это правило не повторяли.
     telegram_url: str
@@ -1414,6 +1418,7 @@ async def create_ad_link(
             name=existing.name,
             owner_telegram_id=existing_owner,
             telegram_url=await bot_service.get_ad_link_url(existing.code),
+            deeplink_url=await bot_service.get_ad_deeplink_url(existing.code),
         )
 
     async with uow:
@@ -1429,6 +1434,7 @@ async def create_ad_link(
         name=link.name,
         owner_telegram_id=body.owner_telegram_id if owner_user_id else None,
         telegram_url=await bot_service.get_ad_link_url(link.code),
+        deeplink_url=await bot_service.get_ad_deeplink_url(link.code),
     )
 
 
@@ -1475,7 +1481,13 @@ async def lookup_link(
             code=code,
             is_active=ad_link.is_active,
             title=ad_link.name,
-            telegram_url=await bot_service.get_ad_link_url(code),
+            # Deep link, а не посадочная. Эту ручку спрашивает сама
+            # посадочная, чтобы узнать, куда вести человека дальше, и
+            # получала в ответ собственный адрес: кнопка «Продолжить в
+            # Telegram» перезагружала ту же страницу, в бота человек не
+            # попадал, код до него не доезжал, привязки к ссылке и партнёру
+            # не было. Молча: в отчёте это выглядело как переходы без оплат.
+            telegram_url=await bot_service.get_ad_deeplink_url(code),
             bonus_days=ad_link.bonus_days,
             bonus_discount_pct=ad_link.bonus_discount_pct,
         )
@@ -1489,7 +1501,8 @@ async def lookup_link(
             code=code,
             is_active=True,
             title=None,
-            telegram_url=await bot_service.get_referral_url(code),
+            # То же самое, что и у рекламной ветки выше: устроена одинаково.
+            telegram_url=await bot_service.get_referral_deeplink_url(code),
         )
 
     raise HTTPException(status_code=404, detail="Link not found")
