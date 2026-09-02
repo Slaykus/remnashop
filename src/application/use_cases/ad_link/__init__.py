@@ -11,6 +11,7 @@ from .queries.list import (
     GetAdLinks,
     GetAllAdLinksComparison,
 )
+from .queries.validate import ValidateAdLinkCode
 
 AD_LINK_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     ProcessAdClick,
@@ -23,4 +24,9 @@ AD_LINK_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     GetAdLinkPeriodStats,
     GetAdLinkDailyStats,
     GetAllAdLinksComparison,
+    # Проверка кода при входе в бота по deep link. Класс существовал и
+    # вызывался из AccessMiddleware, но в этот список не попадал — и любой
+    # переход вида ?start=ad_КОД падал в NoFactoryError. Не всплывало,
+    # пока все рекламные ссылки вели на посадочную сайта.
+    ValidateAdLinkCode,
 )
