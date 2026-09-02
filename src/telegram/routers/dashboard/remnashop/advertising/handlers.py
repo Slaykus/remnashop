@@ -9,6 +9,7 @@ from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
+from loguru import logger
 
 from aiogram.types import BufferedInputFile
 
