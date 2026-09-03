@@ -1,8 +1,10 @@
 from aiogram import Router
 
+from .deeplink import DeeplinkFilter
 from .private import PrivateFilter
 
 __all__ = [
+    "DeeplinkFilter",
     "setup_global_filters",
 ]
 

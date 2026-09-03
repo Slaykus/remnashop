@@ -26,6 +26,7 @@ from src.core.exceptions import (
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
+from src.telegram.filters import DeeplinkFilter
 from src.telegram.states import DashboardUser, MainMenu, Subscription, state_from_string
 
 router = Router(name=__name__)
@@ -95,7 +96,7 @@ async def on_goto(
 
 
 @inject
-@router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.PLAN))
+@router.message(CommandStart(deep_link=True, ignore_case=True), DeeplinkFilter(Deeplink.PLAN))
 async def on_goto_plan(
     message: Message,
     command: CommandObject,
@@ -129,7 +130,10 @@ async def on_goto_plan(
 
 
 @inject
-@router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.ADVERTISING))
+@router.message(
+    CommandStart(deep_link=True, ignore_case=True),
+    DeeplinkFilter(Deeplink.ADVERTISING),
+)
 async def on_goto_ad(
     message: Message,
     command: CommandObject,
@@ -140,26 +144,28 @@ async def on_goto_ad(
     await process_ad_click(user, ProcessAdClickDto(code=code))
 
 
-@router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.INVITE))
+@router.message(CommandStart(deep_link=True, ignore_case=True), DeeplinkFilter(Deeplink.INVITE))
 async def on_goto_invite(
     message: Message,
     command: CommandObject,
     user: TelegramUserDto,
     dialog_manager: DialogManager,
 ) -> None:
-    if command.args == Deeplink.INVITE:
-        logger.info(f"{user.log} Redirected to invite menu")
-        await dialog_manager.start(
-            state=MainMenu.INVITE,
-            mode=StartMode.RESET_STACK,
-            show_mode=ShowMode.DELETE_AND_SEND,
-        )
+    # Проверку `args == invite` убрали: её теперь делает фильтр. Раньше
+    # ссылка вида `invite_что-то` проходила фильтр, но не проходила эту
+    # проверку — человек не видел вообще ничего.
+    logger.info(f"{user.log} Redirected to invite menu")
+    await dialog_manager.start(
+        state=MainMenu.INVITE,
+        mode=StartMode.RESET_STACK,
+        show_mode=ShowMode.DELETE_AND_SEND,
+    )
 
 
 @inject
 @router.message(
     CommandStart(deep_link=True, ignore_case=True),
-    F.text.contains(Deeplink.PROMOCODE),
+    DeeplinkFilter(Deeplink.PROMOCODE),
 )
 async def on_goto_promocode(
     message: Message,

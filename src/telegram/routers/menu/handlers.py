@@ -49,6 +49,18 @@ async def on_start_dialog(user: TelegramUserDto, dialog_manager: DialogManager) 
     )
 
 
+@router.message(CommandStart(deep_link=True, ignore_case=True))
+async def on_start_deeplink(
+    message: Message, user: TelegramUserDto, dialog_manager: DialogManager
+) -> None:
+    # Запаска для всех /start с аргументом, до которых не добрался goto.py:
+    # в первую очередь реферальные ссылки `ref_КОД` — код разбирает мидлварь,
+    # здесь остаётся показать меню. Обработчик обязателен: с aiogram 3.27
+    # `CommandStart()` без deep_link такие сообщения отвергает, и человек,
+    # пришедший по ссылке друга, не увидел бы ничего.
+    await on_start_dialog(user, dialog_manager)
+
+
 @router.message(CommandStart(ignore_case=True))
 async def on_start_command(
     message: Message, user: TelegramUserDto, dialog_manager: DialogManager
