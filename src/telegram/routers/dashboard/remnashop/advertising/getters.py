@@ -15,6 +15,7 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAllAdLinksComparison,
 )
 from src.core.constants import INLINE_QUERY_PROMO_PREFIX, USER_KEY
+from src.core.enums import TextFormat
 from src.core.utils.converters import strip_html
 from src.telegram.charts import mini_bar
 
@@ -145,6 +146,7 @@ async def promo_getter(
         # режется по длине — обрубок тега сломал бы разбор всего экрана.
         "promo_text_preview": strip_html(link.promo_text or "—")[:300],
         "promo_has_text": int(bool(link.promo_text)),
+        "promo_is_markdown": int(link.promo_format == TextFormat.MARKDOWN),
         "promo_has_photo": int(bool(link.promo_photo_id)),
         "promo_buttons_info": "\n".join(lines) if lines else "—",
         "promo_btn_count": btn_count,

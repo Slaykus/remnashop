@@ -516,6 +516,10 @@ btn-advertising =
     .delete-confirm = ✅ Confirm deletion
     .promo = ✉️ Promo message
     .promo-edit-text = ✏️ Edit text
+    .promo-edit-markdown = { $promo_is_markdown ->
+    [1] 📐 Markup (on)
+    *[0] 📐 Write with markup
+    }
     .promo-photo = { $promo_has_photo ->
     [1] 🖼 Change attachment
     *[0] 🖼 Add attachment

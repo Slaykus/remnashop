@@ -1481,6 +1481,15 @@ msg-advertising-promo =
 msg-advertising-promo-edit-text =
     ✏️ Enter the promo message text (HTML supported):
 
+msg-advertising-promo-edit-markdown =
+    📐 Send the post text as Markdown.
+
+    This unlocks headings, lists and checklists, tables, quotations, collapsible blocks, footnotes and formulas — none of which a plain Telegram message has.
+
+    <b>In short:</b> <code>**bold**</code>, <code>*italic*</code>, <code>~~strikethrough~~</code>, <code>||spoiler||</code>, <code>`code`</code>, <code>[text](link)</code>. A heading is a hash at the start of a line, a list item is a dash, a quote is an angle bracket.
+
+    <i>The attachment and buttons are added separately, as usual.</i>
+
 msg-advertising-promo-edit-photo =
     🖼 Send an attachment for the promo message: a photo, video or GIF.
 

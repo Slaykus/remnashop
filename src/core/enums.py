@@ -209,6 +209,18 @@ class MediaType(UpperStrEnum):
     GIF = auto()
 
 
+class TextFormat(UpperStrEnum):
+    """Как разбирать сохранённый текст поста.
+
+    HTML — разметка из самого телеграма (`message.html_text`), так пост
+    хранился всегда. MARKDOWN — текст, набранный человеком вручную, уходит
+    в rich-сообщение и умеет заголовки, списки, таблицы и цитаты.
+    """
+
+    HTML = auto()
+    MARKDOWN = auto()
+
+
 class OAuthProvider(StrEnum):
     GOOGLE = auto()
     YANDEX = auto()

@@ -11,7 +11,13 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
 
-from aiogram.types import BufferedInputFile
+from aiogram.types import (
+    BufferedInputFile,
+    InputMediaAnimation,
+    InputMediaDocument,
+    InputMediaPhoto,
+    InputMediaVideo,
+)
 
 from src.application.common import Notifier
 from src.application.common.dao.ad_link import AdLinkDao
@@ -34,8 +40,13 @@ from src.application.use_cases.ad_link.queries.list import (
     GetAllAdLinksComparison,
 )
 from src.application.dto import AdLinkDto
-from src.core.enums import MediaType
+from src.core.enums import MediaType, TextFormat
 from src.telegram.keyboards import get_promo_keyboard
+from src.telegram.methods import (
+    InputRichMessage,
+    InputRichMessageMedia,
+    SendRichMessage,
+)
 from src.core.constants import AD_LINK_CODE_PATTERN, USER_KEY
 from src.telegram.charts import (
     build_comparison_chart,
@@ -366,6 +377,36 @@ async def on_promo_set_text(
     if not link:
         return
     link.promo_text = text
+    link.promo_format = TextFormat.HTML
+    await update_ad_link(user, UpdateAdLinkDto(link=link))
+    await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
+
+
+@inject
+async def on_promo_set_markdown(
+    message: Message,
+    widget: MessageInput,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    update_ad_link: FromDishka[UpdateAdLink],
+    notifier: FromDishka[Notifier],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    # Здесь наоборот нужен голый text: человек присылает разметку как есть,
+    # и html_text экранировал бы её собственные символы.
+    text = (message.text or "").strip()
+    if not text:
+        await notifier.notify_user(
+            user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)
+        )
+        return
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return
+    link.promo_text = text
+    link.promo_format = TextFormat.MARKDOWN
     await update_ad_link(user, UpdateAdLinkDto(link=link))
     await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
 
@@ -764,6 +805,9 @@ async def send_promo_post(
     bot_url = await bot_service.get_ad_deeplink_url(link.code)
     markup = get_promo_keyboard(link.promo_buttons or [], ad_url, bot_url)
 
+    if link.promo_format == TextFormat.MARKDOWN:
+        return await _send_rich_promo(bot, chat_id, link, markup)
+
     if link.promo_photo_id:
         # Тип пуст у ссылок, заведённых до поддержки видео — это фото.
         send = {
@@ -791,6 +835,51 @@ _MEDIA_ARG = {
     MediaType.VIDEO: "video",
     MediaType.GIF: "animation",
 }
+
+# Схема ссылки и класс вложения для rich-сообщения. Гифка ходит по video:
+# document телеграм на анимации отклоняет (RICH_MESSAGE_DOCUMENT_INVALID).
+_RICH_MEDIA = {
+    MediaType.PHOTO: ("photo", InputMediaPhoto),
+    MediaType.VIDEO: ("video", InputMediaVideo),
+    MediaType.GIF: ("video", InputMediaAnimation),
+    MediaType.DOCUMENT: ("document", InputMediaDocument),
+}
+
+_RICH_MEDIA_ID = "m1"
+
+
+async def _send_rich_promo(
+    bot: Bot,
+    chat_id: int | str,
+    link: AdLinkDto,
+    markup: Optional[Any],
+) -> Message:
+    """Пост, написанный разметкой: заголовки, списки, таблицы, цитаты.
+
+    Вложение здесь отдельный блок, а не подпись под картинкой, — в
+    rich-сообщении медиа иначе не живёт. Файл переиспользуем по file_id,
+    заново он не загружается.
+    """
+    body = link.promo_text or ""
+
+    media: list[InputRichMessageMedia] = []
+    if link.promo_photo_id:
+        scheme, factory = _RICH_MEDIA[link.promo_media_type or MediaType.PHOTO]
+        media.append(
+            InputRichMessageMedia(
+                id=_RICH_MEDIA_ID,
+                media=factory(media=link.promo_photo_id),
+            )
+        )
+        body = f"![](tg://{scheme}?id={_RICH_MEDIA_ID})\n\n{body}"
+
+    return await bot(
+        SendRichMessage(
+            chat_id=chat_id,
+            rich_message=InputRichMessage(markdown=body, media=media or None),
+            reply_markup=markup,
+        )
+    )
 
 
 @inject

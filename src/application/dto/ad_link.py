@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
-from src.core.enums import MediaType
+from src.core.enums import MediaType, TextFormat
 
 from .base import BaseDto
 
@@ -26,6 +26,8 @@ class AdLinkDto(BaseDto):
     # ради косметики. Пусто в типе — фото, так читаются старые записи.
     promo_photo_id: Optional[str] = field(default=None)
     promo_media_type: Optional[MediaType] = field(default=None)
+    # Пусто — разметка телеграма, как было всегда; MARKDOWN — rich-пост.
+    promo_format: Optional[TextFormat] = field(default=None)
     promo_buttons: list[Any] = field(default_factory=list)
     created_at: Optional[datetime] = field(default=None)
     updated_at: Optional[datetime] = field(default=None)

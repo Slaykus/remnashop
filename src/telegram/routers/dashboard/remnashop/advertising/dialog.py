@@ -64,6 +64,7 @@ from .handlers import (
     on_promo_button_label_input,
     on_promo_button_url_input,
     on_promo_remove_photo,
+    on_promo_set_markdown,
     on_promo_set_photo,
     on_promo_set_style,
     on_promo_send,
@@ -331,6 +332,16 @@ ad_promo = Window(
         ),
     ),
     Row(
+        # Второй способ задать текст: разметкой вместо пересылки. Даёт
+        # заголовки, списки, таблицы и цитаты, которых в обычном сообщении
+        # телеграма просто нет.
+        SwitchTo(
+            text=I18nFormat("btn-advertising.promo-edit-markdown"),
+            id="promo_edit_md",
+            state=RemnashopAdvertising.EDIT_PROMO_MARKDOWN,
+        ),
+    ),
+    Row(
         SwitchTo(
             text=I18nFormat("btn-advertising.promo-add-button"),
             id="promo_add_btn",
@@ -416,6 +427,22 @@ ad_edit_promo_text = Window(
     ),
     IgnoreUpdate(),
     state=RemnashopAdvertising.EDIT_PROMO_TEXT,
+    getter=edit_getter,
+)
+
+ad_edit_promo_markdown = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-promo-edit-markdown"),
+    MessageInput(func=on_promo_set_markdown),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.PROMO,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.EDIT_PROMO_MARKDOWN,
     getter=edit_getter,
 )
 
@@ -875,6 +902,7 @@ router = Dialog(
     ad_confirm_delete,
     ad_promo,
     ad_edit_promo_text,
+    ad_edit_promo_markdown,
     ad_edit_promo_photo,
     ad_promo_button_label,
     ad_promo_send_target,

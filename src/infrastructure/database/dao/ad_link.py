@@ -94,6 +94,7 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                 promo_text=dto.promo_text,
                 promo_photo_id=dto.promo_photo_id,
                 promo_media_type=dto.promo_media_type,
+                promo_format=dto.promo_format,
                 promo_buttons=dto.promo_buttons,
                 updated_at=now,
             )
