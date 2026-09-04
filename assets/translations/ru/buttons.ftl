@@ -245,14 +245,14 @@ btn-broadcast =
     } { $created_at }
     
 btn-goto =
-    .subscription = 💳 Купить подписку
+    .subscription = <e id="5433625699548179370">💳</e> Купить подписку
     .promocode = 🎟 Активировать промокод
     .invite = 👥 Пригласить
-    .subscription-renew = 🔄 Продлить подписку
+    .subscription-renew = <e id="5431450139698962745">🔄</e> Продлить подписку
     .user-profile = 👤 Перейти к пользователю
     .referrer-profile = 🤝 Перейти к пригласителю
-    .contact-support = 📩 Перейти в поддержку
-    .main-menu = 🏠 В главное меню
+    .contact-support = <e id="5433790699306787710">📩</e> Перейти в поддержку
+    .main-menu = <e id="5433682723828966023">🏠</e> В главное меню
 
 btn-promocodes =
     .save = ✅ Сохранить

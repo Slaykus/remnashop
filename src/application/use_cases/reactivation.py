@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
-from typing import Optional
 
 from loguru import logger
 
@@ -155,6 +154,17 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
         )
         return report
 
+    @staticmethod
+    def _live_discount(user: UserDto) -> int:
+        """Разовая скидка, которая сейчас действительно применяется."""
+        discount = user.purchase_discount or 0
+        expires_at = user.purchase_discount_expires_at
+        if discount <= 0:
+            return 0
+        if expires_at is not None and expires_at <= datetime.now(timezone.utc):
+            return 0
+        return discount
+
     async def _deliver(
         self,
         row: dict,
@@ -165,7 +175,6 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
         if user is None:
             return
 
-        expires_at: Optional[datetime] = None
         async with self.uow:
             # Журнал пишем до отправки: если письмо не уйдёт, человек
             # останется без него, и это лучше, чем получить два.
@@ -177,11 +186,25 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
                 report.skipped_already_sent += 1
                 return
 
+            live = self._live_discount(user)
+            shown = step.show
+
             if step.grant:
-                expires_at = datetime.now(timezone.utc) + timedelta(days=DISCOUNT_DAYS)
-                user.purchase_discount = step.grant
-                user.purchase_discount_expires_at = expires_at
+                # Берём большее, а не назначаем своё: у человека может
+                # лежать скидка крупнее — по промокоду или выданная
+                # вручную, — и понизить её письмом о возврате было бы
+                # обманом в нашу пользу.
+                granted = max(live, step.grant)
+                user.purchase_discount = granted
+                user.purchase_discount_expires_at = datetime.now(timezone.utc) + timedelta(
+                    days=DISCOUNT_DAYS
+                )
                 await self.user_dao.update(user)
+                shown = granted
+            elif live:
+                # Напоминание называет то, что у человека есть на самом
+                # деле, а не то, что мы планировали выдать шагом раньше.
+                shown = live
 
             await self.uow.commit()
 
@@ -192,7 +215,7 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
                 i18n_key=step.i18n_key,
                 keyboard=step.keyboard.value,
                 support_url=support_url,
-                discount=step.show,
+                discount=shown,
                 days=DISCOUNT_DAYS,
             )
         )
