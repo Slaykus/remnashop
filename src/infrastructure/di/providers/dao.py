@@ -6,6 +6,7 @@ from src.application.common.dao import (
     AuthSessionDao,
     BroadcastDao,
     NodeQuotaDao,
+    NotificationLogDao,
     PaymentGatewayDao,
     PlanDao,
     PromocodeDao,
@@ -24,6 +25,7 @@ from src.infrastructure.database.dao import (
     PartnerDaoImpl,
     BroadcastDaoImpl,
     NodeQuotaDaoImpl,
+    NotificationLogDaoImpl,
     PaymentGatewayDaoImpl,
     PlanDaoImpl,
     PromocodeDaoImpl,
@@ -44,6 +46,9 @@ class DaoProvider(Provider):
     scope = Scope.REQUEST
 
     ad_link = provide(source=AdLinkDaoImpl, provides=AdLinkDao)
+    notification_log = provide(
+        source=NotificationLogDaoImpl, provides=NotificationLogDao
+    )
     partner = provide(source=PartnerDaoImpl, provides=PartnerDao)
     node_quota = provide(source=NodeQuotaDaoImpl, provides=NodeQuotaDao)
     broadcast = provide(source=BroadcastDaoImpl, provides=BroadcastDao)

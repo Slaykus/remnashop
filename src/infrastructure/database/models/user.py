@@ -37,6 +37,11 @@ class User(BaseSql, TimestampMixin):
 
     personal_discount: Mapped[int]
     purchase_discount: Mapped[int]
+    # Пусто — скидка бессрочная, как было всегда. Дата ставится только
+    # кампанией возврата, которой нужен дедлайн.
+    purchase_discount_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        nullable=True, default=None
+    )
     points: Mapped[int]
 
     paid_referrals_count: Mapped[int] = mapped_column(default=0, server_default="0")

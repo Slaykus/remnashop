@@ -25,6 +25,18 @@ class UserDao(Protocol):
 
     async def get_all(self, limit: Optional[int] = None, offset: int = 0) -> list[UserDto]: ...
 
+    async def get_reactivation_candidates(self, max_days: int = 30) -> list[dict]:
+        """
+        Кто пропал: не забрал пробник либо остался с истёкшей подпиской.
+
+        Заблокировавшие бота и чёрный список отсеиваются здесь же — писать
+        им бессмысленно, а попытка стоит запроса в телеграм.
+
+        `max_days` отсекает старую когорту: человеку, пропавшему полгода
+        назад, письмо приходит как спам от незнакомого сервиса.
+        """
+        ...
+
     async def update(self, user: UserDto) -> Optional[UserDto]: ...
 
     async def delete(self, user_id: int) -> bool: ...

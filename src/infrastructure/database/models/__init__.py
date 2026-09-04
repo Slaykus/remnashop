@@ -11,6 +11,7 @@ from .subscription import Subscription
 from .transaction import Transaction
 from .user import User
 from .node_quota import UserNodeQuota
+from .notification_log import UserNotificationLog
 from .ad_link import AdLink, AdLinkUser
 from .partner import Partner, PartnerEarning, PartnerPayout
 
@@ -36,6 +37,7 @@ __all__ = [
     "Transaction",
     "User",
     "UserNodeQuota",
+    "UserNotificationLog",
     "AdLink",
     "AdLinkUser",
 ]

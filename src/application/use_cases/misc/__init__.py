@@ -13,6 +13,7 @@ from .commands.menu_editor import (
 from .commands.navigation import RedirectMenu
 from .queries.logs import GetLogs
 from .queries.menu import GetMenuData
+from ..reactivation import SendReactivationNotifications
 
 MISC_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     GetLogs,
@@ -25,4 +26,5 @@ MISC_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     RedirectMenu,
     CancelOldTransactions,
     ClearOldBroadcasts,
+    SendReactivationNotifications,
 )

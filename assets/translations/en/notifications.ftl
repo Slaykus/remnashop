@@ -297,3 +297,34 @@ ntf-partner =
         </blockquote>
 
         Issue it in the advertising section, partner card.
+
+ntf-reactivation =
+    .trial-unused-first =
+    🎁 <b>Your free week is still unclaimed</b>
+
+    You created an account but never switched on the free week. It is still there — grab it from the menu.
+
+    .trial-unused-last =
+    🌧 <b>About that free week</b>
+
+    Still waiting for you. This is the last reminder — if you do not need it, just ignore this.
+
+    .trial-expired-offer =
+    🎟 <b>{ $discount }% off your first subscription</b>
+
+    The free week is over. If you liked it, here is { $discount }% — it burns in { $days } days.
+
+    .trial-expired-last =
+    ⛔ <b>The discount burns tomorrow</b>
+
+    { $discount }% off your first subscription. After that it is the regular price.
+
+    .paid-expired-offer =
+    🎟 <b>Your subscription has ended</b>
+
+    If you left because of something specific, write to support and we will sort it out. If you simply forgot to renew, here is { $discount }% for { $days } days.
+
+    .paid-expired-last =
+    ⛔ <b>The discount burns tomorrow</b>
+
+    { $discount }% off your renewal. After that it is the regular price.

@@ -6,7 +6,7 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import UserDao
@@ -124,6 +124,50 @@ class UserDaoImpl(UserDao):
 
         logger.debug(f"User with referral code '{referral_code}' not found")
         return None
+
+    async def get_reactivation_candidates(self, max_days: int = 30) -> list[dict]:
+        rows = await self.session.execute(
+            text(
+                """
+                SELECT
+                    u.id,
+                    u.telegram_id,
+                    u.purchase_discount,
+                    CASE
+                        WHEN u.current_subscription_id IS NULL THEN 'never'
+                        WHEN s.is_trial THEN 'trial'
+                        ELSE 'paid'
+                    END AS segment,
+                    CASE
+                        WHEN u.current_subscription_id IS NULL
+                            THEN (now()::date - u.created_at::date)
+                        ELSE (now()::date - s.expire_at::date)
+                    END AS days
+                FROM users u
+                LEFT JOIN subscriptions s ON s.id = u.current_subscription_id
+                WHERE u.role = 'USER'
+                  AND NOT u.is_bot_blocked
+                  AND NOT u.is_blocked
+                  AND (
+                        (u.current_subscription_id IS NULL AND u.is_trial_available)
+                     OR (s.expire_at IS NOT NULL AND s.expire_at <= now())
+                  )
+                """
+            )
+        )
+        candidates = [
+            {
+                "id": row.id,
+                "telegram_id": row.telegram_id,
+                "purchase_discount": row.purchase_discount,
+                "segment": row.segment,
+                "days": int(row.days),
+            }
+            for row in rows
+            if 0 <= int(row.days) <= max_days
+        ]
+        logger.debug(f"Found '{len(candidates)}' reactivation candidates")
+        return candidates
 
     async def get_all(self, limit: Optional[int] = None, offset: int = 0) -> list[UserDto]:
         stmt = select(User).limit(limit).offset(offset) if limit else select(User).offset(offset)

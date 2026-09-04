@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import ROUND_DOWN, Decimal, InvalidOperation
 
 from loguru import logger
@@ -7,16 +8,32 @@ from src.core.enums import Currency
 
 
 class PricingService:
+    @staticmethod
+    def _live_purchase_discount(user: UserDto) -> int:
+        """Разовая скидка с учётом срока.
+
+        Пустая дата — скидка бессрочная, так вели себя все скидки до
+        кампании возврата. Просроченная — скидки нет: обещание «сгорит
+        через три дня» иначе оказалось бы неправдой в нашу же пользу.
+        """
+        discount = user.purchase_discount or 0
+        expires_at = user.purchase_discount_expires_at
+        if discount <= 0 or expires_at is None:
+            return discount
+        return discount if expires_at > datetime.now(timezone.utc) else 0
+
     def is_largest_discount_personal(self, user: UserDto) -> bool:
         personal = user.personal_discount or 0
-        purchase = user.purchase_discount or 0
+        purchase = self._live_purchase_discount(user)
         return personal > 0 and personal > purchase
 
     def get_effective_discount(self, user: UserDto) -> int:
-        discount_percent = min(max(user.purchase_discount or 0, user.personal_discount or 0), 100)
+        purchase = self._live_purchase_discount(user)
+        discount_percent = min(max(purchase, user.personal_discount or 0), 100)
         logger.debug(
             f"Calculated effective discount percent '{discount_percent}' for user "
             f"'{user.remna_name}' (purchase_discount='{user.purchase_discount}', "
+            f"expires_at='{user.purchase_discount_expires_at}', "
             f"personal_discount='{user.personal_discount}')"
         )
         return discount_percent

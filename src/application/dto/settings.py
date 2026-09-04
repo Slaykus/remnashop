@@ -227,6 +227,11 @@ class ExtraSettingsDto(TrackableMixin):
     referral_reset: ResetFeatureSettingsDto = field(default_factory=ResetFeatureSettingsDto)
     trial_channel_guard: bool = False
     mini_app_reserve: bool = False
+    # Кампания возврата. Выключена и в сухом режиме с рождения: письма
+    # уходят живым людям, и включать это должен человек осознанно, а не
+    # значение по умолчанию.
+    reactivation_enabled: bool = False
+    reactivation_dry_run: bool = True
 
 
 @dataclass(kw_only=True)

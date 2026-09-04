@@ -58,6 +58,8 @@ class UserDto(BaseDto, TrackableMixin, TimestampMixin):
     language: Locale = Locale.EN
 
     personal_discount: int = 0
+    # Срок жизни разовой скидки; пусто — бессрочная.
+    purchase_discount_expires_at: Optional[datetime] = None
     purchase_discount: int = 0
     points: int = 0
 
