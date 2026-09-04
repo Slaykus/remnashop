@@ -27,6 +27,7 @@ from src.core.enums import (
     ReferralRewardType,
     Role,
     SubscriptionStatus,
+    TextFormat,
     TransactionStatus,
 )
 
@@ -40,6 +41,7 @@ mapper_registry = registry(
         #
         Locale: Enum(Locale, name="locale"),
         MediaType: Enum(MediaType, name="media_type"),
+        TextFormat: Enum(TextFormat, name="text_format"),
         Role: Enum(Role, name="user_role"),
         Currency: Enum(Currency, name="currency"),
         PaymentGatewayType: Enum(PaymentGatewayType, name="payment_gateway_type"),
