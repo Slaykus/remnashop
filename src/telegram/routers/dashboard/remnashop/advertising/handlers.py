@@ -274,6 +274,36 @@ async def on_edit_bonus_discount_input(
 
 
 @inject
+async def on_edit_bonus_discount_once_input(
+    message: Message,
+    widget: MessageInput,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    update_ad_link: FromDishka[UpdateAdLink],
+    notifier: FromDishka[Notifier],
+) -> None:
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    try:
+        value = int((message.text or "").strip())
+        if value < 0 or value > 100:
+            raise ValueError
+    except ValueError:
+        await notifier.notify_user(
+            user,
+            payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5),
+        )
+        return
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return
+    link.bonus_discount_once_pct = value
+    await update_ad_link(user, UpdateAdLinkDto(link=link))
+    await dialog_manager.switch_to(RemnashopAdvertising.VIEW)
+
+
+@inject
 async def on_delete_confirm(
     callback: CallbackQuery,
     widget: Button,

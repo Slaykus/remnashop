@@ -1450,6 +1450,9 @@ class LinkLookupResponse(BaseModel):
     # но посадочная их не показывала — механика была настроена и молчала.
     bonus_days: int = 0
     bonus_discount_pct: int = 0
+    # Разовая скидка: сгорает после первой оплаты. Постоянная выше остаётся
+    # у человека навсегда, поэтому в закупе обычно ставят эту.
+    bonus_discount_once_pct: int = 0
 
 
 @router.get(
@@ -1490,6 +1493,7 @@ async def lookup_link(
             telegram_url=await bot_service.get_ad_deeplink_url(code),
             bonus_days=ad_link.bonus_days,
             bonus_discount_pct=ad_link.bonus_discount_pct,
+            bonus_discount_once_pct=ad_link.bonus_discount_once_pct,
         )
 
     referrer = await user_dao.get_by_referral_code(code)

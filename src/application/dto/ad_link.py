@@ -17,6 +17,8 @@ class AdLinkDto(BaseDto):
     bonus_points: int = 0
     bonus_days: int = 0
     bonus_discount_pct: int = 0
+    # Разовая: уходит в purchase_discount и сгорает после первой оплаты.
+    bonus_discount_once_pct: int = 0
     clicks_count: int = 0
     # Владелец ссылки: пусто — своя реклама, заполнено — партнёрская.
     owner_user_id: Optional[int] = field(default=None)

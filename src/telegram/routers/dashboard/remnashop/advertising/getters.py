@@ -78,6 +78,7 @@ async def view_getter(
         "bonus_points": link.bonus_points,
         "bonus_days": link.bonus_days,
         "bonus_discount_pct": link.bonus_discount_pct,
+        "bonus_discount_once_pct": link.bonus_discount_once_pct,
         "clicks_count": link.clicks_count,
         "deep_link": deep_link,
         "unique_clicks": stats.unique_clicks,

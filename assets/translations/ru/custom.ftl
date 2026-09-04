@@ -424,7 +424,8 @@ btn-advertising =
     .edit-name = ✏️ Название
     .bonus-points = 🎯 Баллы: { $bonus_points }
     .bonus-days = 📅 Дней: { $bonus_days }
-    .bonus-discount = 💸 Скидка: { $bonus_discount_pct }%
+    .bonus-discount = 💸 Скидка навсегда: { $bonus_discount_pct }%
+    .bonus-discount-once = 🎟 Скидка на первую покупку: { $bonus_discount_once_pct }%
     .delete = 🗑 Удалить
     .delete-confirm = ✅ Подтвердить удаление
     .promo = ✉️ Promo-сообщение
@@ -516,7 +517,8 @@ msg-advertising-view =
     <b>Бонусы при переходе:</b>
     • Баллы: <b>{ $bonus_points }</b>
     • Дней: <b>{ $bonus_days }</b>
-    • Скидка: <b>{ $bonus_discount_pct }%</b>
+    • Скидка навсегда: <b>{ $bonus_discount_pct }%</b>
+    • Скидка на первую покупку: <b>{ $bonus_discount_once_pct }%</b>
 
     <b>Аналитика:</b>
     • Переходов: <b>{ $clicks_count }</b>
@@ -544,7 +546,14 @@ msg-advertising-edit-bonus-days =
     📅 Введите количество дней (0 — без бонуса):
 
 msg-advertising-edit-bonus-discount =
-    💸 Введите размер скидки % от 0 до 100 (0 — без скидки):
+    💸 Введите размер <b>постоянной</b> скидки, % от 0 до 100 (0 — без скидки).
+
+    <i>Останется у человека навсегда и будет применяться ко всем продлениям.</i>
+
+msg-advertising-edit-bonus-discount-once =
+    🎟 Введите размер скидки <b>на первую покупку</b>, % от 0 до 100 (0 — без скидки).
+
+    <i>Сгорает после первой оплаты. Пробный период её не тратит.</i>
 
 msg-advertising-confirm-delete =
     ⚠️ Удалить ссылку <b>{ $delete_name }</b>?
@@ -717,7 +726,11 @@ ntf-ad =
         }{ $bonus_discount_pct ->
         [0] { "" }
         *[other]
-         • Скидка { $bonus_discount_pct }% на следующую покупку
+         • Постоянная скидка { $bonus_discount_pct }%
+        }{ $bonus_discount_once_pct ->
+        [0] { "" }
+        *[other]
+         • Скидка { $bonus_discount_once_pct }% на первую покупку
         }
 
     .code-invalid = <e id="5431713747611722012">⚠️</e> <i>Рекламная ссылка не найдена или недоступна.</i>

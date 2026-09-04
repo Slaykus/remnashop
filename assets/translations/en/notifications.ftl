@@ -244,7 +244,11 @@ ntf-ad =
         }{ $bonus_discount_pct ->
         [0] { "" }
         *[other]
-         • { $bonus_discount_pct }% discount on your next purchase
+         • { $bonus_discount_pct }% discount, forever
+        }{ $bonus_discount_once_pct ->
+        [0] { "" }
+        *[other]
+         • { $bonus_discount_once_pct }% discount on your first purchase
         }
 
     .code-invalid = ⚠️ <i>Ad link not found or unavailable.</i>

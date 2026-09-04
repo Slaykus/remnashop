@@ -1429,7 +1429,8 @@ msg-advertising-view =
     <b>Bonuses on click:</b>
     • Points: <b>{ $bonus_points }</b>
     • Days: <b>{ $bonus_days }</b>
-    • Discount: <b>{ $bonus_discount_pct }%</b>
+    • Discount forever: <b>{ $bonus_discount_pct }%</b>
+    • First-purchase discount: <b>{ $bonus_discount_once_pct }%</b>
 
     <b>Analytics:</b>
     • Visits: <b>{ $clicks_count }</b>
@@ -1457,7 +1458,14 @@ msg-advertising-edit-bonus-days =
     📅 Enter the number of bonus days (0 — no bonus):
 
 msg-advertising-edit-bonus-discount =
-    💸 Enter the discount % from 0 to 100 (0 — no discount):
+    💸 Enter the <b>permanent</b> discount, % from 0 to 100 (0 — no discount).
+
+    <i>Stays with the person forever and applies to every renewal.</i>
+
+msg-advertising-edit-bonus-discount-once =
+    🎟 Enter the <b>first-purchase</b> discount, % from 0 to 100 (0 — no discount).
+
+    <i>Burns after the first payment. The free trial does not spend it.</i>
 
 msg-advertising-confirm-delete =
     ⚠️ Delete link <b>{ $delete_name }</b>?

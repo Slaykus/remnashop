@@ -25,6 +25,7 @@ class AdLinkDao(Protocol):
         bonus_points: int = 0,
         bonus_days: int = 0,
         bonus_discount_pct: int = 0,
+        bonus_discount_once_pct: int = 0,
     ) -> AdLinkDto: ...
 
     async def update(self, dto: AdLinkDto) -> AdLinkDto: ...

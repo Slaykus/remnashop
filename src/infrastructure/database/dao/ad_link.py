@@ -60,6 +60,7 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
         bonus_points: int = 0,
         bonus_days: int = 0,
         bonus_discount_pct: int = 0,
+        bonus_discount_once_pct: int = 0,
     ) -> AdLinkDto:
         now = datetime.now(timezone.utc)
         row = AdLink(
@@ -69,6 +70,7 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
             bonus_points=bonus_points,
             bonus_days=bonus_days,
             bonus_discount_pct=bonus_discount_pct,
+            bonus_discount_once_pct=bonus_discount_once_pct,
             clicks_count=0,
             created_at=now,
             updated_at=now,
@@ -91,6 +93,7 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
                 bonus_points=dto.bonus_points,
                 bonus_days=dto.bonus_days,
                 bonus_discount_pct=dto.bonus_discount_pct,
+                bonus_discount_once_pct=dto.bonus_discount_once_pct,
                 promo_text=dto.promo_text,
                 promo_photo_id=dto.promo_photo_id,
                 promo_media_type=dto.promo_media_type,

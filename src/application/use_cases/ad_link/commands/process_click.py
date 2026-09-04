@@ -51,7 +51,12 @@ class ProcessAdClick(Interactor[ProcessAdClickDto, None]):
             return
 
         deferred = False
-        has_bonus = link.bonus_points > 0 or link.bonus_days > 0 or link.bonus_discount_pct > 0
+        has_bonus = (
+            link.bonus_points > 0
+            or link.bonus_days > 0
+            or link.bonus_discount_pct > 0
+            or link.bonus_discount_once_pct > 0
+        )
 
         if link.bonus_points > 0:
             actor.points += link.bonus_points
@@ -65,6 +70,16 @@ class ProcessAdClick(Interactor[ProcessAdClickDto, None]):
             await self.user_dao.update(actor)
             logger.debug(
                 f"[AdLink] Set discount {link.bonus_discount_pct}% for user {actor.telegram_id}"
+            )
+
+        if link.bonus_discount_once_pct > 0:
+            # Разовая скидка живёт в purchase_discount: покупка обнуляет его,
+            # а пробный период не трогает — там сброса нет.
+            actor.purchase_discount = link.bonus_discount_once_pct
+            await self.user_dao.update(actor)
+            logger.debug(
+                f"[AdLink] Set one-time discount {link.bonus_discount_once_pct}% "
+                f"for user {actor.telegram_id}"
             )
 
         if link.bonus_days > 0:
@@ -96,7 +111,8 @@ class ProcessAdClick(Interactor[ProcessAdClickDto, None]):
         logger.info(
             f"[AdLink] User {actor.telegram_id} used link '{data.code}', "
             f"points={link.bonus_points}, days={link.bonus_days}, "
-            f"discount={link.bonus_discount_pct}%"
+            f"discount={link.bonus_discount_pct}%, "
+            f"once={link.bonus_discount_once_pct}%"
         )
 
         if has_bonus:
@@ -108,6 +124,7 @@ class ProcessAdClick(Interactor[ProcessAdClickDto, None]):
                         "bonus_points": link.bonus_points,
                         "bonus_days": link.bonus_days,
                         "bonus_discount_pct": link.bonus_discount_pct,
+                        "bonus_discount_once_pct": link.bonus_discount_once_pct,
                     },
                     delete_after=None,
                 ),

@@ -58,6 +58,7 @@ from .handlers import (
     on_delete_promo_button,
     on_edit_bonus_days_input,
     on_edit_bonus_discount_input,
+    on_edit_bonus_discount_once_input,
     on_edit_bonus_points_input,
     on_edit_name_input,
     on_link_select,
@@ -166,6 +167,15 @@ ad_view = Window(
             text=I18nFormat("btn-advertising.bonus-discount"),
             id="edit_bonus_discount",
             state=RemnashopAdvertising.EDIT_BONUS_DISCOUNT,
+        ),
+    ),
+    Row(
+        # Вторая скидка — разовая. Для закупа обычно нужна именно она:
+        # постоянная остаётся у человека навсегда, на все продления.
+        SwitchTo(
+            text=I18nFormat("btn-advertising.bonus-discount-once"),
+            id="edit_bonus_discount_once",
+            state=RemnashopAdvertising.EDIT_BONUS_DISCOUNT_ONCE,
         ),
     ),
     Row(
@@ -293,6 +303,22 @@ ad_edit_bonus_discount = Window(
     ),
     IgnoreUpdate(),
     state=RemnashopAdvertising.EDIT_BONUS_DISCOUNT,
+    getter=edit_getter,
+)
+
+ad_edit_bonus_discount_once = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-edit-bonus-discount-once"),
+    MessageInput(func=on_edit_bonus_discount_once_input),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.VIEW,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.EDIT_BONUS_DISCOUNT_ONCE,
     getter=edit_getter,
 )
 
@@ -899,6 +925,7 @@ router = Dialog(
     ad_edit_bonus_points,
     ad_edit_bonus_days,
     ad_edit_bonus_discount,
+    ad_edit_bonus_discount_once,
     ad_confirm_delete,
     ad_promo,
     ad_edit_promo_text,
