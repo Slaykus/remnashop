@@ -300,31 +300,33 @@ ntf-partner =
 
 ntf-reactivation =
     .trial-unused-first =
-    🎁 <b>Your free week is still unclaimed</b>
+    🎁 <b>Your free trial period is available.</b>
 
-    You created an account but never switched on the free week. It is still there — grab it from the menu.
+    It has not been activated yet. Switch it on from the main menu and use the service for free!
 
     .trial-unused-last =
-    🌧 <b>About that free week</b>
+    🎁 <b>Your trial period is still not activated.</b>
 
-    Still waiting for you. This is the last reminder — if you do not need it, just ignore this.
+    This is the last reminder. You can switch it on from the main menu at any time.
 
     .trial-expired-offer =
-    🎟 <b>{ $discount }% off your first subscription</b>
+    🎟 <b>A { $discount }% discount is available to you.</b>
 
-    The free week is over. If you liked it, here is { $discount }% — it burns in { $days } days.
+    Your free trial period has ended. Subscribe at the reduced price — the discount is valid for { $days } days!
 
     .trial-expired-last =
-    ⛔ <b>The discount burns tomorrow</b>
+    ⛔ <b>Attention! Your { $discount }% discount ends tomorrow.</b>
 
-    { $discount }% off your first subscription. After that it is the regular price.
+    After that the subscription will be available at the regular price. Do not miss it!
 
     .paid-expired-offer =
-    🎟 <b>Your subscription has ended</b>
+    🎟 <b>A { $discount }% renewal discount is available to you.</b>
 
-    If you left because of something specific, write to support and we will sort it out. If you simply forgot to renew, here is { $discount }% for { $days } days.
+    Your subscription has ended and VPN access is suspended. Renew at the reduced price — the discount is valid for { $days } days!
+
+    If anything went wrong while you were using the service, write to support and we will help.
 
     .paid-expired-last =
-    ⛔ <b>The discount burns tomorrow</b>
+    ⛔ <b>Attention! Your { $discount }% discount ends tomorrow.</b>
 
-    { $discount }% off your renewal. After that it is the regular price.
+    After that renewal will be available at the regular price. Do not miss it!

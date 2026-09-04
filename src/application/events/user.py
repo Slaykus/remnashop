@@ -204,6 +204,39 @@ class ReferralMilestoneEvent(UserEvent):
 
 
 @dataclass(frozen=True, kw_only=True)
+class ReactivationEvent(UserEvent):
+    """Письмо кампании возврата.
+
+    Отдельным событием, а не прямым вызовом уведомителя: так клавиатуру
+    собирает служба уведомлений, как для всех прочих писем, и сценарию не
+    нужно знать про телеграм.
+    """
+
+    notification_type: NotificationType = field(
+        default=UserNotificationType.REACTIVATION,
+        init=False,
+    )
+
+    i18n_key: str
+    keyboard: str
+    support_url: str
+    discount: int = 0
+    days: int = 0
+
+    @property
+    def event_key(self) -> str:
+        return self.i18n_key
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={"discount": self.discount, "days": self.days},
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
 class UserNotConnectedEvent(UserEvent):
     notification_type: NotificationType = field(
         default=UserNotificationType.NOT_CONNECTED,

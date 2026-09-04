@@ -306,6 +306,10 @@ class UserNotificationType(UpperStrEnum):
     NOT_CONNECTED = auto()
     TORRENT_BLOCKED = auto()
     #
+    # Кампания возврата: одним типом на все шесть писем, чтобы в настройках
+    # был один выключатель, а не шесть строк.
+    REACTIVATION = auto()
+    #
     REFERRAL_ATTACHED = auto()
     REFERRAL_REWARD_RECEIVED = auto()
     REFERRAL_REWARD_FAILED = auto()

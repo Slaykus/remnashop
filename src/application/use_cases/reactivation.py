@@ -1,13 +1,27 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from enum import StrEnum, auto
 from typing import Optional
 
 from loguru import logger
 
-from src.application.common import Interactor, Notifier
+from src.application.common import EventPublisher, Interactor
 from src.application.common.dao import NotificationLogDao, SettingsDao, UserDao
 from src.application.common.uow import UnitOfWork
-from src.application.dto import MessagePayloadDto, UserDto
+from src.application.dto import UserDto
+from src.application.events import ReactivationEvent
+from src.core.config import AppConfig
+from src.core.constants import T_ME
+
+
+class Keyboard(StrEnum):
+    """Какая клавиатура у письма. Строкой, а не готовым объектом: собрать
+    её можно только в момент отправки — адрес поддержки берётся из
+    настроек бота."""
+
+    MENU = auto()
+    BUY = auto()
+    RENEW_AND_SUPPORT = auto()
 
 
 @dataclass(frozen=True)
@@ -24,23 +38,36 @@ class ReactivationStep:
     segment: str
     i18n_key: str
     day: int
+    keyboard: Keyboard
     grant: int = 0
     show: int = 0
 
 
 REACTIVATION_STEPS: tuple[ReactivationStep, ...] = (
-    ReactivationStep("TRIAL_UNUSED_D2", "never", "ntf-reactivation.trial-unused-first", 2),
-    ReactivationStep("TRIAL_UNUSED_D7", "never", "ntf-reactivation.trial-unused-last", 7),
+    # Не забравшим пробник — в меню, а не на экран покупки: бесплатная
+    # неделя лежит там, и платить им пока незачем.
     ReactivationStep(
-        "TRIAL_EXPIRED_D3", "trial", "ntf-reactivation.trial-expired-offer", 3, grant=20, show=20
+        "TRIAL_UNUSED_D2", "never", "ntf-reactivation.trial-unused-first", 2, Keyboard.MENU
     ),
     ReactivationStep(
-        "TRIAL_EXPIRED_D5", "trial", "ntf-reactivation.trial-expired-last", 5, show=20
+        "TRIAL_UNUSED_D7", "never", "ntf-reactivation.trial-unused-last", 7, Keyboard.MENU
     ),
     ReactivationStep(
-        "PAID_EXPIRED_D3", "paid", "ntf-reactivation.paid-expired-offer", 3, grant=30, show=30
+        "TRIAL_EXPIRED_D3", "trial", "ntf-reactivation.trial-expired-offer", 3,
+        Keyboard.BUY, grant=20, show=20,
     ),
-    ReactivationStep("PAID_EXPIRED_D5", "paid", "ntf-reactivation.paid-expired-last", 5, show=30),
+    ReactivationStep(
+        "TRIAL_EXPIRED_D5", "trial", "ntf-reactivation.trial-expired-last", 5,
+        Keyboard.BUY, show=20,
+    ),
+    ReactivationStep(
+        "PAID_EXPIRED_D3", "paid", "ntf-reactivation.paid-expired-offer", 3,
+        Keyboard.RENEW_AND_SUPPORT, grant=30, show=30,
+    ),
+    ReactivationStep(
+        "PAID_EXPIRED_D5", "paid", "ntf-reactivation.paid-expired-last", 5,
+        Keyboard.RENEW_AND_SUPPORT, show=30,
+    ),
 )
 
 DISCOUNT_DAYS = 3
@@ -75,16 +102,18 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
     def __init__(
         self,
         uow: UnitOfWork,
+        config: AppConfig,
         user_dao: UserDao,
         settings_dao: SettingsDao,
         notification_log_dao: NotificationLogDao,
-        notifier: Notifier,
+        event_bus: EventPublisher,
     ) -> None:
         self.uow = uow
+        self.config = config
         self.user_dao = user_dao
         self.settings_dao = settings_dao
         self.notification_log_dao = notification_log_dao
-        self.notifier = notifier
+        self.event_bus = event_bus
 
     async def _execute(self, actor: UserDto, data: None) -> ReactivationReport:
         settings = await self.settings_dao.get()
@@ -156,16 +185,16 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
 
             await self.uow.commit()
 
-        await self.notifier.notify_user(
-            user,
-            payload=MessagePayloadDto(
+        support_url = f"{T_ME}{self.config.bot.support_username.get_secret_value()}"
+        await self.event_bus.publish(
+            ReactivationEvent(
+                user=user,
                 i18n_key=step.i18n_key,
-                i18n_kwargs={
-                    "discount": step.show,
-                    "days": DISCOUNT_DAYS,
-                },
-                delete_after=None,
-            ),
+                keyboard=step.keyboard.value,
+                support_url=support_url,
+                discount=step.show,
+                days=DISCOUNT_DAYS,
+            )
         )
         report.sent += 1
         logger.info(f"[Reactivation] Sent '{step.kind}' to user '{user.telegram_id}'")

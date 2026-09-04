@@ -252,6 +252,7 @@ btn-goto =
     .user-profile = 👤 Перейти к пользователю
     .referrer-profile = 🤝 Перейти к пригласителю
     .contact-support = 📩 Перейти в поддержку
+    .main-menu = 🏠 В главное меню
 
 btn-promocodes =
     .save = ✅ Сохранить

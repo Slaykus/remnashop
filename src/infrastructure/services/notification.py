@@ -52,6 +52,7 @@ from src.application.events.system import (
     UserRegisteredEvent,
 )
 from src.application.events.user import (
+    ReactivationEvent,
     SubscriptionExpiredAgoEvent,
     SubscriptionExpiredEvent,
     SubscriptionExpiresEvent,
@@ -68,9 +69,11 @@ from src.telegram.keyboards import (
     get_buy_keyboard,
     get_close_notification_button,
     get_contact_support_keyboard,
+    get_open_menu_keyboard,
     get_remnashop_keyboard,
     get_remnashop_update_keyboard,
     get_renew_keyboard,
+    get_renew_with_support_keyboard,
     get_user_keyboard,
 )
 from src.telegram.widgets import extract_tg_emoji
@@ -118,6 +121,19 @@ class NotificationService(Notifier):
     ) -> None:
         await self.worker.enqueue(NotificationTaskDto(payload=payload, roles=roles))
 
+    @staticmethod
+    def _reactivation_keyboard(event: "ReactivationEvent") -> "AnyKeyboard":
+        """Клавиатура письма кампании возврата.
+
+        Вынесено из общего разбора: там и без того длинная цепочка, а
+        вариантов здесь три.
+        """
+        if event.keyboard == "menu":
+            return get_open_menu_keyboard()
+        if event.keyboard == "renew_and_support":
+            return get_renew_with_support_keyboard(event.support_url)
+        return get_buy_keyboard()
+
     def _resolve_keyboard(self, event: "BaseEvent") -> "Optional[AnyKeyboard]":
         if isinstance(
             event,
@@ -129,9 +145,9 @@ class NotificationService(Notifier):
             ),
         ):
             return get_buy_keyboard() if event.is_trial else get_renew_keyboard()
-        if isinstance(event, UserNotConnectedEvent):
-            return get_contact_support_keyboard(event.support_url)
-        if isinstance(event, TorrentBlockedEvent):
+        if isinstance(event, ReactivationEvent):
+            return self._reactivation_keyboard(event)
+        if isinstance(event, (UserNotConnectedEvent, TorrentBlockedEvent)):
             return get_contact_support_keyboard(event.support_url)
         if isinstance(event, TorrentBlockerReportEvent):
             return get_user_keyboard(event.user_id)

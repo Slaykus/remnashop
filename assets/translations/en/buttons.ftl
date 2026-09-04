@@ -229,6 +229,7 @@ btn-goto =
     .user-profile = 👤 Go to user
     .referrer-profile = 🤝 Go to referrer
     .contact-support = 💬 Go to support
+    .main-menu = 🏠 Main menu
 
 btn-promocodes =
     .list = 📃 Promo code list

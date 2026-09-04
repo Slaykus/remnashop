@@ -197,6 +197,41 @@ def get_buy_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def get_open_menu_keyboard() -> InlineKeyboardMarkup:
+    """Кнопка в главное меню.
+
+    Для тех, кто ещё не активировал пробный период: вести их на экран
+    покупки неправильно — бесплатная неделя лежит в меню, и платить им
+    пока незачем.
+    """
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="btn-goto.main-menu",
+            callback_data=f"{GOTO_PREFIX}MainMenu:MAIN",
+        ),
+    )
+    return builder.as_markup()
+
+
+def get_renew_with_support_keyboard(support_url: str) -> InlineKeyboardMarkup:
+    """Продление и поддержка рядом.
+
+    У человека с истёкшей платной подпиской две причины не вернуться:
+    забыл продлить и что-то не работало. Первую закрывает кнопка
+    продления, вторую — живой человек в поддержке.
+    """
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="btn-goto.subscription-renew",
+            callback_data=f"{GOTO_PREFIX}{PAYMENT_PREFIX}{PurchaseType.RENEW}",
+        ),
+    )
+    builder.row(InlineKeyboardButton(text="btn-goto.contact-support", url=support_url))
+    return builder.as_markup()
+
+
 def get_channel_keyboard(channel_url: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
