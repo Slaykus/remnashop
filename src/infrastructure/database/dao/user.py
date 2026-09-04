@@ -148,6 +148,11 @@ class UserDaoImpl(UserDao):
                 WHERE u.role = 'USER'
                   AND NOT u.is_bot_blocked
                   AND NOT u.is_blocked
+                  -- Импортированным записям без привязанного телеграма
+                  -- присвоен отрицательный заполнитель вместо id. Написать
+                  -- им нельзя, а журнал пишется до отправки — они бы
+                  -- навсегда остались помеченными как получившие письмо.
+                  AND u.telegram_id > 0
                   AND (
                         (u.current_subscription_id IS NULL AND u.is_trial_available)
                      OR (s.expire_at IS NOT NULL AND s.expire_at <= now())
