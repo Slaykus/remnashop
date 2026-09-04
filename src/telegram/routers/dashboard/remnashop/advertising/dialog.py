@@ -26,11 +26,13 @@ from .partners import (
     on_hold_input,
     on_min_payout_input,
     on_partner_add_input,
+    on_link_owner_select,
     on_partner_select,
     on_link_toggle,
     on_partner_toggle_active,
     on_pay,
     on_rate_input,
+    link_owner_getter,
     partner_links_getter,
     partners_comparison_getter,
     partner_view_getter,
@@ -176,6 +178,17 @@ ad_view = Window(
             text=I18nFormat("btn-advertising.bonus-discount-once"),
             id="edit_bonus_discount_once",
             state=RemnashopAdvertising.EDIT_BONUS_DISCOUNT_ONCE,
+        ),
+    ),
+    Row(
+        # Привязка кампании к партнёру со стороны самой кампании. Раньше это
+        # делалось только из карточки партнёра, а заводят ссылку обычно
+        # здесь — и на этом шаге про владельца забывали.
+        SwitchTo(
+            text=I18nFormat("btn-advertising.link-owner"),
+            id="link_owner",
+            state=RemnashopAdvertising.LINK_OWNER,
+            when=require_permission(Permission.MANAGE_PARTNERS),
         ),
     ),
     Row(
@@ -749,6 +762,34 @@ partners_list = Window(
     getter=partners_getter,
 )
 
+link_owner = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-link-owner"),
+    ScrollingGroup(
+        Select(
+            text=Format("{item[title]}"),
+            id="link_owner_select",
+            item_id_getter=lambda item: item["id"],
+            items="partners",
+            type_factory=int,
+            on_click=on_link_owner_select,
+        ),
+        id="link_owner_scroll",
+        width=1,
+        height=8,
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.VIEW,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.LINK_OWNER,
+    getter=link_owner_getter,
+)
+
 partner_view = Window(
     Banner(BannerName.DASHBOARD),
     I18nFormat("msg-advertising-partner-view"),
@@ -909,6 +950,7 @@ partners_comparison = Window(
 
 router = Dialog(
     partners_list,
+    link_owner,
     partner_view,
     partner_add,
     partner_edit_rate,

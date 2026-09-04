@@ -426,6 +426,10 @@ btn-advertising =
     .bonus-days = 📅 Дней: { $bonus_days }
     .bonus-discount = 💸 Скидка навсегда: { $bonus_discount_pct }%
     .bonus-discount-once = 🎟 Скидка на первую покупку: { $bonus_discount_once_pct }%
+    .link-owner = { $is_partner_link ->
+    [true] 🤝 Партнёр: { $owner_name }
+    *[false] 🤝 Привязать к партнёру
+    }
     .delete = 🗑 Удалить
     .delete-confirm = ✅ Подтвердить удаление
     .promo = ✉️ Promo-сообщение
@@ -544,6 +548,19 @@ msg-advertising-edit-bonus-points =
 
 msg-advertising-edit-bonus-days =
     📅 Введите количество дней (0 — без бонуса):
+
+msg-advertising-link-owner =
+    🤝 <b>Кому засчитывать кампанию «{ $link_name }»</b>
+
+    { $is_empty ->
+    [true] <i>Партнёров пока нет — заведите их в разделе «Партнёры».</i>
+    *[false] Выберите человека из списка. { $has_owner ->
+    [true] Текущий отмечен галочкой — нажмите на него, чтобы снять привязку.
+    *[false] { "" }
+    }
+    }
+
+    <i>С оплат по этой кампании пойдут начисления выбранному партнёру. Уже начисленное не пересчитывается.</i>
 
 msg-advertising-edit-bonus-discount =
     💸 Введите размер <b>постоянной</b> скидки, % от 0 до 100 (0 — без скидки).

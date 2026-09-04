@@ -316,6 +316,57 @@ async def on_link_toggle(
 
 
 @inject
+async def link_owner_getter(
+    dialog_manager: DialogManager,
+    get_partners: FromDishka[GetPartners],
+    ad_link_dao: FromDishka[AdLinkDao],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Партнёры для выбора владельца кампании, текущий помечен."""
+    user = dialog_manager.middleware_data[USER_KEY]
+    link_id = dialog_manager.dialog_data.get("link_id")
+    link = await ad_link_dao.get_by_id(int(link_id)) if link_id else None
+    owner_user_id = link.owner_user_id if link else None
+
+    partners = await get_partners(user)
+    return {
+        "link_name": link.name if link else "",
+        "partners": [
+            {
+                "id": item.partner.id,
+                # Текущего владельца помечаем: повторное нажатие снимет
+                # закрепление, и без метки это выглядело бы случайностью.
+                "title": ("✅ " if item.partner.user_id == owner_user_id else "")
+                + _partner_title(item),
+            }
+            for item in partners
+        ],
+        "is_empty": not partners,
+        "has_owner": owner_user_id is not None,
+    }
+
+
+@inject
+async def on_link_owner_select(
+    callback: CallbackQuery,
+    widget: Any,
+    dialog_manager: DialogManager,
+    item_id: int,
+    toggle_owner: FromDishka[ToggleLinkOwner],
+) -> None:
+    user = dialog_manager.middleware_data[USER_KEY]
+    link_id = dialog_manager.dialog_data.get("link_id")
+    if not link_id:
+        return
+
+    attached = await toggle_owner(
+        user, ToggleLinkOwnerDto(link_id=int(link_id), partner_id=int(item_id))
+    )
+    await callback.answer("Кампания закреплена" if attached else "Закрепление снято")
+    await dialog_manager.switch_to(RemnashopAdvertising.VIEW)
+
+
+@inject
 async def on_bonus_cap_input(
     message: Message,
     widget: Any,

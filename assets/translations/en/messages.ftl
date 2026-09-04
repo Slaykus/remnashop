@@ -1457,6 +1457,19 @@ msg-advertising-edit-bonus-points =
 msg-advertising-edit-bonus-days =
     📅 Enter the number of bonus days (0 — no bonus):
 
+msg-advertising-link-owner =
+    🤝 <b>Who gets credit for “{ $link_name }”</b>
+
+    { $is_empty ->
+    [true] <i>No partners yet — add them in the Partners section.</i>
+    *[false] Pick a person from the list. { $has_owner ->
+    [true] The current one is ticked — tap them to unassign.
+    *[false] { "" }
+    }
+    }
+
+    <i>Payments from this campaign will be credited to the chosen partner. Anything already credited is not recalculated.</i>
+
 msg-advertising-edit-bonus-discount =
     💸 Enter the <b>permanent</b> discount, % from 0 to 100 (0 — no discount).
 

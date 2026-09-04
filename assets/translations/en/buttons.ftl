@@ -513,6 +513,10 @@ btn-advertising =
     .bonus-days = 📅 Days: { $bonus_days }
     .bonus-discount = 💸 Discount forever: { $bonus_discount_pct }%
     .bonus-discount-once = 🎟 First-purchase discount: { $bonus_discount_once_pct }%
+    .link-owner = { $is_partner_link ->
+    [true] 🤝 Partner: { $owner_name }
+    *[false] 🤝 Assign to a partner
+    }
     .delete = 🗑 Delete
     .delete-confirm = ✅ Confirm deletion
     .promo = ✉️ Promo message

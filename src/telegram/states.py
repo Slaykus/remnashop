@@ -169,6 +169,9 @@ class RemnashopAdvertising(StatesGroup):
     PARTNERS = State()
     PARTNER_VIEW = State()
     PARTNER_ADD = State()
+    # Выбор партнёра со стороны кампании: обратный путь к тому,
+    # что раньше делалось только из карточки партнёра.
+    LINK_OWNER = State()
     PARTNER_EDIT_RATE = State()
     PARTNER_EDIT_HOLD = State()
     PARTNER_EDIT_MIN = State()
