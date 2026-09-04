@@ -9,6 +9,7 @@ from src.application.common.dao import NotificationLogDao, SettingsDao, UserDao
 from src.application.common.uow import UnitOfWork
 from src.application.dto import UserDto
 from src.application.events import ReactivationEvent
+from src.application.services.pricing import PricingService
 from src.core.config import AppConfig
 from src.core.constants import T_ME
 
@@ -27,10 +28,10 @@ class Keyboard(StrEnum):
 class ReactivationStep:
     """Одно письмо кампании.
 
-    `grant` и `show` разведены намеренно. Скидка выдаётся только на первом
-    касании; напоминание приходит, пока она ещё жива, и её же называет, но
-    заново не выдаёт — скидка, которую дают дважды, перестаёт быть поводом
-    торопиться.
+    Скидка выдаётся только на первом касании. Напоминание приходит, пока
+    она ещё жива, и называет ту же цифру, но заново не выдаёт — скидка,
+    которую дают дважды, перестаёт быть поводом торопиться. Саму цифру ни
+    один шаг не хранит: её берут у расчёта цены в момент отправки.
     """
 
     kind: str
@@ -39,7 +40,6 @@ class ReactivationStep:
     day: int
     keyboard: Keyboard
     grant: int = 0
-    show: int = 0
 
 
 REACTIVATION_STEPS: tuple[ReactivationStep, ...] = (
@@ -53,19 +53,19 @@ REACTIVATION_STEPS: tuple[ReactivationStep, ...] = (
     ),
     ReactivationStep(
         "TRIAL_EXPIRED_D3", "trial", "ntf-reactivation.trial-expired-offer", 3,
-        Keyboard.BUY, grant=20, show=20,
+        Keyboard.BUY, grant=20,
     ),
     ReactivationStep(
         "TRIAL_EXPIRED_D5", "trial", "ntf-reactivation.trial-expired-last", 5,
-        Keyboard.BUY, show=20,
+        Keyboard.BUY,
     ),
     ReactivationStep(
         "PAID_EXPIRED_D3", "paid", "ntf-reactivation.paid-expired-offer", 3,
-        Keyboard.RENEW_AND_SUPPORT, grant=30, show=30,
+        Keyboard.RENEW_AND_SUPPORT, grant=30,
     ),
     ReactivationStep(
         "PAID_EXPIRED_D5", "paid", "ntf-reactivation.paid-expired-last", 5,
-        Keyboard.RENEW_AND_SUPPORT, show=30,
+        Keyboard.RENEW_AND_SUPPORT,
     ),
 )
 
@@ -106,6 +106,7 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
         settings_dao: SettingsDao,
         notification_log_dao: NotificationLogDao,
         event_bus: EventPublisher,
+        pricing: PricingService,
     ) -> None:
         self.uow = uow
         self.config = config
@@ -113,6 +114,7 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
         self.settings_dao = settings_dao
         self.notification_log_dao = notification_log_dao
         self.event_bus = event_bus
+        self.pricing = pricing
 
     async def _execute(self, actor: UserDto, data: None) -> ReactivationReport:
         settings = await self.settings_dao.get()
@@ -186,27 +188,23 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
                 report.skipped_already_sent += 1
                 return
 
-            live = self._live_discount(user)
-            shown = step.show
-
             if step.grant:
                 # Берём большее, а не назначаем своё: у человека может
                 # лежать скидка крупнее — по промокоду или выданная
                 # вручную, — и понизить её письмом о возврате было бы
                 # обманом в нашу пользу.
-                granted = max(live, step.grant)
-                user.purchase_discount = granted
+                user.purchase_discount = max(self._live_discount(user), step.grant)
                 user.purchase_discount_expires_at = datetime.now(timezone.utc) + timedelta(
                     days=DISCOUNT_DAYS
                 )
                 await self.user_dao.update(user)
-                shown = granted
-            elif live:
-                # Напоминание называет то, что у человека есть на самом
-                # деле, а не то, что мы планировали выдать шагом раньше.
-                shown = live
 
             await self.uow.commit()
+
+        # Цифру в письме берём у того же расчёта, что считает цену на кассе.
+        # Своя арифметика здесь однажды разойдётся с настоящей, и человек
+        # увидит в письме одно, а в счёте другое — с деньгами так нельзя.
+        shown = self.pricing.get_effective_discount(user)
 
         support_url = f"{T_ME}{self.config.bot.support_username.get_secret_value()}"
         await self.event_bus.publish(
