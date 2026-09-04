@@ -58,6 +58,7 @@ from .handlers import (
     on_create_name_input,
     on_delete_confirm,
     on_delete_promo_button,
+    on_edit_code_input,
     on_edit_bonus_days_input,
     on_edit_bonus_discount_input,
     on_edit_bonus_discount_once_input,
@@ -152,6 +153,11 @@ ad_view = Window(
             text=I18nFormat("btn-advertising.edit-name"),
             id="edit_name",
             state=RemnashopAdvertising.EDIT_NAME,
+        ),
+        SwitchTo(
+            text=I18nFormat("btn-advertising.edit-code"),
+            id="edit_code",
+            state=RemnashopAdvertising.EDIT_CODE,
         ),
     ),
     Row(
@@ -269,6 +275,22 @@ ad_edit_name = Window(
     IgnoreUpdate(),
     state=RemnashopAdvertising.EDIT_NAME,
     getter=edit_getter,
+)
+
+ad_edit_code = Window(
+    Banner(BannerName.DASHBOARD),
+    I18nFormat("msg-advertising-edit-code"),
+    MessageInput(func=on_edit_code_input),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=RemnashopAdvertising.VIEW,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=RemnashopAdvertising.EDIT_CODE,
+    getter=view_getter,
 )
 
 ad_edit_bonus_points = Window(
@@ -964,6 +986,7 @@ router = Dialog(
     ad_create_name,
     ad_create_code,
     ad_edit_name,
+    ad_edit_code,
     ad_edit_bonus_points,
     ad_edit_bonus_days,
     ad_edit_bonus_discount,

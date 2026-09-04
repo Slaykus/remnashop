@@ -1285,6 +1285,9 @@ class AdLinkStatsItem(BaseModel):
     # чтобы читающей стороне не пришлось разбирать два разных.
     revenue_rub: float
     conversion_pct: float
+    # Чья кампания. Без этого поля сводку нельзя разложить по партнёрам,
+    # не опрашивая '/links/{code}' по одной ссылке.
+    owner_telegram_id: int | None = None
 
 
 # Объявлено выше '/links/{code}': FastAPI разбирает роуты по порядку, и при
@@ -1297,6 +1300,7 @@ class AdLinkStatsItem(BaseModel):
 @inject
 async def links_stats(
     ad_link_dao: FromDishka[AdLinkDao],
+    user_dao: FromDishka[UserDao],
 ) -> list[AdLinkStatsItem]:
     """
     Клики, оплаты и выручка по каждой рекламной ссылке.
@@ -1310,6 +1314,18 @@ async def links_stats(
     а ключ таблицы бота знать никому не нужно.
     """
     rows = await ad_link_dao.get_all_links_comparison()
+
+    # Сводка приходит без владельца, а телеграмный id живёт у пользователя,
+    # не у ссылки. Собираем разом: ссылок десятки, и запрос на каждую в
+    # цикле дал бы столько же обращений к базе на один вызов ручки.
+    links = {link.code: link.owner_user_id for link in await ad_link_dao.get_all()}
+    owner_ids = {value for value in links.values() if value is not None}
+    telegram_by_user: dict[int, int] = {}
+    for user_id in owner_ids:
+        owner = await user_dao.get_by_id(user_id)
+        if owner is not None:
+            telegram_by_user[user_id] = owner.telegram_id
+
     return [
         AdLinkStatsItem(
             code=row.code,
@@ -1320,6 +1336,7 @@ async def links_stats(
             paid_count=row.paid_count,
             revenue_rub=float(row.revenue_rub),
             conversion_pct=row.conversion_pct,
+            owner_telegram_id=telegram_by_user.get(links.get(row.code)),  # type: ignore[arg-type]
         )
         for row in rows
     ]
@@ -1536,6 +1553,53 @@ async def register_link_visit(
     async with uow:
         await ad_link_dao.increment_clicks(link.id)
         await uow.commit()
+
+
+class PartnerListItem(BaseModel):
+    """Строка списка партнёров для внешнего инструмента."""
+
+    telegram_id: int
+    name: str
+    username: str | None = None
+    is_active: bool
+    rate_pct: float
+
+
+@router.get(
+    "/partners",
+    response_model=list[PartnerListItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def list_partners(
+    partner_dao: FromDishka[PartnerDao],
+    user_dao: FromDishka[UserDao],
+) -> list[PartnerListItem]:
+    """
+    Кто у нас партнёры.
+
+    Нужен там, где снаружи выбирают человека: при заведении ссылки через
+    'POST /links' владелец задаётся телеграмным id, и брать его было
+    неоткуда — приходилось спрашивать у владельца бота руками.
+
+    Отдаём условия и состояние, но не реквизиты выплат и не суммы: список
+    нужен для выбора, а деньги партнёра лежат в его собственной сводке.
+    """
+    items: list[PartnerListItem] = []
+    for partner in await partner_dao.get_all():
+        user = await user_dao.get_by_id(partner.user_id)
+        if user is None:
+            continue
+        items.append(
+            PartnerListItem(
+                telegram_id=user.telegram_id,
+                name=user.name or f"#{partner.user_id}",
+                username=user.username,
+                is_active=partner.is_active,
+                rate_pct=float(partner.rate_pct),
+            )
+        )
+    return items
 
 
 class PartnerOverviewResponse(BaseModel):

@@ -1457,6 +1457,16 @@ msg-advertising-edit-bonus-points =
 msg-advertising-edit-bonus-days =
     📅 Enter the number of bonus days (0 — no bonus):
 
+msg-advertising-edit-code =
+    🔗 <b>New campaign code</b>
+
+    Current: <code>{ $code }</code>
+    Link: <code>{ $deep_link }</code>
+
+    Latin letters and digits, up to 61 characters.
+
+    <b>⚠️ Links already published with the old code will stop working.</b> Statistics, earnings and user attribution move with the campaign — they do not hang off the code.
+
 msg-advertising-link-owner =
     🤝 <b>Who gets credit for “{ $link_name }”</b>
 

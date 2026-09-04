@@ -426,6 +426,7 @@ btn-advertising =
     .bonus-days = 📅 Дней: { $bonus_days }
     .bonus-discount = 💸 Скидка навсегда: { $bonus_discount_pct }%
     .bonus-discount-once = 🎟 Скидка на первую покупку: { $bonus_discount_once_pct }%
+    .edit-code = 🔗 Код: { $code }
     .link-owner = { $is_partner_link ->
     [true] 🤝 Партнёр: { $owner_name }
     *[false] 🤝 Привязать к партнёру
@@ -548,6 +549,16 @@ msg-advertising-edit-bonus-points =
 
 msg-advertising-edit-bonus-days =
     📅 Введите количество дней (0 — без бонуса):
+
+msg-advertising-edit-code =
+    🔗 <b>Новый код кампании</b>
+
+    Сейчас: <code>{ $code }</code>
+    Ссылка: <code>{ $deep_link }</code>
+
+    Латиница и цифры, до 61 символа.
+
+    <b>⚠️ Уже размещённые ссылки со старым кодом перестанут работать.</b> Статистика, начисления и привязка людей переедут вместе с кампанией — они висят не на коде.
 
 msg-advertising-link-owner =
     🤝 <b>Кому засчитывать кампанию «{ $link_name }»</b>

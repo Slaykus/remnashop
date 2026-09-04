@@ -184,6 +184,58 @@ async def on_edit_name_input(
 
 
 @inject
+async def on_edit_code_input(
+    message: Message,
+    widget: MessageInput,
+    dialog_manager: DialogManager,
+    ad_link_dao: FromDishka[AdLinkDao],
+    update_ad_link: FromDishka[UpdateAdLink],
+    notifier: FromDishka[Notifier],
+) -> None:
+    """
+    Смена кода уже заведённой кампании.
+
+    Клики, начисления и привязка людей висят на числовом id ссылки, а не на
+    коде, поэтому статистика переезжает вместе с ней. А вот уже
+    опубликованные ссылки со старым кодом перестанут работать — про это
+    предупреждает текст экрана.
+    """
+    dialog_manager.show_mode = ShowMode.EDIT
+    user: UserDto = dialog_manager.middleware_data[USER_KEY]
+    code = (message.text or "").strip()
+
+    if not AD_LINK_CODE_PATTERN.match(code):
+        await notifier.notify_user(
+            user,
+            payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5),
+        )
+        return
+
+    link_id: int = dialog_manager.dialog_data.get("link_id")  # type: ignore[assignment]
+    link = await ad_link_dao.get_by_id(link_id)
+    if not link:
+        return
+
+    if code == link.code:
+        await dialog_manager.switch_to(RemnashopAdvertising.VIEW)
+        return
+
+    # Занятый код — самая частая ошибка здесь, и молча перетереть чужую
+    # кампанию нельзя: у неё своя статистика и свои размещения.
+    existing = await ad_link_dao.get_by_code(code)
+    if existing:
+        await notifier.notify_user(
+            user,
+            payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5),
+        )
+        return
+
+    link.code = code
+    await update_ad_link(user, UpdateAdLinkDto(link=link))
+    await dialog_manager.switch_to(RemnashopAdvertising.VIEW)
+
+
+@inject
 async def on_edit_bonus_points_input(
     message: Message,
     widget: MessageInput,

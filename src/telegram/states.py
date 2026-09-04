@@ -147,6 +147,7 @@ class RemnashopAdvertising(StatesGroup):
     CREATE_NAME = State()
     CREATE_CODE = State()
     EDIT_NAME = State()
+    EDIT_CODE = State()
     EDIT_BONUS_POINTS = State()
     EDIT_BONUS_DAYS = State()
     EDIT_BONUS_DISCOUNT = State()
