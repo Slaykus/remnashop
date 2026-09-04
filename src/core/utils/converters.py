@@ -56,6 +56,16 @@ def user_name_clean(name: Optional[str], telegram_id: int) -> str:
     return cleaned
 
 
+def ftl_flag(value: object) -> str:
+    """Булево значение для селектора вида `{ $flag -> [true] … *[false] … }`.
+
+    Fluent сопоставляет ветки по строкам, и питоновский True в них не
+    попадает: селектор молча уходит в ветку по умолчанию. Экран при этом
+    не падает и в логах ничего нет — просто всегда показывается «нет».
+    """
+    return "true" if value else "false"
+
+
 def event_to_key(class_name: str) -> str:
     snake = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
     formatted_key = snake.replace("_", "-")

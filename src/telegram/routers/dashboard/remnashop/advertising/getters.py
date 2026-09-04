@@ -16,7 +16,7 @@ from src.application.use_cases.ad_link.queries.list import (
 )
 from src.core.constants import INLINE_QUERY_PROMO_PREFIX, USER_KEY
 from src.core.enums import TextFormat
-from src.core.utils.converters import strip_html
+from src.core.utils.converters import ftl_flag, strip_html
 from src.telegram.charts import mini_bar
 
 
@@ -69,7 +69,7 @@ async def view_getter(
         owner_name = (owner.name if owner else None) or f"#{link.owner_user_id}"
 
     return {
-        "is_partner_link": link.owner_user_id is not None,
+        "is_partner_link": ftl_flag(link.owner_user_id is not None),
         "owner_name": owner_name,
         "link_id": link.id,
         "name": link.name,

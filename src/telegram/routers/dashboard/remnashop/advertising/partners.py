@@ -33,6 +33,7 @@ from src.application.use_cases.partner.queries.list import (
     GetPartnersComparison,
 )
 from src.core.constants import USER_KEY
+from src.core.utils.converters import ftl_flag
 from src.telegram.states import RemnashopAdvertising
 
 _PARTNER_ID = "partner_id"
@@ -68,7 +69,7 @@ async def partners_getter(
             }
             for item in partners
         ],
-        "is_empty": not partners,
+        "is_empty": ftl_flag(not partners),
         "count": len(partners),
     }
 
@@ -96,7 +97,7 @@ async def partner_view_getter(
         # Строкой, а не булевым: селектор в тексте сравнивает со строкой
         # "true", и с настоящим bool не совпадал никогда — карточка всегда
         # показывала «отключён», даже у активного партнёра.
-        "is_active": "true" if p.is_active else "false",
+        "is_active": ftl_flag(p.is_active),
         "payout_details": p.payout_details or "—",
         "max_bonus_days": p.max_bonus_days,
         #
@@ -274,7 +275,7 @@ async def partner_links_getter(
     partner_id = dialog_manager.dialog_data.get(_PARTNER_ID)
     overview = await get_overview(user, int(partner_id)) if partner_id else None
     if overview is None:
-        return {"links": [], "is_empty": True}
+        return {"links": [], "is_empty": ftl_flag(True)}
 
     owner_id = overview.partner.user_id
     links = []
@@ -292,7 +293,7 @@ async def partner_links_getter(
                 "busy": ln.owner_user_id is not None and ln.owner_user_id != owner_id,
             }
         )
-    return {"links": links, "is_empty": not links, "name": overview.name}
+    return {"links": links, "is_empty": ftl_flag(not links), "name": overview.name}
 
 
 @inject
@@ -341,8 +342,8 @@ async def link_owner_getter(
             }
             for item in partners
         ],
-        "is_empty": not partners,
-        "has_owner": owner_user_id is not None,
+        "is_empty": ftl_flag(not partners),
+        "has_owner": ftl_flag(owner_user_id is not None),
     }
 
 
@@ -414,7 +415,7 @@ async def partners_comparison_getter(
         )
 
     return {
-        "is_empty": not rows,
+        "is_empty": ftl_flag(not rows),
         "rows": "\n\n".join(lines),
         "count": len(rows),
         "revenue_total": int(sum(r["revenue"] for r in rows)),
