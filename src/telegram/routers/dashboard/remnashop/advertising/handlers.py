@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from aiogram import Bot
 from aiogram.enums import ButtonStyle, ContentType
-from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message, MessageEntity
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram_dialog import DialogManager, ShowMode
 from aiogram_dialog.widgets.input import MessageInput
@@ -382,6 +382,34 @@ async def on_promo_set_text(
     await dialog_manager.switch_to(RemnashopAdvertising.PROMO)
 
 
+def _inline_custom_emoji(text: str, entities: Optional[list[MessageEntity]]) -> str:
+    """Вернуть премиум-эмодзи в текст разметкой `![…](tg://emoji?id=…)`.
+
+    В сообщении они лежат отдельно от текста: на месте эмодзи стоит обычный
+    запасной символ, а идентификатор — в entities. Сохраняя голый text, мы
+    теряли идентификатор, и в посте оставалась обычная картинка.
+
+    Смещения телеграм считает в кодовых единицах UTF-16, а не в символах
+    питона, поэтому режем по закодированной строке.
+    """
+    found = [e for e in (entities or []) if e.type == "custom_emoji"]
+    if not found:
+        return text
+
+    data = text.encode("utf-16-le")
+    parts: list[str] = []
+    pos = 0
+    for entity in sorted(found, key=lambda e: e.offset):
+        start = entity.offset * 2
+        end = start + entity.length * 2
+        parts.append(data[pos:start].decode("utf-16-le"))
+        fallback = data[start:end].decode("utf-16-le")
+        parts.append(f"![{fallback}](tg://emoji?id={entity.custom_emoji_id})")
+        pos = end
+    parts.append(data[pos:].decode("utf-16-le"))
+    return "".join(parts)
+
+
 @inject
 async def on_promo_set_markdown(
     message: Message,
@@ -394,8 +422,10 @@ async def on_promo_set_markdown(
     dialog_manager.show_mode = ShowMode.EDIT
     user: UserDto = dialog_manager.middleware_data[USER_KEY]
     # Здесь наоборот нужен голый text: человек присылает разметку как есть,
-    # и html_text экранировал бы её собственные символы.
-    text = (message.text or "").strip()
+    # и html_text экранировал бы её собственные символы. Премиум-эмодзи при
+    # этом остались бы обычными — они живут не в тексте, а в entities, —
+    # поэтому вписываем их обратно синтаксисом разметки.
+    text = _inline_custom_emoji(message.text or "", message.entities).strip()
     if not text:
         await notifier.notify_user(
             user, payload=MessagePayloadDto(i18n_key="ntf-common.invalid-value", delete_after=5)
