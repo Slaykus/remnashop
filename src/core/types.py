@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, NewType, TypeAlias, Union
+from typing import TYPE_CHECKING, Annotated, Any, NewType, TypeAlias, Union
 
 from aiogram.types import (
     ForceReply,
@@ -28,6 +28,11 @@ AnyKeyboard: TypeAlias = Union[
 
 
 NotificationType: TypeAlias = Union[SystemNotificationType, UserNotificationType]
+
+# Значение, которое умеет читать слой переводов: либо готовый текст, либо
+# пара «ключ + параметры». Отдельный алиас вместо Any нужен, чтобы подмена
+# одной формы другой была видна проверке типов, а не всплывала в чеке.
+I18nValue: TypeAlias = Union[str, tuple[str, dict[str, Any]]]
 
 RemnaUserDto: TypeAlias = Union[UserWebhookDto, UserResponseDto]
 

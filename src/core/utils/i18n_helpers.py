@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, ROUND_UP, Decimal
-from typing import Final, Optional, Union
+from typing import Any, Final, Optional, Union
 
 from src.core.constants import UNLIMITED_EXPIRE_YEAR
+from src.core.types import I18nValue
 from src.core.utils.time import datetime_now
 
 from .i18n_keys import ByteUnitKey, TimeUnitKey, UtilKey
@@ -133,3 +134,23 @@ def i18n_format_expire_time(expiry: Union[timedelta, datetime]) -> list[tuple[st
         parts.append((TimeUnitKey.MINUTE, {"value": minutes}))
 
     return parts or [(UtilKey.UNKNOWN, {"value": 0})]
+
+
+def i18n_plain(value: Union[I18nValue, Any]) -> str:
+    """Развернуть i18n-значение в обычный текст.
+
+    Нужно там, где строка уходит наружу мимо переводов — в чек, в платёжку,
+    в лог. Пара «ключ + параметры» в таком месте печатается кортежем, и
+    человек читает в официальном чеке `('Solo', {})`.
+
+    Тип намеренно шире алиаса: значения приходят из событий, собранных в
+    разных местах, и уронить отправку чека из-за неожиданной формы хуже,
+    чем напечатать её как есть.
+    """
+    if isinstance(value, (tuple, list)):
+        value = value[0] if value else ""
+
+    if value is None:
+        return ""
+
+    return str(value).strip()

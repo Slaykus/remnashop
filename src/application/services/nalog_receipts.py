@@ -2,7 +2,18 @@ from loguru import logger
 
 from src.application.events.system import UserPurchaseEvent
 from src.core.config import AppConfig
+from src.core.utils.i18n_helpers import i18n_plain
 from src.infrastructure.services.event_bus import on_event
+
+
+def receipt_description(plan_name: object) -> str:
+    """Строка, которую увидит человек в чеке налоговой.
+
+    Название разворачиваем: в событии оно лежит в форме для переводов, а
+    сюда должен уехать обычный текст. Отдельной функцией — чтобы её можно
+    было проверить тестом, не собирая событие целиком.
+    """
+    return f"Подписка Rain — {i18n_plain(plan_name)}"
 
 
 class NalogReceiptsService:
@@ -24,6 +35,6 @@ class NalogReceiptsService:
         await create_moy_nalog_receipt_task.kiq(
             payment_id=str(event.payment_id),
             amount=float(event.final_amount),
-            description=f"Подписка Rain — {event.plan_name}",
+            description=receipt_description(event.plan_name),
             operation_time=event.occurred_at.isoformat(),
         )

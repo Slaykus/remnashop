@@ -18,7 +18,7 @@ from src.core.enums import (
     SubscriptionStatus,
     SystemNotificationType,
 )
-from src.core.types import NotificationType
+from src.core.types import I18nValue, NotificationType
 
 from .base import BaseEvent, SystemEvent
 
@@ -457,7 +457,7 @@ class UserPurchaseEvent(UserEvent):
     original_amount: Decimal
     currency: str
 
-    plan_name: Any
+    plan_name: I18nValue
     plan_type: PlanType
     plan_traffic_limit: Any
     plan_device_limit: Any
@@ -496,7 +496,7 @@ class TrialActivatedEvent(UserEvent):
     )
 
     is_trial_plan: bool = True
-    plan_name: Any
+    plan_name: I18nValue
     plan_type: PlanType
     plan_traffic_limit: Any
     plan_device_limit: Any
@@ -557,7 +557,7 @@ class PromocodeActivatedEvent(SystemEvent):
     promocode_code: str
     reward_type: str
     reward: Optional[int]
-    plan_name: Any
+    plan_name: I18nValue
 
     @property
     def event_key(self) -> str:
