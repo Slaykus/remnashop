@@ -204,6 +204,18 @@ def _list_limit(limit: int) -> int:
     return max(1, min(limit, _LIST_LIMIT_MAX))
 
 
+def _enum_value(value: Any) -> str:
+    """
+    Значение перечисления строкой.
+
+    Слой преобразования в dto местами оставляет такие поля обычной
+    строкой, а местами — членом перечисления, и по полю этого не видно.
+    Все они наследуют StrEnum, поэтому str() даёт значение в обоих
+    случаях, а обращение к '.value' падало бы на половине.
+    """
+    return str(value)
+
+
 def _nested(value: Any) -> dict[str, Any]:
     """
     Вложенный dto как есть, без разбора на поля.
@@ -319,7 +331,7 @@ async def users_list(
             is_blocked=user.is_blocked,
             is_bot_blocked=user.is_bot_blocked,
             is_trial_available=user.is_trial_available,
-            auth_type=user.auth_type.value,
+            auth_type=_enum_value(user.auth_type),
             paid_referrals_count=user.paid_referrals_count,
         )
         for user in users
@@ -358,7 +370,7 @@ async def subscriptions_list(
         SubscriptionListItem(
             id=sub.id,
             user_id=sub.user_id,
-            status=sub.status.value,
+            status=_enum_value(sub.status),
             is_trial=sub.is_trial,
             created_at=sub.created_at or datetime.now(timezone.utc),
             updated_at=sub.updated_at or datetime.now(timezone.utc),
@@ -403,10 +415,10 @@ async def transactions_list(
             id=transaction.id,
             user_id=transaction.user_id,
             payment_id=str(transaction.payment_id),
-            status=transaction.status.value,
-            purchase_type=transaction.purchase_type.value,
-            gateway_type=transaction.gateway_type.value,
-            currency=transaction.currency.value,
+            status=_enum_value(transaction.status),
+            purchase_type=_enum_value(transaction.purchase_type),
+            gateway_type=_enum_value(transaction.gateway_type),
+            currency=_enum_value(transaction.currency),
             is_test=transaction.is_test,
             is_gift=transaction.is_gift,
             created_at=transaction.created_at or datetime.now(timezone.utc),
