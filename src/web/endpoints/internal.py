@@ -12,13 +12,14 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
-from typing import Annotated
+from typing import Annotated, Any
 
 from loguru import logger
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from remnapy import RemnawaveSDK
 
@@ -186,6 +187,234 @@ def _days_left(expire_at: datetime | None) -> int:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Списочные выборки для внешней аналитики
+# ---------------------------------------------------------------------------
+#
+# Объявлены выше '/users/{telegram_id}' и его соседей: FastAPI разбирает
+# роуты по порядку, и при обратном порядке 'list' уехало бы в обработчик
+# по telegram_id и не разобралось как число.
+
+_LIST_LIMIT_MAX = 1000
+
+
+def _list_limit(limit: int) -> int:
+    return max(1, min(limit, _LIST_LIMIT_MAX))
+
+
+def _nested(value: Any) -> dict[str, Any]:
+    """
+    Вложенный dto как есть, без разбора на поля.
+
+    Служебные ключи отслеживания изменений выкидываем: они начинаются с
+    подчёркивания, снаружи не значат ничего и только путали бы.
+    """
+    data = jsonable_encoder(value)
+    if not isinstance(data, dict):
+        return {}
+    return {key: item for key, item in data.items() if not key.startswith("_")}
+
+
+class UserListItem(BaseModel):
+    """Пользователь в списочной выдаче."""
+
+    id: int
+    telegram_id: int | None = None
+    username: str | None = None
+    # Метка рекламного размещения, по которому человек пришёл. Без неё
+    # выдача теряет половину смысла: связать людей с закупкой больше нечем.
+    ad_link_id: int | None = None
+    created_at: datetime
+    updated_at: datetime
+    is_blocked: bool
+    is_bot_blocked: bool
+    is_trial_available: bool
+    auth_type: str
+    paid_referrals_count: int
+
+
+class SubscriptionListItem(BaseModel):
+    """Подписка в списочной выдаче."""
+
+    id: int
+    user_id: int
+    status: str
+    # Триал и оплата — разные события, и считать их вместе нельзя.
+    is_trial: bool
+    created_at: datetime
+    updated_at: datetime
+    expire_at: datetime
+    tag: str | None = None
+    disabled_by_channel_leave: bool
+    plan_snapshot: dict[str, Any]
+
+
+class TransactionListItem(BaseModel):
+    """Транзакция в списочной выдаче."""
+
+    id: int
+    user_id: int
+    payment_id: str
+    status: str
+    purchase_type: str
+    gateway_type: str
+    currency: str
+    # Тестовые и отменённые здесь не отсекаются — что считать выручкой,
+    # решает спрашивающий. Но без этих двух полей отсечь было бы нечем.
+    is_test: bool
+    is_gift: bool
+    created_at: datetime
+    pricing: dict[str, Any]
+    plan_snapshot: dict[str, Any]
+
+
+@router.get(
+    "/users/list",
+    response_model=list[UserListItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def users_list(
+    user_dao: FromDishka[UserDao],
+    updated_after: datetime | None = None,
+    cursor: int = 0,
+    limit: int = 500,
+) -> list[UserListItem]:
+    """
+    Пользователи пачкой, для внешнего инкрементального сбора.
+
+    Ручки по одному telegram_id для этого не годятся: чтобы посчитать
+    движение по всей базе, внешнему инструменту пришлось бы опросить
+    каждого человека отдельно, и с ростом бота такой сбор перестал бы
+    укладываться в расписание.
+
+    Без 'updated_after' отдаём с начала — это первый прогон. Дальше
+    спрашивающий передаёт последнюю виденную дату и забирает только
+    изменившееся, то есть десятки строк вместо всей базы.
+
+    Почта, хэши пароля и реферальный код наружу не уходят: инструменту
+    закупки рекламы персональные данные не нужны, а значит и попадать к
+    нему не должны.
+
+    Пусто — это '200' и пустой список: «ничего не изменилось» нормальный
+    ответ, а не ошибка. Признак «есть ли ещё» виден по длине: пришло
+    меньше 'limit' — значит конец.
+    """
+    users = await user_dao.list_since(
+        since=updated_after,
+        after_id=cursor,
+        limit=_list_limit(limit),
+    )
+
+    return [
+        UserListItem(
+            id=user.id,
+            telegram_id=user.telegram_id,
+            username=user.username,
+            ad_link_id=user.ad_link_id,
+            created_at=user.created_at or datetime.now(timezone.utc),
+            updated_at=user.updated_at or datetime.now(timezone.utc),
+            is_blocked=user.is_blocked,
+            is_bot_blocked=user.is_bot_blocked,
+            is_trial_available=user.is_trial_available,
+            auth_type=user.auth_type.value,
+            paid_referrals_count=user.paid_referrals_count,
+        )
+        for user in users
+    ]
+
+
+@router.get(
+    "/subscriptions/list",
+    response_model=list[SubscriptionListItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def subscriptions_list(
+    subscription_dao: FromDishka[SubscriptionDao],
+    updated_after: datetime | None = None,
+    cursor: int = 0,
+    limit: int = 500,
+) -> list[SubscriptionListItem]:
+    """
+    Подписки пачкой, для внешнего инкрементального сбора.
+
+    Статус отдаём тот, что лежит в базе, а не вычисленный на ходу: по
+    'expire_at' спрашивающий посчитает уход сам и на любую нужную ему
+    дату, а подменённый статус этого уже не позволит.
+
+    'plan_snapshot' отдаём целиком, не разбирая: что именно оттуда
+    понадобится, знает спрашивающий, и боту не нужно это угадывать.
+    """
+    subscriptions = await subscription_dao.list_since(
+        since=updated_after,
+        after_id=cursor,
+        limit=_list_limit(limit),
+    )
+
+    return [
+        SubscriptionListItem(
+            id=sub.id,
+            user_id=sub.user_id,
+            status=sub.status.value,
+            is_trial=sub.is_trial,
+            created_at=sub.created_at or datetime.now(timezone.utc),
+            updated_at=sub.updated_at or datetime.now(timezone.utc),
+            expire_at=sub.expire_at,
+            tag=sub.tag,
+            disabled_by_channel_leave=sub.disabled_by_channel_leave,
+            plan_snapshot=_nested(sub.plan_snapshot),
+        )
+        for sub in subscriptions
+    ]
+
+
+@router.get(
+    "/transactions/list",
+    response_model=list[TransactionListItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def transactions_list(
+    transaction_dao: FromDishka[TransactionDao],
+    created_after: datetime | None = None,
+    cursor: int = 0,
+    limit: int = 500,
+) -> list[TransactionListItem]:
+    """
+    Транзакции пачкой, для внешнего инкрементального сбора.
+
+    Фильтр по 'created_at', а не по 'updated_at': завершённая транзакция
+    больше не меняется, и дата создания — единственная, по которой её
+    осмысленно догонять.
+
+    'pricing' и 'plan_snapshot' отдаём как есть.
+    """
+    transactions = await transaction_dao.list_since(
+        since=created_after,
+        after_id=cursor,
+        limit=_list_limit(limit),
+    )
+
+    return [
+        TransactionListItem(
+            id=transaction.id,
+            user_id=transaction.user_id,
+            payment_id=str(transaction.payment_id),
+            status=transaction.status.value,
+            purchase_type=transaction.purchase_type.value,
+            gateway_type=transaction.gateway_type.value,
+            currency=transaction.currency.value,
+            is_test=transaction.is_test,
+            is_gift=transaction.is_gift,
+            created_at=transaction.created_at or datetime.now(timezone.utc),
+            pricing=_nested(transaction.pricing),
+            plan_snapshot=_nested(transaction.plan_snapshot),
+        )
+        for transaction in transactions
+    ]
 
 
 @router.get(

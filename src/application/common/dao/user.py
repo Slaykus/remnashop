@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 from uuid import UUID
 
@@ -56,6 +57,16 @@ class UserDao(Protocol):
     async def clear_current_subscription(self, user_id: int) -> None: ...
 
     async def get_blocked_users(self) -> list[UserDto]: ...
+
+    # Выборка пачкой для внешнего сбора: строки с id больше курсора, по
+    # возрастанию id. Порядок по дате не годится — у строк одной
+    # транзакции даты совпадают, и курсор зациклится.
+    async def list_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[UserDto]: ...
 
     async def get_by_ids(self, user_ids: list[int]) -> list[UserDto]: ...
 

@@ -92,6 +92,40 @@ class TransactionDaoImpl(TransactionDao):
         logger.debug(f"Retrieved '{len(db_transactions)}' transactions for user_id '{user_id}'")
         return self._convert_to_dto_list(db_transactions)
 
+    async def list_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[TransactionDto]:
+        """
+        Пачка transactions для внешнего инкрементального сбора.
+
+        Курсор по возрастающему id, а не offset: между страницами
+        дописываются новые строки, и offset начал бы их пропускать молча.
+        Сортировка тоже по id — у строк, созданных одной транзакцией,
+        даты совпадают, и порядок между ними не определён.
+
+        Границу берём включительно: спрашивающий передаёт последнюю
+        виденную дату, и повторно приехавшая строка ему не мешает, а вот
+        потерянная — мешает.
+        """
+        stmt = select(Transaction).where(Transaction.id > after_id)
+
+        if since is not None:
+            stmt = stmt.where(Transaction.created_at >= since)
+
+        stmt = stmt.order_by(Transaction.id).limit(limit)
+
+        result = await self.session.scalars(stmt)
+        rows = cast(list, result.all())
+
+        logger.debug(
+            f"Retrieved '{len(rows)}' transactions changed since '{since}' "
+            f"after id '{after_id}' with limit '{limit}'"
+        )
+        return self._convert_to_dto_list(rows)
+
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[TransactionDto]:
         stmt = (
             select(Transaction).limit(limit).offset(offset).order_by(Transaction.created_at.desc())

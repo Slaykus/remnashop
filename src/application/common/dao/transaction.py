@@ -18,6 +18,16 @@ class TransactionDao(Protocol):
 
     async def get_by_user(self, user_id: int) -> list[TransactionDto]: ...
 
+    # Выборка пачкой для внешнего сбора: строки с id больше курсора, по
+    # возрастанию id. Порядок по дате не годится — у строк одной
+    # транзакции даты совпадают, и курсор зациклится.
+    async def list_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[TransactionDto]: ...
+
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[TransactionDto]: ...
 
     async def get_by_status(self, status: TransactionStatus) -> list[TransactionDto]: ...

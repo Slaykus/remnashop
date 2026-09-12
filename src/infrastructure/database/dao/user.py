@@ -185,6 +185,40 @@ class UserDaoImpl(UserDao):
         )
         return self._convert_to_dto_list(db_users)
 
+    async def list_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[UserDto]:
+        """
+        Пачка users для внешнего инкрементального сбора.
+
+        Курсор по возрастающему id, а не offset: между страницами
+        дописываются новые строки, и offset начал бы их пропускать молча.
+        Сортировка тоже по id — у строк, созданных одной транзакцией,
+        даты совпадают, и порядок между ними не определён.
+
+        Границу берём включительно: спрашивающий передаёт последнюю
+        виденную дату, и повторно приехавшая строка ему не мешает, а вот
+        потерянная — мешает.
+        """
+        stmt = select(User).where(User.id > after_id)
+
+        if since is not None:
+            stmt = stmt.where(User.updated_at >= since)
+
+        stmt = stmt.order_by(User.id).limit(limit)
+
+        result = await self.session.scalars(stmt)
+        rows = cast(list, result.all())
+
+        logger.debug(
+            f"Retrieved '{len(rows)}' users changed since '{since}' "
+            f"after id '{after_id}' with limit '{limit}'"
+        )
+        return self._convert_to_dto_list(rows)
+
     async def update(self, user: UserDto) -> Optional[UserDto]:
         if not user.changed_data:
             logger.debug(f"No changes detected for user '{user.id}', skipping update")

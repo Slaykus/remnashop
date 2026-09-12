@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 from uuid import UUID
 
@@ -42,5 +43,15 @@ class SubscriptionDao(Protocol):
     async def get_stats(self) -> SubscriptionStatsDto: ...
 
     async def get_plan_sub_stats(self) -> list[PlanSubStatsDto]: ...
+
+    # Выборка пачкой для внешнего сбора: строки с id больше курсора, по
+    # возрастанию id. Порядок по дате не годится — у строк одной
+    # транзакции даты совпадают, и курсор зациклится.
+    async def list_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[SubscriptionDto]: ...
 
     async def get_all_active(self) -> list[SubscriptionDto]: ...

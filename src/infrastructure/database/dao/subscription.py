@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional, cast
 from uuid import UUID
 
@@ -220,6 +220,40 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0
+
+    async def list_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[SubscriptionDto]:
+        """
+        Пачка subscriptions для внешнего инкрементального сбора.
+
+        Курсор по возрастающему id, а не offset: между страницами
+        дописываются новые строки, и offset начал бы их пропускать молча.
+        Сортировка тоже по id — у строк, созданных одной транзакцией,
+        даты совпадают, и порядок между ними не определён.
+
+        Границу берём включительно: спрашивающий передаёт последнюю
+        виденную дату, и повторно приехавшая строка ему не мешает, а вот
+        потерянная — мешает.
+        """
+        stmt = select(Subscription).where(Subscription.id > after_id)
+
+        if since is not None:
+            stmt = stmt.where(Subscription.updated_at >= since)
+
+        stmt = stmt.order_by(Subscription.id).limit(limit)
+
+        result = await self.session.scalars(stmt)
+        rows = cast(list, result.all())
+
+        logger.debug(
+            f"Retrieved '{len(rows)}' subscriptions changed since '{since}' "
+            f"after id '{after_id}' with limit '{limit}'"
+        )
+        return self._convert_to_dto_list(rows)
 
     async def get_all_active(self) -> list[SubscriptionDto]:
         stmt = (
