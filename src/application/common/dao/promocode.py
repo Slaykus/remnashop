@@ -1,7 +1,9 @@
+from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 
 from src.application.dto import (
     PromocodeActivationDto,
+    PromocodeActivationEntryDto,
     PromocodeDetailStatisticsDto,
     PromocodeDto,
     PromocodeStatisticsDto,
@@ -31,6 +33,14 @@ class PromocodeDao(Protocol):
     async def get_detail_statistics(
         self, promocode_id: int
     ) -> Optional[PromocodeDetailStatisticsDto]: ...
+
+    # Журнал активаций пачкой, для внешнего инкрементального сбора.
+    async def list_activations_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[PromocodeActivationEntryDto]: ...
 
     async def get_activation_by_user(
         self, promocode_id: int, user_id: int

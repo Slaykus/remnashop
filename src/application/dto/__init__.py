@@ -13,7 +13,7 @@ from .payment_gateway import (
     PaymentResultDto,
 )
 from .plan import PlanDto, PlanDurationDto, PlanPriceDto, PlanSnapshotDto
-from .promocode import PromocodeActivationDto, PromocodeDto
+from .promocode import PromocodeActivationDto, PromocodeActivationEntryDto, PromocodeDto
 from .referral import ReferralDto, ReferralRewardDto, UserReferralStatsDto
 from .settings import (
     AccessSettingsDto,
@@ -78,6 +78,7 @@ __all__ = [
     "PlanPriceDto",
     "PlanSnapshotDto",
     "PromocodeActivationDto",
+    "PromocodeActivationEntryDto",
     "PromocodeDto",
     "PromocodeDetailStatisticsDto",
     "PromocodeStatisticsDto",

@@ -429,6 +429,117 @@ async def transactions_list(
     ]
 
 
+class AdLinkUserListItem(BaseModel):
+    """Переход по рекламной ссылке."""
+
+    id: int
+    ad_link_id: int
+    user_telegram_id: int
+    bonus_issued: bool
+    created_at: datetime
+
+
+class PromocodeActivationListItem(BaseModel):
+    """Активация промокода."""
+
+    id: int
+    promocode_id: int
+    # Код строкой: по нему активация связывается с размещением, а
+    # внутренний id промокода снаружи не значит ничего.
+    code: str
+    user_id: int
+    activated_at: datetime
+
+
+@router.get(
+    "/ad-link-users/list",
+    response_model=list[AdLinkUserListItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def ad_link_users_list(
+    ad_link_dao: FromDishka[AdLinkDao],
+    created_after: datetime | None = None,
+    cursor: int = 0,
+    limit: int = 500,
+) -> list[AdLinkUserListItem]:
+    """
+    Журнал переходов по рекламным ссылкам.
+
+    Отдаётся отдельно от 'users/list' потому, что это разные факты.
+    'users.ad_link_id' отвечает на вопрос «по какой ссылке человек
+    зарегистрировался» и у вернувшегося пользователя пуст — метка там
+    ставится только при регистрации. Журнал же помнит каждый переход, в
+    том числе тех, кто сервис уже знал, а такие платят чаще. Без журнала
+    именно этот сегмент выпадал бы из атрибуции.
+
+    Кто из перешедших зарегистрировался тем же переходом, видно без
+    сравнения дат: у такого человека 'users.ad_link_id' равен
+    'ad_link_id' этой строки. У вернувшегося он пуст или указывает на
+    другую ссылку.
+
+    Фильтр по 'created_at': строки журнала после записи не меняются.
+    """
+    clicks = await ad_link_dao.list_users_since(
+        since=created_after,
+        after_id=cursor,
+        limit=_list_limit(limit),
+    )
+
+    return [
+        AdLinkUserListItem(
+            id=click.id,
+            ad_link_id=click.ad_link_id,
+            user_telegram_id=click.user_telegram_id,
+            bonus_issued=click.bonus_issued,
+            created_at=click.created_at or datetime.now(timezone.utc),
+        )
+        for click in clicks
+    ]
+
+
+@router.get(
+    "/promocode-activations/list",
+    response_model=list[PromocodeActivationListItem],
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def promocode_activations_list(
+    promocode_dao: FromDishka[PromocodeDao],
+    activated_after: datetime | None = None,
+    cursor: int = 0,
+    limit: int = 500,
+) -> list[PromocodeActivationListItem]:
+    """
+    Журнал активаций промокодов.
+
+    Своего признака «подозрительная активация» у бота нет, и заводить
+    его пока не стали: правило, что считать накруткой, будет меняться по
+    мере того, как на данные насмотрятся, а гонять из-за гипотезы правки
+    в боевой сервис незачем. Поэтому отдаём факты, а трактовку оставляем
+    спрашивающему — если правило устоится, посчитаем его здесь один раз.
+
+    Код промокода едет вместе с активацией, чтобы связать её с
+    размещением можно было без второго справочника.
+    """
+    activations = await promocode_dao.list_activations_since(
+        since=activated_after,
+        after_id=cursor,
+        limit=_list_limit(limit),
+    )
+
+    return [
+        PromocodeActivationListItem(
+            id=activation.id,
+            promocode_id=activation.promocode_id,
+            code=activation.code,
+            user_id=activation.user_id,
+            activated_at=activation.activated_at,
+        )
+        for activation in activations
+    ]
+
+
 @router.get(
     "/users/{telegram_id}",
     response_model=UserResponse,

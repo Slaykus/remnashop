@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from adaptix.conversion import ConversionRetort
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.common.dao import PromocodeDao
 from src.application.dto import (
     PromocodeActivationDto,
+    PromocodeActivationEntryDto,
     PromocodeDetailStatisticsDto,
     PromocodeDto,
     PromocodeStatisticsDto,
@@ -217,6 +218,57 @@ class PromocodeDaoImpl(PromocodeDao):
             activations_week=int(counts["week"] or 0),
             activations_month=int(counts["month"] or 0),
         )
+
+    async def list_activations_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[PromocodeActivationEntryDto]:
+        """
+        Пачка активаций промокодов вместе с кодом, для внешнего сбора.
+
+        Код подклеиваем join'ом, а не вторым запросом: спрашивающему
+        нужен именно он, и заставлять его тянуть всю таблицу промокодов
+        ради расшифровки id — лишняя ручка и лишняя копия справочника.
+
+        Курсор по возрастающему id активации; фильтр по 'activated_at' —
+        запись активации после создания не меняется.
+        """
+        stmt = (
+            select(
+                PromocodeActivation.id,
+                PromocodeActivation.promocode_id,
+                PromocodeActivation.user_id,
+                PromocodeActivation.activated_at,
+                Promocode.code,
+            )
+            .join(Promocode, Promocode.id == PromocodeActivation.promocode_id)
+            .where(PromocodeActivation.id > after_id)
+        )
+
+        if since is not None:
+            stmt = stmt.where(PromocodeActivation.activated_at >= since)
+
+        stmt = stmt.order_by(PromocodeActivation.id).limit(limit)
+
+        result = await self.session.execute(stmt)
+        rows = result.all()
+
+        logger.debug(
+            f"Retrieved '{len(rows)}' promocode activations since '{since}' "
+            f"after id '{after_id}' with limit '{limit}'"
+        )
+        return [
+            PromocodeActivationEntryDto(
+                id=row.id,
+                promocode_id=row.promocode_id,
+                code=row.code,
+                user_id=row.user_id,
+                activated_at=row.activated_at,
+            )
+            for row in rows
+        ]
 
     async def get_activation_by_user(
         self, promocode_id: int, user_id: int

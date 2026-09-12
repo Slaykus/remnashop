@@ -217,6 +217,40 @@ class AdLinkDaoImpl(AdLinkDao, BaseDaoImpl):
         )
         return is_new
 
+    async def list_users_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[AdLinkUserDto]:
+        """
+        Пачка переходов по рекламным ссылкам, для внешнего сбора.
+
+        Журнал хранит и тех, кто по ссылке зарегистрировался, и тех, кто
+        пришёл по ней уже зарегистрированным. Второй сегмент в
+        'users.ad_link_id' не попадает — там метка ставится только при
+        регистрации, — а платит он чаще, поэтому отдаём журнал целиком.
+
+        Курсор по возрастающему id, а не offset: между страницами
+        дописываются новые переходы, и offset начал бы их пропускать
+        молча. Фильтр по 'created_at' — строки журнала не меняются.
+        """
+        stmt = select(AdLinkUser).where(AdLinkUser.id > after_id)
+
+        if since is not None:
+            stmt = stmt.where(AdLinkUser.created_at >= since)
+
+        stmt = stmt.order_by(AdLinkUser.id).limit(limit)
+
+        result = await self.session.scalars(stmt)
+        rows = cast(list, result.all())
+
+        logger.debug(
+            f"Retrieved '{len(rows)}' ad link clicks since '{since}' "
+            f"after id '{after_id}' with limit '{limit}'"
+        )
+        return [self._convert_user(row) for row in rows]
+
     async def get_user_click(
         self, ad_link_id: int, user_telegram_id: int
     ) -> Optional[AdLinkUserDto]:

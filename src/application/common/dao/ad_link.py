@@ -42,6 +42,16 @@ class AdLinkDao(Protocol):
 
     async def register_user_click(self, ad_link_id: int, user_telegram_id: int) -> bool: ...
 
+    # Журнал переходов пачкой, для внешнего инкрементального сбора.
+    # Курсор по возрастающему id; фильтр по 'created_at' — строки журнала
+    # после записи не меняются.
+    async def list_users_since(
+        self,
+        since: Optional[datetime] = None,
+        after_id: int = 0,
+        limit: int = 500,
+    ) -> list[AdLinkUserDto]: ...
+
     async def get_user_click(
         self, ad_link_id: int, user_telegram_id: int
     ) -> Optional[AdLinkUserDto]: ...

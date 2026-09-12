@@ -25,3 +25,19 @@ class PromocodeActivationDto(BaseDto):
     promocode_id: int
     user_id: int
     activated_at: datetime
+
+@dataclass(kw_only=True)
+class PromocodeActivationEntryDto(BaseDto):
+    """
+    Активация вместе с кодом промокода.
+
+    Отдельно от 'PromocodeActivationDto' потому, что кода в самой записи
+    нет — он живёт в таблице промокодов. Спрашивающему нужен именно код:
+    по нему активация связывается с рекламным размещением, а внутренний
+    id промокода снаружи не значит ничего.
+    """
+
+    promocode_id: int
+    code: str
+    user_id: int
+    activated_at: datetime
