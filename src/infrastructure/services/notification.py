@@ -78,6 +78,13 @@ from src.telegram.keyboards import (
 )
 from src.telegram.widgets import extract_tg_emoji
 
+# Ответы телеграма, при которых удалять уже нечего или уже нельзя. Это не
+# сбой бота, а обычный ход вещей, и в ленте ошибок им делать нечего.
+_EXPECTED_DELETE_FAILURES = (
+    "message can't be deleted for everyone",
+    "message to delete not found",
+)
+
 
 class NotificationService(Notifier):
     def __init__(
@@ -336,7 +343,18 @@ class NotificationService(Notifier):
             await self.bot.delete_message(chat_id=chat_id, message_id=message_id)
             logger.debug(f"Notification '{message_id}' for chat '{chat_id}' deleted")
         except Exception as e:
-            logger.error(f"Failed to delete notification '{message_id}': {e}")
+            # Удалить своё сообщение бот может только первые 48 часов. Человек,
+            # нажавший «Закрыть» под старым уведомлением, упирается ровно в это,
+            # и поднимать из-за такого тревогу незачем: кнопку мы всё равно
+            # снимаем ниже, и для него кнопка исчезает. Настоящие сбои удаления
+            # при этом остаются ошибками.
+            reason = str(e).lower()
+            expected = any(known in reason for known in _EXPECTED_DELETE_FAILURES)
+            write = logger.warning if expected else logger.error
+            write(
+                f"Failed to delete notification '{message_id}' "
+                f"in chat '{chat_id}': {e}"
+            )
             await self._clear_reply_markup(chat_id, message_id)
 
     async def _process_task(self, task: NotificationTaskDto) -> None:
