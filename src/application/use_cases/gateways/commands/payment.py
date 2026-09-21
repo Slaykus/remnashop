@@ -628,6 +628,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
             #
             plan_name=(transaction.plan_snapshot.name, {}),
             plan_type=transaction.plan_snapshot.type,
+            devices_total=transaction.plan_snapshot.device_limit,
             plan_traffic_limit=i18n_format_traffic_limit(transaction.plan_snapshot.traffic_limit),
             plan_device_limit=i18n_format_device_limit(transaction.plan_snapshot.device_limit),
             plan_duration=i18n_format_days(transaction.plan_snapshot.duration),
@@ -717,4 +718,11 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 )
 
         if user.telegram_id is not None:
-            await self.redirect.to_success_payment(user.telegram_id, transaction.purchase_type)
+            if transaction.purchase_type == PurchaseType.DEVICES:
+                # Экран успеха подписки тут не к месту: человек покупал не
+                # подписку. Возвращаем туда, где виден поднявшийся лимит.
+                await self.redirect.to_devices(user.telegram_id)
+            else:
+                await self.redirect.to_success_payment(
+                    user.telegram_id, transaction.purchase_type
+                )

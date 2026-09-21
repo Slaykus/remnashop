@@ -72,6 +72,25 @@ class RedirectImpl(Redirect):
         )
         logger.info(f"User '{telegram_id}' redirected to user editor")
 
+    async def to_devices(self, telegram_id: int) -> None:
+        """Экран управления устройствами — туда возвращаем после докупки."""
+        if not _has_telegram_chat(telegram_id):
+            logger.debug(f"Skipping redirect for web-only user '{telegram_id}'")
+            return
+
+        bg_manager = self.bg_manager_factory.bg(
+            bot=self.bot,
+            user_id=telegram_id,
+            chat_id=telegram_id,
+        )
+
+        await bg_manager.start(
+            state=MainMenu.DEVICES,
+            mode=StartMode.RESET_STACK,
+            show_mode=ShowMode.DELETE_AND_SEND,
+        )
+        logger.info(f"User '{telegram_id}' redirected to devices")
+
     async def to_success_trial(self, telegram_id: int) -> None:
         if not _has_telegram_chat(telegram_id):
             logger.debug(f"Skipping redirect for web-only user '{telegram_id}'")

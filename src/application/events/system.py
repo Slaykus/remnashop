@@ -463,6 +463,11 @@ class UserPurchaseEvent(UserEvent):
     plan_device_limit: Any
     plan_duration: Any
 
+    # Число устройств простым целым. Соседнее 'plan_device_limit' лежит в
+    # форме для переводов, и подставить его в сообщение как есть нельзя —
+    # напечатался бы кортеж, как однажды напечатался в чеке налоговой.
+    devices_total: Optional[int] = None
+
     previous_plan_name: Any = None
     previous_plan_type: Any = None
     previous_plan_traffic_limit: Any = None
@@ -486,6 +491,17 @@ class UserPurchaseEvent(UserEvent):
                 return "event-subscription.renew"
             case PurchaseType.CHANGE:
                 return "event-subscription.change"
+            case PurchaseType.DEVICES:
+                # Своё сообщение, а не ветка event-subscription: то
+                # ссылается на заголовки и фрагменты базового набора, а
+                # переопределить его в custom.ftl можно только вместе с
+                # ними — слой компилируется отдельным бандлом.
+                return "event-devices-added"
+            case _:
+                # Пустой ключ превращается в пустое сообщение, а телеграм
+                # такое не принимает: деньги уже списаны, а отправка упала
+                # бы. Лучше показать заголовок без подробностей.
+                return "event-subscription.new"
 
 
 @dataclass(frozen=True, kw_only=True)
