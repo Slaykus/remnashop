@@ -43,6 +43,7 @@ from src.application.use_cases.partner.commands.manage import (
     SavePayoutDetails,
     SavePayoutDetailsDto,
 )
+from src.application.services.pricing import PricingService
 from src.application.dto.plan import PlanSnapshotDto
 from src.application.dto.transaction import PriceDetailsDto
 from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
@@ -562,7 +563,8 @@ async def get_user(
         is_blocked=getattr(user, "is_blocked", False),
         created_at=user.created_at or datetime.now(timezone.utc),
         personal_discount=getattr(user, "personal_discount", 0),
-        purchase_discount=getattr(user, "purchase_discount", 0),
+        # С учётом срока: сырое поле называло сгоревшую скидку живой.
+        purchase_discount=PricingService.get_live_purchase_discount(user),
     )
 
 

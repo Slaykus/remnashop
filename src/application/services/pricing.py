@@ -9,8 +9,13 @@ from src.core.enums import Currency
 
 class PricingService:
     @staticmethod
-    def _live_purchase_discount(user: UserDto) -> int:
+    def get_live_purchase_discount(user: UserDto) -> int:
         """Разовая скидка с учётом срока.
+
+        Публичный метод, а не внутренний: сырое поле 'purchase_discount'
+        показывали в главном меню и в карточке, и человек видел «Скидка
+        на покупку: 20%» через две недели после того, как она сгорела.
+        Показывать скидку должен тот же расчёт, что применяет её на кассе.
 
         Пустая дата — скидка бессрочная, так вели себя все скидки до
         кампании возврата. Просроченная — скидки нет: обещание «сгорит
@@ -24,11 +29,11 @@ class PricingService:
 
     def is_largest_discount_personal(self, user: UserDto) -> bool:
         personal = user.personal_discount or 0
-        purchase = self._live_purchase_discount(user)
+        purchase = self.get_live_purchase_discount(user)
         return personal > 0 and personal > purchase
 
     def get_effective_discount(self, user: UserDto) -> int:
-        purchase = self._live_purchase_discount(user)
+        purchase = self.get_live_purchase_discount(user)
         discount_percent = min(max(purchase, user.personal_discount or 0), 100)
         logger.debug(
             f"Calculated effective discount percent '{discount_percent}' for user "

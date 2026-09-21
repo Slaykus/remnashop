@@ -9,6 +9,7 @@ from remnapy import RemnawaveSDK
 from remnapy.exceptions import NotFoundError
 
 from src.application.common import TranslatorRunner
+from src.application.services.pricing import PricingService
 from src.application.common.dao import (
     NodeQuotaDao,
     PlanDao,
@@ -60,6 +61,7 @@ async def user_getter(
     user: TelegramUserDto,
     get_user_profile: FromDishka[GetUserProfile],
     i18n: FromDishka[TranslatorRunner],
+    pricing_service: FromDishka[PricingService],
     **kwargs: Any,
 ) -> dict[str, Any]:
     dialog_manager.dialog_data.pop("payload", None)
@@ -83,7 +85,10 @@ async def user_getter(
         "show_points": profile.show_points,
         "points": profile.target_user.points,
         "personal_discount": profile.target_user.personal_discount,
-        "purchase_discount": profile.target_user.purchase_discount,
+        # С учётом срока: сырое поле показывало сгоревшую скидку живой.
+        "purchase_discount": pricing_service.get_live_purchase_discount(
+            profile.target_user
+        ),
         "is_blocked": profile.target_user.is_blocked,
         "is_bot_blocked": profile.target_user.is_bot_blocked,
         "is_trial_available": profile.target_user.is_trial_available,

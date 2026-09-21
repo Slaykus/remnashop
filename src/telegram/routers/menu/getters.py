@@ -9,6 +9,7 @@ from loguru import logger
 from src.application.common import BotService, Remnawave, TranslatorRunner
 from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
+from src.application.services.pricing import PricingService
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.core.config import AppConfig
 from src.core.config.referral_milestones import get_tier_for_count, get_tier_for_discount
@@ -30,6 +31,7 @@ async def menu_getter(
     i18n: FromDishka[TranslatorRunner],
     get_menu_data: FromDishka[GetMenuData],
     settings_dao: FromDishka[SettingsDao],
+    pricing_service: FromDishka[PricingService],
     **kwargs: Any,
 ) -> dict[str, Any]:
     try:
@@ -37,7 +39,9 @@ async def menu_getter(
         settings = await settings_dao.get()
         support_url = bot_service.get_support_url(text=i18n.get("message.help"))
 
-        purchase_discount = user.purchase_discount or 0
+        # С учётом срока, а не сырым полем: сгоревшая скидка оставалась
+        # в меню висеть как действующая, а на кассе её уже не было.
+        purchase_discount = pricing_service.get_live_purchase_discount(user)
         personal_discount = user.personal_discount or 0
         show_purchase_discount = purchase_discount > 0 and purchase_discount >= personal_discount
         show_personal_discount = personal_discount > 0 and not show_purchase_discount

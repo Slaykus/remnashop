@@ -9,6 +9,7 @@ from dishka import Provider, Scope, from_context, provide
 from loguru import logger
 
 from src.core.config import AppConfig
+from src.telegram.flood_control import FloodControlMiddleware
 
 
 def _normalize_proxy_url(url: str) -> str:
@@ -41,4 +42,10 @@ class BotProvider(Provider):
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             session=session,
         ) as bot:
+            # Держит темп исходящих в рамках лимитов телеграма и выполняет
+            # просьбу подождать, если лимит всё же настал. Ставится на
+            # сессию, поэтому покрывает вообще все вызовы, включая те, что
+            # делает aiogram_dialog сам по себе.
+            bot.session.middleware(FloodControlMiddleware())
+            logger.debug("Flood control middleware attached to bot session")
             yield bot
