@@ -970,6 +970,9 @@ payment-invoice-description = { $purchase_type ->
 # Поля берутся только простые. 'plan_device_limit' рядом лежит в форме
 # для переводов, и подставить его значило бы напечатать кортеж — ровно
 # то, что однажды уехало в чек налоговой.
+#
+# Телеграмный id печатается через NUMBER с выключенной группировкой:
+# иначе Fluent разбивает его разрядами и получается '1 075 319 630'.
 # ============================================================
 
 event-devices-added =
@@ -978,7 +981,8 @@ event-devices-added =
     <b><e id="5433608163196706522">📱</e> Событие: Докуплено устройство!</b>
 
     <blockquote>
-    • <b>Пользователь</b>: { $name } (<a href="tg://user?id={ $telegram_id }">{ $telegram_id }</a>)
+    • <b>Пользователь</b>: { $name }
+    • <b>ID</b>: <code>{ NUMBER($telegram_id, useGrouping: 0) }</code>
     • <b>Стало устройств</b>: { $devices_total }
     • <b>Оплачено</b>: { $final_amount }{ $currency }
     • <b>Способ</b>: { $gateway_type }
