@@ -206,7 +206,10 @@ confirm = Window(
     # наборе переводов, вшитом в образ, а переопределить его в custom.ftl
     # значило бы продублировать туда же половину соседних сообщений —
     # слой компилируется отдельно и на базовые определения не ссылается.
-    I18nFormat("msg-subscription-change-warning"),
+    # Условие здесь, а не только в переводе: если ключ однажды пропадёт из
+    # геттера, селектор в ftl упадёт с FluentReferenceError и утащит за
+    # собой весь экран оплаты. Так он просто не отрисуется.
+    I18nFormat("msg-subscription-change-warning", F["change_warning"] == "SHOW"),
     Row(
         Url(
             text=I18nFormat("btn-subscription.pay"),
