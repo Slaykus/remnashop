@@ -7,6 +7,7 @@ from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramForbiddenError,
     TelegramNetworkError,
+    TelegramRetryAfter,
 )
 from aiogram.types import ErrorEvent as AiogramErrorEvent
 from aiogram.types import TelegramObject
@@ -95,6 +96,17 @@ class ErrorMiddleware(EventTypedMiddleware):
         redirect_menu = await container.get(RedirectMenu)
         user_dao = await container.get(UserDao)
 
+        # Телеграм просит притормозить. Ответить на это тремя новыми
+        # отправками — экраном меню, сообщением об ошибке и отчётом
+        # владельцу — значит превратить одну просьбу в замкнутый круг:
+        # каждая упрётся в тот же лимит и вернётся сюда же. 21.09 такой
+        # круг крутился четырнадцать минут, съел квоту бота целиком, и
+        # кнопки перестали работать у всех, а не только у того, с кого
+        # началось. Единственный правильный ответ на лимит — молчать.
+        if isinstance(event.exception, TelegramRetryAfter):
+            logger.warning(f"Flood control, backing off without sending: {event.exception}")
+            return
+
         is_context_loss = isinstance(
             event.exception,
             (
@@ -131,7 +143,17 @@ class ErrorMiddleware(EventTypedMiddleware):
                     and event.update.message.text == f"/{Command.START.value.command}"
                 )
                 if not is_start_command:
-                    await redirect_menu.system(aiogram_user.id)
+                    # Возврат в меню рисует новый экран, то есть снова шлёт
+                    # в телеграм. Если и это не пройдёт, отказ уедет сюда же
+                    # отдельным событием — гасим его на месте, чтобы обработка
+                    # ошибки не порождала следующую.
+                    try:
+                        await redirect_menu.system(aiogram_user.id)
+                    except Exception as redirect_error:
+                        logger.warning(
+                            f"Could not return user '{aiogram_user.id}' "
+                            f"to the menu after an error: {redirect_error}"
+                        )
 
                 if is_context_loss:
                     user = await user_dao.get_by_telegram_id(aiogram_user.id)

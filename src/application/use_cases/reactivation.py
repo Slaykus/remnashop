@@ -40,6 +40,10 @@ class ReactivationStep:
     day: int
     keyboard: Keyboard
     grant: int = 0
+    # В тексте письма названа скидка. Такое письмо имеет смысл, только
+    # пока она жива: «скидка 0% заканчивается завтра» не поторопит
+    # никого, зато выставит сервис дураком.
+    quotes_discount: bool = False
 
 
 REACTIVATION_STEPS: tuple[ReactivationStep, ...] = (
@@ -53,19 +57,19 @@ REACTIVATION_STEPS: tuple[ReactivationStep, ...] = (
     ),
     ReactivationStep(
         "TRIAL_EXPIRED_D3", "trial", "ntf-reactivation.trial-expired-offer", 3,
-        Keyboard.BUY, grant=20,
+        Keyboard.BUY, grant=20, quotes_discount=True,
     ),
     ReactivationStep(
         "TRIAL_EXPIRED_D5", "trial", "ntf-reactivation.trial-expired-last", 5,
-        Keyboard.BUY,
+        Keyboard.BUY, quotes_discount=True,
     ),
     ReactivationStep(
         "PAID_EXPIRED_D3", "paid", "ntf-reactivation.paid-expired-offer", 3,
-        Keyboard.RENEW_AND_SUPPORT, grant=30,
+        Keyboard.RENEW_AND_SUPPORT, grant=30, quotes_discount=True,
     ),
     ReactivationStep(
         "PAID_EXPIRED_D5", "paid", "ntf-reactivation.paid-expired-last", 5,
-        Keyboard.RENEW_AND_SUPPORT,
+        Keyboard.RENEW_AND_SUPPORT, quotes_discount=True,
     ),
 )
 
@@ -81,6 +85,7 @@ class ReactivationReport:
     planned: dict[str, int] = None  # type: ignore[assignment]
     sent: int = 0
     skipped_already_sent: int = 0
+    skipped_no_discount: int = 0
 
     def __post_init__(self) -> None:
         if self.planned is None:
@@ -152,7 +157,8 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
 
         logger.info(
             f"[Reactivation] {'dry run' if dry_run else 'run'}: "
-            f"considered={report.considered}, planned={report.planned}, sent={report.sent}"
+            f"considered={report.considered}, planned={report.planned}, "
+            f"sent={report.sent}, skipped_no_discount={report.skipped_no_discount}"
         )
         return report
 
@@ -176,6 +182,29 @@ class SendReactivationNotifications(Interactor[None, ReactivationReport]):
         user = await self.user_dao.get_by_id(row["id"])
         if user is None:
             return
+
+        # Письмо, которое называет скидку, отправляем только пока скидка
+        # жива. Шаги со своей выдачей проходят проверку всегда — они её
+        # сейчас и назначат; спотыкается только «последний зов», если к
+        # его сроку скидка успела сгореть. Так было у трёх человек 08.09,
+        # которым письмо пришло без предшествующего предложения, и они
+        # прочли «Скидка 0% заканчивается завтра».
+        #
+        # В журнал всё равно пишем: иначе задача будет возвращаться к
+        # человеку каждый день и каждый день молча уходить ни с чем.
+        if step.quotes_discount and not step.grant:
+            if self.pricing.get_effective_discount(user) == 0:
+                async with self.uow:
+                    await self.notification_log_dao.mark_sent(
+                        user.id or 0, step.kind, details={"skipped": "no_live_discount"}
+                    )
+                    await self.uow.commit()
+                report.skipped_no_discount += 1
+                logger.info(
+                    f"[Reactivation] Skipped '{step.kind}' for user "
+                    f"'{user.telegram_id}': no live discount to expire"
+                )
+                return
 
         async with self.uow:
             # Журнал пишем до отправки: если письмо не уйдёт, человек
