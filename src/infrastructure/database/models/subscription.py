@@ -30,6 +30,10 @@ class Subscription(BaseSql, TimestampMixin):
 
     traffic_limit: Mapped[int]
     device_limit: Mapped[int]
+    # Устройства, купленные сверх тарифа. Отдельно от 'device_limit'
+    # потому, что тот при продлении берётся у тарифа, а докупленное
+    # должно пережить продление и попасть в его цену.
+    extra_devices: Mapped[int] = mapped_column(default=0, server_default="0")
     traffic_limit_strategy: Mapped[TrafficLimitStrategy]
 
     tag: Mapped[Optional[str]]

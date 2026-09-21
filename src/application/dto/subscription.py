@@ -64,6 +64,9 @@ class SubscriptionDto(BaseDto, TrackableMixin, TimestampMixin):
 
     traffic_limit: int
     device_limit: int
+    # Сколько устройств куплено сверх тарифа: у 'device_limit' при продлении
+    # берётся значение тарифа, а это переживает продление и входит в цену.
+    extra_devices: int = 0
     traffic_limit_strategy: TrafficLimitStrategy
 
     tag: Optional[str] = None
