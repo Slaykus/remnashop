@@ -16,6 +16,7 @@ from src.application.services.device_pricing import (
     extra_devices_price,
     monthly_extra_price,
     monthly_rate,
+    price_in_currency,
 )
 
 
@@ -93,3 +94,31 @@ def test_nothing_to_pay_for_the_base_plan() -> None:
     assert extra_devices_price(BASE_DEVICES, term_days=30) == Decimal(0)
     assert extra_devices_price(1, term_days=30) == Decimal(0)
     assert extra_devices_price(5, term_days=30, days=0) == Decimal(0)
+
+
+@pytest.mark.parametrize(
+    ("rub", "anchor_rub", "anchor_target", "decimals", "expected"),
+    [
+        # Якорь — месячная цена Solo: 200 ₽ / $2.50 / 133 ⭐.
+        (80, 200, "2.50", 2, "1.00"),
+        (80, 200, 133, 0, "53"),
+        (56, 200, "2.50", 2, "0.70"),
+        (56, 200, 133, 0, "37"),
+        # Якорь другого тарифа даёт тот же ответ: отношение валют в прайсе
+        # одинаковое, и цена устройства от выбора тарифа не зависит.
+        (80, 360, "4.50", 2, "1.00"),
+    ],
+)
+def test_conversion_follows_the_price_list(
+    rub: int, anchor_rub: int, anchor_target: str | int, decimals: int, expected: str
+) -> None:
+    got = price_in_currency(
+        Decimal(rub), Decimal(anchor_rub), Decimal(str(anchor_target)), decimals
+    )
+    assert got == Decimal(expected)
+
+
+def test_conversion_refuses_to_guess_without_an_anchor() -> None:
+    # Молча отдать ноль значило бы продать устройство даром.
+    with pytest.raises(ValueError):
+        price_in_currency(Decimal(80), Decimal(0), Decimal("2.50"), 2)

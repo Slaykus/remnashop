@@ -110,3 +110,30 @@ def extra_devices_price(total_devices: int, term_days: int, days: int | None = N
         / _DAYS_IN_MONTH
     )
     return price.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+
+def price_in_currency(
+    amount_rub: Decimal,
+    anchor_rub: Decimal,
+    anchor_in_currency: Decimal,
+    decimals: int,
+) -> Decimal:
+    """
+    Та же сумма в другой валюте.
+
+    Своих строк в прайсе у устройств нет — они не тариф. Поэтому курс
+    берём у самого тарифа: у каждого есть цена во всех трёх валютах, и
+    отношение между ними одинаковое. Так цена устройства не разойдётся с
+    прайсом, даже если валютные цены однажды поправят: она посчитается от
+    новых.
+
+    'anchor_rub' и 'anchor_in_currency' — цена тарифа за месяц в рублях и
+    в нужной валюте. Ноль в рублёвой цене означает, что считать не от
+    чего, и это ошибка вызывающего, а не повод молча отдать ноль.
+    """
+    if anchor_rub <= 0:
+        raise ValueError("Не от чего считать курс: рублёвая цена тарифа нулевая")
+
+    converted = amount_rub * anchor_in_currency / anchor_rub
+    step = Decimal(1).scaleb(-decimals)
+    return converted.quantize(step, rounding=ROUND_HALF_UP)
