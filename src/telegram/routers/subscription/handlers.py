@@ -24,6 +24,8 @@ from src.core.constants import PAYMENT_PREFIX, USER_KEY
 from src.core.enums import PaymentGatewayType, PurchaseType, TransactionStatus
 from src.telegram.states import Subscription
 
+from .getters import renewal_extra_devices
+
 
 async def on_subscription_start(start_data: Any, manager: DialogManager) -> None:
     if not start_data or "trial_plan" not in start_data:
@@ -78,6 +80,7 @@ async def _create_payment_and_get_data(
     notifier: Notifier,
     pricing_service: PricingService,
     create_payment: CreatePayment,
+    subscription_dao: SubscriptionDao,
 ) -> Optional[CachedPaymentData]:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
     duration = plan.get_duration(duration_days)
@@ -88,9 +91,22 @@ async def _create_payment_and_get_data(
         logger.error(f"{user.log} Failed to find duration or gateway for payment creation")
         return None
 
+    # Докупленные устройства оплачиваются вместе с продлением — иначе
+    # человек заплатил бы за них один раз и пользовался бесконечно.
+    # Считаем тем же расчётом, что показывал цену на экранах, иначе
+    # увиденная сумма разойдётся со списанной.
+    extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
+    surcharge = pricing_service.device_surcharge(
+        plan, plan.device_limit + extra_devices, duration.days, payment_gateway.currency
+    )
+
     transaction_plan = PlanSnapshotDto.from_plan(plan, duration.days)
     pricing = pricing_service.calculate_for_duration(
-        user, duration, payment_gateway.currency, apply_discount=not plan.is_trial
+        user,
+        duration,
+        payment_gateway.currency,
+        apply_discount=not plan.is_trial,
+        extra_amount=surcharge,
     )
 
     try:
@@ -274,6 +290,7 @@ async def on_subscription_plans(  # noqa: C901
                     notifier=notifier,
                     pricing_service=pricing_service,
                     create_payment=create_payment,
+                    subscription_dao=subscription_dao,
                 )
 
                 if payment_data:
@@ -339,6 +356,7 @@ async def on_duration_select(
     notifier: FromDishka[Notifier],
     pricing_service: FromDishka[PricingService],
     create_payment: FromDishka[CreatePayment],
+    subscription_dao: FromDishka[SubscriptionDao],
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
     logger.info(f"{user.log} Selected subscription duration '{selected_duration}' days")
@@ -393,6 +411,7 @@ async def on_duration_select(
             notifier=notifier,
             pricing_service=pricing_service,
             create_payment=create_payment,
+            subscription_dao=subscription_dao,
         )
 
         if payment_data:
@@ -416,6 +435,7 @@ async def on_payment_method_select(
     notifier: FromDishka[Notifier],
     pricing_service: FromDishka[PricingService],
     create_payment: FromDishka[CreatePayment],
+    subscription_dao: FromDishka[SubscriptionDao],
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
     logger.info(f"{user.log} Selected payment method '{selected_payment_method}'")
@@ -453,6 +473,7 @@ async def on_payment_method_select(
         notifier=notifier,
         pricing_service=pricing_service,
         create_payment=create_payment,
+        subscription_dao=subscription_dao,
     )
 
     if payment_data:

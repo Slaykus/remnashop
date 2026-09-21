@@ -148,6 +148,25 @@ async def plans_getter(
     }
 
 
+async def renewal_extra_devices(
+    dialog_manager: DialogManager,
+    subscription_dao: SubscriptionDao,
+    user: TelegramUserDto,
+) -> int:
+    """
+    Сколько докупленных устройств входит в эту оплату.
+
+    Только при продлении. Новая покупка начинается с чистого тарифа, а
+    смена тарифа пересоздаёт подписку — надбавка там обнуляется вместе с
+    остатком дней, и брать за неё деньги было бы нечестно.
+    """
+    if dialog_manager.dialog_data.get("purchase_type") != PurchaseType.RENEW:
+        return 0
+
+    subscription = await subscription_dao.get_current(user.id)
+    return subscription.extra_devices if subscription else 0
+
+
 @inject
 async def duration_getter(
     dialog_manager: DialogManager,
@@ -156,6 +175,7 @@ async def duration_getter(
     i18n: FromDishka[TranslatorRunner],
     settings_dao: FromDishka[SettingsDao],
     pricing_service: FromDishka[PricingService],
+    subscription_dao: FromDishka[SubscriptionDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -168,11 +188,17 @@ async def duration_getter(
     currency = settings.default_currency
     only_single_plan = dialog_manager.dialog_data.get("only_single_plan", False)
     dialog_manager.dialog_data["is_free"] = False
+    extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
     durations = []
 
     for duration in plan.durations:
         key, kw = i18n_format_days(duration.days)
-        price = pricing_service.calculate(user, duration.get_price(currency), currency)
+        surcharge = pricing_service.device_surcharge(
+            plan, plan.device_limit + extra_devices, duration.days, currency
+        )
+        price = pricing_service.calculate_for_duration(
+            user, duration, currency, extra_amount=surcharge
+        )
         durations.append(
             {
                 "days": duration.days,
@@ -211,6 +237,7 @@ async def payment_method_getter(
     i18n: FromDishka[TranslatorRunner],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
+    subscription_dao: FromDishka[SubscriptionDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -227,11 +254,16 @@ async def payment_method_getter(
     if not duration:
         raise ValueError(f"Duration '{selected_duration}' not found in plan '{plan.name}'")
 
+    extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
+
     payment_methods = []
     for gateway in gateways:
-        raw_price = duration.get_price(gateway.currency)
-        price = pricing_service.calculate(
-            user, raw_price, gateway.currency, apply_discount=not plan.is_trial
+        surcharge = pricing_service.device_surcharge(
+            plan, plan.device_limit + extra_devices, duration.days, gateway.currency
+        )
+        price = pricing_service.calculate_for_duration(
+            user, duration, gateway.currency, apply_discount=not plan.is_trial,
+            extra_amount=surcharge,
         )
         payment_methods.append(
             {

@@ -3,8 +3,10 @@ from decimal import ROUND_DOWN, Decimal, InvalidOperation
 
 from loguru import logger
 
-from src.application.dto import PlanDurationDto, PriceDetailsDto, UserDto
+from src.application.dto import PlanDto, PlanDurationDto, PriceDetailsDto, UserDto
+from src.application.services.device_pricing import extra_devices_price, price_in_currency
 from src.core.enums import Currency
+from src.core.exceptions import PriceNotFoundError
 
 
 class PricingService:
@@ -90,13 +92,67 @@ class PricingService:
             final_amount=final_amount,
         )
 
+    # Знаков после запятой у суммы в каждой валюте: звёзды и рубли целые,
+    # доллары с копейками.
+    _DECIMALS: dict[Currency, int] = {
+        Currency.RUB: 0,
+        Currency.USD: 2,
+        Currency.XTR: 0,
+    }
+
+    # Месячная цена тарифа — якорь, от которого считается курс для
+    # устройств. Своих цен в валютах у них нет, а у тарифов есть.
+    _ANCHOR_DAYS: int = 30
+
+    def device_surcharge(
+        self,
+        plan: PlanDto,
+        total_devices: int,
+        term_days: int,
+        currency: Currency,
+        days: int | None = None,
+    ) -> Decimal:
+        """
+        Надбавка за устройства сверх тарифа, в валюте оплаты.
+
+        Пустой тариф или отсутствие его цены в нужной валюте — повод
+        отказаться, а не отдать ноль: ноль здесь означает подарить
+        устройство, а это ошибка, которую никто не заметит.
+        """
+        amount_rub = extra_devices_price(total_devices, term_days, days)
+        if amount_rub <= 0:
+            return Decimal(0)
+        if currency == Currency.RUB:
+            return amount_rub
+
+        anchor = plan.get_duration(self._ANCHOR_DAYS)
+        if anchor is None:
+            raise PriceNotFoundError(
+                f"No monthly duration in plan '{plan.name}' to convert device price from"
+            )
+
+        return price_in_currency(
+            amount_rub,
+            anchor.get_price(Currency.RUB),
+            anchor.get_price(currency),
+            self._DECIMALS.get(currency, 2),
+        )
+
     def calculate_for_duration(
         self,
         user: UserDto,
         duration: PlanDurationDto,
         currency: Currency,
         apply_discount: bool = True,
+        extra_amount: Decimal = Decimal(0),
     ) -> PriceDetailsDto:
+        """
+        Цена срока подписки вместе с надбавкой за докупленные устройства.
+
+        Надбавка складывается с ценой тарифа до скидки, а не после: иначе
+        скидка обошла бы устройства стороной, и человек со скидкой платил
+        бы за них полную цену, не понимая почему.
+        """
         discount = self.get_effective_discount(user) if apply_discount else 0
 
         if discount >= 100 and not any(p.currency == currency for p in duration.prices):
@@ -105,10 +161,15 @@ class PricingService:
                 f"{user.log} 100% discount: currency '{currency}' has no price, "
                 f"using fallback original amount '{fallback}'"
             )
-            return self.calculate(user, fallback, currency, apply_discount=apply_discount)
+            return self.calculate(
+                user, fallback + extra_amount, currency, apply_discount=apply_discount
+            )
 
         return self.calculate(
-            user, duration.get_price(currency), currency, apply_discount=apply_discount
+            user,
+            duration.get_price(currency) + extra_amount,
+            currency,
+            apply_discount=apply_discount,
         )
 
     def parse_price(self, input_price: str, currency: Currency) -> Decimal:
