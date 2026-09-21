@@ -1,3 +1,4 @@
+from math import ceil
 from typing import Any, cast
 
 from adaptix import Retort
@@ -14,6 +15,7 @@ from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
 from src.core.config import AppConfig
 from src.core.enums import PurchaseType
+from src.core.utils.time import datetime_now
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
     i18n_format_device_limit,
@@ -209,6 +211,7 @@ async def payment_method_getter(
     i18n: FromDishka[TranslatorRunner],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
+    subscription_dao: FromDishka[SubscriptionDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -305,7 +308,26 @@ async def confirm_getter(
 
     plan_is_modified = 1 if dialog_manager.dialog_data.get("plan_is_modified", False) else 0
 
+    # Смена тарифа не продлевает, а заменяет: старая подписка помечается
+    # удалённой, у новой срок считается с сегодня, трафик обнуляется.
+    # Базовый текст говорит про это глухо — «без пересчёта оставшегося
+    # срока», — и человек узнаёт цену решения уже после оплаты. Считаем,
+    # сколько дней он теряет, чтобы назвать это числом.
+    days_lost = 0
+    if purchase_type == PurchaseType.CHANGE:
+        current = await subscription_dao.get_current(user.id)
+        if current and current.expire_at:
+            left = (current.expire_at - datetime_now()).total_seconds()
+            days_lost = max(0, ceil(left / 86400))
+
+    # Ветку выбираем строкой, посчитанной здесь, а не условием в самом
+    # переводе: селекторы сопоставляют ключи как строки, и булево значение
+    # из питона в ветку [true] не попадает — молча уходит в умолчание.
+    days_key, days_kwargs = i18n_format_days(days_lost)
+
     return {
+        "change_warning": "SHOW" if days_lost > 0 else "HIDE",
+        "change_days_lost": i18n.get(days_key, **days_kwargs),
         "purchase_type": purchase_type,
         "plan": i18n.get(plan.name),
         "description": i18n.get(plan.description) if plan.description else False,

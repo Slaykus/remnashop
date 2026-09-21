@@ -202,6 +202,11 @@ payment_method = Window(
 confirm = Window(
     Banner(BannerName.SUBSCRIPTION),
     I18nFormat("msg-subscription-confirm"),
+    # Отдельной строкой, а не внутри общего текста: тот лежит в базовом
+    # наборе переводов, вшитом в образ, а переопределить его в custom.ftl
+    # значило бы продублировать туда же половину соседних сообщений —
+    # слой компилируется отдельно и на базовые определения не ссылается.
+    I18nFormat("msg-subscription-change-warning"),
     Row(
         Url(
             text=I18nFormat("btn-subscription.pay"),
