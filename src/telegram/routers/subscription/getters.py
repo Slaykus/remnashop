@@ -216,7 +216,9 @@ async def duration_getter(
         "plan": i18n.get(plan.name),
         "description": i18n.get(plan.description) if plan.description else False,
         "type": plan.type,
-        "devices": i18n_format_device_limit(plan.device_limit),
+        # С докупленными: у человека их может быть больше, чем даёт
+        # тариф, и видеть в описании покупки тарифную цифру ему незачем.
+        "devices": i18n_format_device_limit(plan.device_limit + extra_devices),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "durations": durations,
         "period": 0,
@@ -284,7 +286,9 @@ async def payment_method_getter(
         "plan": i18n.get(plan.name),
         "description": i18n.get(plan.description) if plan.description else False,
         "type": plan.type,
-        "devices": i18n_format_device_limit(plan.device_limit),
+        # С докупленными: у человека их может быть больше, чем даёт
+        # тариф, и видеть в описании покупки тарифную цифру ему незачем.
+        "devices": i18n_format_device_limit(plan.device_limit + extra_devices),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "period": i18n.get(key, **kw),
         "payment_methods": payment_methods,
@@ -340,6 +344,8 @@ async def confirm_getter(
 
     plan_is_modified = 1 if dialog_manager.dialog_data.get("plan_is_modified", False) else 0
 
+    extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
+
     # Смена тарифа не продлевает, а заменяет: старая подписка помечается
     # удалённой, у новой срок считается с сегодня, трафик обнуляется.
     # Базовый текст говорит про это глухо — «без пересчёта оставшегося
@@ -364,7 +370,9 @@ async def confirm_getter(
         "plan": i18n.get(plan.name),
         "description": i18n.get(plan.description) if plan.description else False,
         "type": plan.type,
-        "devices": i18n_format_device_limit(plan.device_limit),
+        # С докупленными: у человека их может быть больше, чем даёт
+        # тариф, и видеть в описании покупки тарифную цифру ему незачем.
+        "devices": i18n_format_device_limit(plan.device_limit + extra_devices),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "period": i18n.get(key, **kw),
         "payment_method": selected_payment_method,

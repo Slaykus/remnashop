@@ -16,6 +16,7 @@ from src.application.services.device_pricing import (
     extra_devices_price,
     monthly_extra_price,
     monthly_rate,
+    one_more_device_price,
     price_in_currency,
 )
 
@@ -122,3 +123,33 @@ def test_conversion_refuses_to_guess_without_an_anchor() -> None:
     # Молча отдать ноль значило бы продать устройство даром.
     with pytest.raises(ValueError):
         price_in_currency(Decimal(80), Decimal(0), Decimal("2.50"), 2)
+
+
+@pytest.mark.parametrize(
+    ("current", "expected_monthly"),
+    [
+        (2, 80),    # третье устройство
+        (3, 80),    # четвёртое — столько же, а не накопленные 160
+        (5, 80),    # шестое
+        (6, 70),    # седьмое, ставка падает
+        (9, 70),    # десятое
+    ],
+)
+def test_one_more_device_is_priced_alone(current: int, expected_monthly: int) -> None:
+    # За уже докупленные человек заплатил в своё время. Брать за них снова
+    # при каждой следующей докупке значит брать дважды — так и было.
+    assert one_more_device_price(current, term_days=30) == Decimal(expected_monthly)
+
+
+def test_one_more_device_prorates_without_a_rounding_penalty() -> None:
+    # Разность считается от неокруглённых величин: иначе округление каждой
+    # порознь прибавляло к цене лишний рубль.
+    assert one_more_device_price(2, term_days=30, days=23) == Decimal(61)
+    assert one_more_device_price(3, term_days=30, days=23) == Decimal(61)
+    assert one_more_device_price(4, term_days=30, days=23) == Decimal(61)
+
+
+def test_cumulative_price_still_answers_for_renewal() -> None:
+    # Продление платит за весь набор сверх тарифа, а не за одно устройство.
+    assert extra_devices_price(4, term_days=30) == Decimal(160)
+    assert extra_devices_price(3, term_days=30) == Decimal(80)

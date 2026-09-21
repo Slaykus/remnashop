@@ -12,6 +12,7 @@ from src.application.dto import TelegramUserDto
 from src.application.services.device_pricing import (
     MAX_ADDON_DEVICES,
     monthly_rate as device_monthly_rate,
+    one_more_device_price,
 )
 from src.application.services.pricing import PricingService
 from src.application.use_cases.misc.queries.menu import GetMenuData
@@ -201,25 +202,35 @@ async def devices_getter(
     # Подсказка про докупку. Ветку выбираем готовой строкой: селекторы в
     # переводах сопоставляют ключи как строки, и булево туда не попадает.
     limit = current_subscription.device_limit
-    can_add = (
-        settings.extra.device_addon_enabled
-        and limit > 0
-        and limit + 1 <= MAX_ADDON_DEVICES
-    )
-    if not can_add:
-        # Безлимит, потолок докупки или выключенная возможность — предлагать
-        # нечего, и подсказка вместе с кнопкой не показывается.
+    enabled = settings.extra.device_addon_enabled
+    if not enabled or limit <= 0:
+        # Выключено или безлимит — предлагать нечего и сказать нечего.
         addon_hint = "HIDE"
+    elif limit + 1 > MAX_ADDON_DEVICES:
+        # Потолок докупки. Кнопки нет, но человеку объясняем, куда идти.
+        addon_hint = "CEILING"
     elif len(devices) >= limit:
         addon_hint = "FULL"
     else:
         addon_hint = "FREE"
+
+    # Сколько стоит следующее устройство прямо сейчас, за остаток подписки.
+    # Одну месячную ставку показывать мало: человек видел «80 ₽ в месяц», а
+    # на кассе ему выставляли 61 ₽, и это выглядело расхождением.
+    addon_now_price = int(
+        one_more_device_price(
+            current_devices=limit,
+            term_days=current_subscription.plan_snapshot.duration,
+            days=current_subscription.days_left,
+        )
+    )
 
     return {
         "current_count": len(devices),
         "max_count": current_subscription.device_limit,
         "addon_hint": addon_hint,
         "next_device_price": int(device_monthly_rate(limit + 1)),
+        "addon_now_price": addon_now_price,
         "devices": formatted_devices,
         "devices_empty": len(devices) == 0,
         "has_devices": len(devices) > 0,

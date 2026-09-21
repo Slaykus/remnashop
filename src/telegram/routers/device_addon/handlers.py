@@ -11,13 +11,13 @@ from loguru import logger
 from src.application.common import Notifier
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SubscriptionDao
 from src.application.dto import PlanSnapshotDto, PriceDetailsDto, TelegramUserDto
-from src.application.services.device_pricing import extra_devices_price
+from src.application.services.device_pricing import one_more_device_price
 from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
 from src.core.constants import USER_KEY
 from src.core.enums import PaymentGatewayType, PurchaseType
 from src.telegram.states import DeviceAddon
 
-from .getters import anchor_prices, days_left, gateway_price
+from .getters import anchor_prices, gateway_price
 
 
 def snapshot_for_devices(
@@ -64,10 +64,10 @@ async def on_gateway_select(
         return
 
     new_total = subscription.device_limit + 1
-    left = days_left(subscription)
+    left = subscription.days_left
 
-    amount_rub = extra_devices_price(
-        total_devices=new_total,
+    amount_rub = one_more_device_price(
+        current_devices=subscription.device_limit,
         term_days=subscription.plan_snapshot.duration,
         days=left,
     )

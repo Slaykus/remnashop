@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from math import ceil
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -81,6 +82,14 @@ class SubscriptionDto(BaseDto, TrackableMixin, TimestampMixin):
     device_single_reset_at: Optional[datetime] = None
     device_all_reset_at: Optional[datetime] = None
     link_reset_at: Optional[datetime] = None
+
+    @property
+    def days_left(self) -> int:
+        """Сколько дней ещё оплачено. По ним считается цена докупки."""
+        if not self.expire_at:
+            return 0
+        seconds = (self.expire_at - datetime_now()).total_seconds()
+        return max(0, ceil(seconds / 86400))
 
     @property
     def is_active(self) -> bool:

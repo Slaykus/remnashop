@@ -91,9 +91,22 @@ def term_factor(term_days: int) -> Decimal:
     return _TERM_FACTORS.get(term_days, Decimal("1.0"))
 
 
+def _raw_extra_price(total_devices: int, term_days: int, days: int) -> Decimal:
+    """Доплата без округления — чтобы разности считались от точных чисел."""
+    if days <= 0 or total_devices <= BASE_DEVICES:
+        return Decimal(0)
+
+    return (
+        monthly_extra_price(total_devices)
+        * term_factor(term_days)
+        * Decimal(days)
+        / _DAYS_IN_MONTH
+    )
+
+
 def extra_devices_price(total_devices: int, term_days: int, days: int | None = None) -> Decimal:
     """
-    Доплата за устройства сверх базовых, в рублях.
+    Доплата за все устройства сверх базовых, в рублях.
 
     'term_days' — срок подписки, он задаёт скидку за длительность.
     'days' — на сколько дней покупаем; по умолчанию на весь срок.
@@ -105,16 +118,31 @@ def extra_devices_price(total_devices: int, term_days: int, days: int | None = N
     """
     if days is None:
         days = term_days
-    if days <= 0 or total_devices <= BASE_DEVICES:
-        return Decimal(0)
-
-    price = (
-        monthly_extra_price(total_devices)
-        * term_factor(term_days)
-        * Decimal(days)
-        / _DAYS_IN_MONTH
+    return _raw_extra_price(total_devices, term_days, days).quantize(
+        Decimal("1"), rounding=ROUND_HALF_UP
     )
-    return price.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+
+def one_more_device_price(
+    current_devices: int, term_days: int, days: int | None = None
+) -> Decimal:
+    """
+    Сколько стоит поднять потолок ровно на одно устройство.
+
+    Именно разность, а не полная доплата за все устройства сверх тарифа:
+    за уже купленные человек заплатил в своё время, и брать за них снова
+    при каждой следующей докупке — значит брать дважды.
+
+    Разность берётся от неокруглённых величин: иначе округление каждой из
+    них порознь добавляло бы к цене лишний рубль.
+    """
+    if days is None:
+        days = term_days
+
+    delta = _raw_extra_price(current_devices + 1, term_days, days) - _raw_extra_price(
+        current_devices, term_days, days
+    )
+    return max(Decimal(0), delta).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
 def price_in_currency(

@@ -1,4 +1,3 @@
-from math import ceil
 from typing import Any, Optional
 
 from aiogram_dialog import DialogManager
@@ -11,12 +10,13 @@ from src.application.dto import PaymentGatewayDto, PlanDto, SubscriptionDto, Tel
 from src.application.services.device_pricing import (
     MAX_ADDON_DEVICES,
     extra_devices_price,
+    monthly_rate,
+    one_more_device_price,
     price_in_currency,
 )
 from src.core.enums import Currency
 from src.core.exceptions import PriceNotFoundError
 from src.core.utils.i18n_helpers import i18n_format_days
-from src.core.utils.time import datetime_now
 
 # Сколько знаков после запятой у суммы в каждой валюте. Звёзды и рубли
 # целые, доллары — с копейками.
@@ -38,13 +38,6 @@ def _gateway_title(i18n: TranslatorRunner, gateway: PaymentGatewayDto) -> str:
         return gateway.settings.display_name
 
     return i18n.get("gateway-type", gateway_type=gateway.type)
-
-
-def days_left(subscription: SubscriptionDto) -> int:
-    """Сколько дней ещё оплачено. Ровно за них и берём деньги."""
-    if not subscription.expire_at:
-        return 0
-    return max(0, ceil((subscription.expire_at - datetime_now()).total_seconds() / 86400))
 
 
 def anchor_prices(plan: Optional[PlanDto]) -> Optional[tuple[Any, Any]]:
@@ -109,10 +102,12 @@ async def addon_getter(
     connected = len(await remnawave.get_devices(subscription.user_remna_id))
     current_limit = subscription.device_limit
     new_total = current_limit + 1
-    left = days_left(subscription)
+    left = subscription.days_left
 
-    amount_rub = extra_devices_price(
-        total_devices=new_total,
+    # Цена ровно за одно следующее устройство. За уже докупленные человек
+    # заплатил в своё время, и брать за них снова было бы вторым списанием.
+    amount_rub = one_more_device_price(
+        current_devices=current_limit,
         term_days=subscription.plan_snapshot.duration,
         days=left,
     )
@@ -134,9 +129,11 @@ async def addon_getter(
             }
         )
 
-    # Месячная цена того же набора — её человек увидит при продлении, и
-    # узнать о ней он должен до оплаты, а не через месяц при списании.
-    monthly_rub = extra_devices_price(total_devices=new_total, term_days=30)
+    # Сколько это устройство добавит к продлению и во что обойдётся весь
+    # набор сверх тарифа. Человек должен узнать обе цифры до оплаты, а не
+    # через месяц при списании.
+    monthly_rub = int(monthly_rate(new_total))
+    monthly_total_rub = extra_devices_price(total_devices=new_total, term_days=30)
 
     dialog_manager.dialog_data["new_total"] = new_total
     dialog_manager.dialog_data["days_left"] = left
@@ -165,6 +162,7 @@ async def addon_getter(
         "expire_at": subscription.expire_at.strftime("%d.%m.%Y"),
         "amount_rub": amount_rub,
         "monthly_rub": monthly_rub,
+        "monthly_total_rub": monthly_total_rub,
         "payment_methods": payment_methods,
         "has_methods": len(payment_methods) > 0,
         "can_pay": int(state == "OK"),
