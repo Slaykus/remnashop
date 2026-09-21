@@ -47,5 +47,7 @@ class BotProvider(Provider):
             # сессию, поэтому покрывает вообще все вызовы, включая те, что
             # делает aiogram_dialog сам по себе.
             bot.session.middleware(FloodControlMiddleware())
-            logger.debug("Flood control middleware attached to bot session")
+            # Не debug: при уровне INFO такую строку не видно, а знать,
+            # что защита от лимитов поднялась, надо при каждом старте.
+            logger.info("Flood control middleware attached to bot session")
             yield bot
