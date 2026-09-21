@@ -103,6 +103,10 @@ class PurchaseType(UpperStrEnum):
     RENEW = auto()
     CHANGE = auto()
     TRAFFIC_RESET = auto()
+    # Докупка устройств к действующей подписке. Отдельный вид покупки, а не
+    # разновидность смены тарифа: срок и трафик остаются нетронутыми, растёт
+    # только потолок устройств.
+    DEVICES = auto()
 
 
 class TransactionStatus(UpperStrEnum):

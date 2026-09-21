@@ -230,6 +230,37 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                 await self.uow.commit()
                 logger.debug(f"{actor.log} Changed subscription for user '{user.id}'")
 
+            # 4. ДОКУПКА УСТРОЙСТВ
+            elif purchase_type == PurchaseType.DEVICES:
+                if not subscription:
+                    raise ValueError(
+                        f"No subscription found for device purchase for user "
+                        f"'{user.remna_name}'"
+                    )
+
+                # Сколько устройств человек оплатил, записано в снимке этой
+                # покупки: там лежит новый общий потолок. Надбавку считаем
+                # разницей с тем, что даёт его тариф, — так она переживёт
+                # продление и попадёт в его цену.
+                base_devices = subscription.plan_snapshot.device_limit
+                subscription.extra_devices = max(0, plan.device_limit - base_devices)
+                subscription.device_limit = plan.device_limit
+
+                # Ни срока, ни трафика не касаемся: человек купил потолок, а
+                # не время. Обнулить ему тут трафик было бы кражей.
+                await self.subscription_dao.update(subscription)
+                await self.remnawave.update_user(
+                    user=user,
+                    uuid=subscription.user_remna_id,
+                    subscription=subscription,
+                )
+                await self.uow.commit()
+
+                logger.debug(
+                    f"{actor.log} Devices raised to '{subscription.device_limit}' "
+                    f"for user '{user.id}'"
+                )
+
             else:
                 raise ValueError(
                     f"Unknown purchase type '{purchase_type}' for user '{user.remna_name}'"
