@@ -10,7 +10,7 @@ from src.core.constants import INLINE_QUERY_INVITE, INLINE_QUERY_PROXY, PAYMENT_
 from src.core.enums import BannerName
 from src.telegram.keyboards import build_buttons_row, connect_buttons
 from src.telegram.routers.dashboard.handlers import on_smart_search
-from src.telegram.states import Dashboard, MainMenu, Subscription
+from src.telegram.states import Dashboard, DeviceAddon, MainMenu, Subscription
 from src.telegram.utils import require_permission
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.widgets.kbd import (
@@ -159,6 +159,11 @@ menu = Window(
 devices = Window(
     Banner(BannerName.DEVICES),
     I18nFormat("msg-menu-devices"),
+    # Отдельной строкой, а не правкой msg-menu-devices: тот ссылается на
+    # unlimited, empty и space из базового набора, а слой custom.ftl
+    # компилируется отдельно и до базовых определений не дотягивается —
+    # переопределение утащило бы их все сюда.
+    I18nFormat("msg-menu-devices-addon", F["addon_hint"] != "HIDE"),
     Row(
         Button(
             text=I18nFormat("btn-common.devices-empty"),
@@ -184,6 +189,15 @@ devices = Window(
         item_id_getter=lambda item: item["index"],
         items="devices",
         when=F["has_devices"],
+    ),
+    Row(
+        Start(
+            text=I18nFormat("btn-device-addon.add"),
+            id="device_addon_start",
+            state=DeviceAddon.MAIN,
+            when=F["addon_hint"] != "HIDE",
+            style=Style(ButtonStyle.SUCCESS),
+        ),
     ),
     Row(
         Start(

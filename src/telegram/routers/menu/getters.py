@@ -9,6 +9,10 @@ from loguru import logger
 from src.application.common import BotService, Remnawave, TranslatorRunner
 from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
+from src.application.services.device_pricing import (
+    MAX_ADDON_DEVICES,
+    monthly_rate as device_monthly_rate,
+)
 from src.application.services.pricing import PricingService
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.core.config import AppConfig
@@ -194,9 +198,22 @@ async def devices_getter(
 
     settings = await settings_dao.get()
 
+    # Подсказка про докупку. Ветку выбираем готовой строкой: селекторы в
+    # переводах сопоставляют ключи как строки, и булево туда не попадает.
+    limit = current_subscription.device_limit
+    next_device = limit + 1
+    if limit <= 0 or next_device > MAX_ADDON_DEVICES:
+        addon_hint = "HIDE"
+    elif len(devices) >= limit:
+        addon_hint = "FULL"
+    else:
+        addon_hint = "FREE"
+
     return {
         "current_count": len(devices),
         "max_count": current_subscription.device_limit,
+        "addon_hint": addon_hint,
+        "next_device_price": int(device_monthly_rate(next_device)),
         "devices": formatted_devices,
         "devices_empty": len(devices) == 0,
         "has_devices": len(devices) > 0,

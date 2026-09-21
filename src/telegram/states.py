@@ -15,6 +15,18 @@ class MainMenu(StatesGroup):
     PROXY = State()
 
 
+class DeviceAddon(StatesGroup):
+    """Докупка устройств к действующей подписке.
+
+    Отдельной группой, а не веткой в Subscription: там выбирают тариф и
+    срок, здесь ни того, ни другого нет — срок равен остатку подписки.
+    Заодно боевой путь оплаты подписки остаётся нетронутым.
+    """
+
+    MAIN = State()
+    CONFIRM = State()
+
+
 class Notification(StatesGroup):
     CLOSE = State()
 
