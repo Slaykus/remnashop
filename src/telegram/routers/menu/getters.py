@@ -201,8 +201,14 @@ async def devices_getter(
     # Подсказка про докупку. Ветку выбираем готовой строкой: селекторы в
     # переводах сопоставляют ключи как строки, и булево туда не попадает.
     limit = current_subscription.device_limit
-    next_device = limit + 1
-    if limit <= 0 or next_device > MAX_ADDON_DEVICES:
+    can_add = (
+        settings.extra.device_addon_enabled
+        and limit > 0
+        and limit + 1 <= MAX_ADDON_DEVICES
+    )
+    if not can_add:
+        # Безлимит, потолок докупки или выключенная возможность — предлагать
+        # нечего, и подсказка вместе с кнопкой не показывается.
         addon_hint = "HIDE"
     elif len(devices) >= limit:
         addon_hint = "FULL"
@@ -213,7 +219,7 @@ async def devices_getter(
         "current_count": len(devices),
         "max_count": current_subscription.device_limit,
         "addon_hint": addon_hint,
-        "next_device_price": int(device_monthly_rate(next_device)),
+        "next_device_price": int(device_monthly_rate(limit + 1)),
         "devices": formatted_devices,
         "devices_empty": len(devices) == 0,
         "has_devices": len(devices) > 0,

@@ -232,6 +232,10 @@ class ExtraSettingsDto(TrackableMixin):
     # значение по умолчанию.
     reactivation_enabled: bool = False
     reactivation_dry_run: bool = True
+    # Докупка устройств. Выключена с рождения: она берёт с людей деньги, а
+    # проверить оплату до конца можно только на живом платеже. Включать
+    # должен человек, а не значение по умолчанию.
+    device_addon_enabled: bool = False
 
 
 @dataclass(kw_only=True)
