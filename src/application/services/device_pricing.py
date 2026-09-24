@@ -145,6 +145,33 @@ def one_more_device_price(
     return max(Decimal(0), delta).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
+def bought_devices_price(
+    plan_devices: int, extra_devices: int, term_days: int, days: int | None = None
+) -> Decimal:
+    """
+    Сколько стоят докупленные устройства сверх тех, что даёт тариф.
+
+    Именно сверх тарифных, а не все сверх двух базовых: устройства самого
+    тарифа уже заложены в его цену, и добавлять их второй раз — значит
+    брать за них дважды. Duo с четырьмя устройствами стоил бы тогда цену
+    тарифа плюс ещё два устройства.
+
+    Разность берётся от неокруглённых величин: округление каждой порознь
+    добавляло бы к цене лишний рубль.
+    """
+    if days is None:
+        days = term_days
+
+    # Безлимитный тариф: устройств у него нет числом, докупать нечего.
+    if plan_devices <= 0 or extra_devices <= 0:
+        return Decimal(0)
+
+    delta = _raw_extra_price(
+        plan_devices + extra_devices, term_days, days
+    ) - _raw_extra_price(plan_devices, term_days, days)
+    return max(Decimal(0), delta).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+
 def price_in_currency(
     amount_rub: Decimal,
     anchor_rub: Decimal,

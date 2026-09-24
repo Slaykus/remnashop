@@ -4,7 +4,7 @@ from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from loguru import logger
 
 from src.application.dto import PlanDto, PlanDurationDto, PriceDetailsDto, UserDto
-from src.application.services.device_pricing import extra_devices_price, price_in_currency
+from src.application.services.device_pricing import bought_devices_price, price_in_currency
 from src.core.enums import Currency
 from src.core.exceptions import PriceNotFoundError
 
@@ -107,19 +107,26 @@ class PricingService:
     def device_surcharge(
         self,
         plan: PlanDto,
-        total_devices: int,
+        extra_devices: int,
         term_days: int,
         currency: Currency,
         days: int | None = None,
     ) -> Decimal:
         """
-        Надбавка за устройства сверх тарифа, в валюте оплаты.
+        Надбавка за докупленные устройства, в валюте оплаты.
+
+        Считается сверх устройств самого тарифа: они уже входят в его цену,
+        и добавлять их второй раз значит брать за них дважды. Сколько их у
+        тарифа, берём из него же, а не от вызывающего, — так надбавку
+        нельзя посчитать не от той базы.
 
         Пустой тариф или отсутствие его цены в нужной валюте — повод
         отказаться, а не отдать ноль: ноль здесь означает подарить
         устройство, а это ошибка, которую никто не заметит.
         """
-        amount_rub = extra_devices_price(total_devices, term_days, days)
+        amount_rub = bought_devices_price(
+            plan.device_limit, extra_devices, term_days, days
+        )
         if amount_rub <= 0:
             return Decimal(0)
         if currency == Currency.RUB:

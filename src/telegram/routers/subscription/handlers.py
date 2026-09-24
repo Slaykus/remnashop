@@ -97,7 +97,7 @@ async def _create_payment_and_get_data(
     # увиденная сумма разойдётся со списанной.
     extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
     surcharge = pricing_service.device_surcharge(
-        plan, plan.device_limit + extra_devices, duration.days, payment_gateway.currency
+        plan, extra_devices, duration.days, payment_gateway.currency
     )
 
     transaction_plan = PlanSnapshotDto.from_plan(plan, duration.days)

@@ -194,7 +194,7 @@ async def duration_getter(
     for duration in plan.durations:
         key, kw = i18n_format_days(duration.days)
         surcharge = pricing_service.device_surcharge(
-            plan, plan.device_limit + extra_devices, duration.days, currency
+            plan, extra_devices, duration.days, currency
         )
         price = pricing_service.calculate_for_duration(
             user, duration, currency, extra_amount=surcharge
@@ -261,7 +261,7 @@ async def payment_method_getter(
     payment_methods = []
     for gateway in gateways:
         surcharge = pricing_service.device_surcharge(
-            plan, plan.device_limit + extra_devices, duration.days, gateway.currency
+            plan, extra_devices, duration.days, gateway.currency
         )
         price = pricing_service.calculate_for_duration(
             user, duration, gateway.currency, apply_discount=not plan.is_trial,
