@@ -50,6 +50,13 @@ from src.application.use_cases.gateways.commands.payment import CreatePayment, C
 from src.application.use_cases.remnawave.commands.management import DeleteUserDeviceDto, DeleteUserDevice, ReissueSubscription
 from src.application.use_cases.user.queries.plans import GetAvailablePlans, GetAvailableTrial
 from src.application.use_cases.subscription import AddSubscriptionDuration
+from src.application.use_cases.subscription.commands.add_device import (
+    CreateDeviceAddonPayment,
+    CreateDeviceAddonPaymentDto,
+    DeviceAddonError,
+    GetDeviceAddonOffer,
+    GetDeviceAddonOfferDto,
+)
 from src.application.use_cases.subscription.commands.management import AddSubscriptionDurationDto
 from src.application.use_cases.subscription.commands.purchase import ActivateFreePlan, ActivateFreePlanDto
 from src.application.use_cases.gateways.commands.payment import gift_code_for_payment
@@ -1009,6 +1016,160 @@ async def reissue_subscription(
         await reissue(user, None)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Докупка устройства
+# ---------------------------------------------------------------------------
+
+# Платить звёздами можно только внутри телеграма, поэтому сайту их не
+# предлагаем: кнопка, которая никуда не ведёт, хуже её отсутствия.
+_WEB_EXCLUDED_GATEWAYS = frozenset({PaymentGatewayType.TELEGRAM_STARS})
+
+
+class DeviceAddonMethodResponse(BaseModel):
+    type: str
+    amount: str
+    currency: str
+
+
+class DeviceAddonResponse(BaseModel):
+    # Почему нельзя, если нельзя: OK, UNLIMITED, CEILING, NOTHING_TO_PAY,
+    # NO_METHODS. Что из этого показать человеку — дело кабинета.
+    state: str
+    available: bool
+    current_limit: int
+    new_total: int
+    max_devices: int
+    days_left: int
+    expire_at: datetime | None
+    amount_rub: str
+    monthly_rub: int
+    monthly_total_rub: str
+    methods: list[DeviceAddonMethodResponse]
+
+
+class CreateDeviceAddonRequest(BaseModel):
+    gateway_type: str
+    return_url: str | None = None
+
+
+class CreateDeviceAddonResponse(BaseModel):
+    payment_id: str
+    payment_url: str | None
+    amount: str
+    currency: str
+    new_total: int
+    days_left: int
+
+
+@router.get(
+    "/subscriptions/{telegram_id}/devices/addon",
+    response_model=DeviceAddonResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_device_addon_offer(
+    telegram_id: int,
+    user_dao: FromDishka[UserDao],
+    get_offer: FromDishka[GetDeviceAddonOffer],
+) -> DeviceAddonResponse:
+    """
+    Сколько стоит следующее устройство и чем за него можно заплатить.
+
+    Считает тот же сценарий, что и экран в боте. Свой расчёт на стороне
+    кабинета однажды назвал бы за одно и то же другую цену — ровно то
+    расхождение, ради устранения которого тарифы сведены к одной формуле.
+    """
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        offer = await get_offer(
+            user, GetDeviceAddonOfferDto(exclude_gateways=_WEB_EXCLUDED_GATEWAYS)
+        )
+    except DeviceAddonError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return DeviceAddonResponse(
+        state=offer.state,
+        available=offer.can_pay,
+        current_limit=offer.current_limit,
+        new_total=offer.new_total,
+        max_devices=offer.max_devices,
+        days_left=offer.days_left,
+        expire_at=offer.expire_at,
+        amount_rub=str(offer.amount_rub),
+        monthly_rub=offer.monthly_rub,
+        monthly_total_rub=str(offer.monthly_total_rub),
+        methods=[
+            DeviceAddonMethodResponse(
+                type=m.gateway_type.value.lower(),
+                amount=str(m.amount),
+                currency=m.currency,
+            )
+            for m in offer.methods
+        ],
+    )
+
+
+@router.post(
+    "/subscriptions/{telegram_id}/devices/addon",
+    response_model=CreateDeviceAddonResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def create_device_addon_payment(
+    telegram_id: int,
+    body: CreateDeviceAddonRequest,
+    user_dao: FromDishka[UserDao],
+    create_addon_payment: FromDishka[CreateDeviceAddonPayment],
+) -> CreateDeviceAddonResponse:
+    """
+    Счёт на одно дополнительное устройство.
+
+    Сумму снаружи не принимаем: её считает сценарий. Иначе цену назначал бы
+    тот, кто зовёт ручку.
+    """
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        gateway_type = PaymentGatewayType(body.gateway_type.upper())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown gateway type: {body.gateway_type}")
+
+    if gateway_type in _WEB_EXCLUDED_GATEWAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gateway '{body.gateway_type}' is not available outside Telegram",
+        )
+
+    try:
+        result = await create_addon_payment(
+            user,
+            CreateDeviceAddonPaymentDto(
+                gateway_type=gateway_type,
+                return_url=body.return_url,
+            ),
+        )
+    except DeviceAddonError as e:
+        # Не ошибка запроса: спросить было можно, но докупать нечего —
+        # кончились оплаченные дни, упёрлись в потолок, безлимит.
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Payment creation failed: {e}")
+
+    return CreateDeviceAddonResponse(
+        payment_id=result.payment_id,
+        payment_url=result.payment_url,
+        amount=str(result.amount),
+        currency=result.currency,
+        new_total=result.new_total,
+        days_left=result.days_left,
+    )
 
 
 class CreateUserRequest(BaseModel):

@@ -2,6 +2,7 @@ from typing import Final
 
 from src.application.common import Interactor
 
+from .commands.add_device import CreateDeviceAddonPayment, GetDeviceAddonOffer
 from .commands.management import (
     AddSubscriptionDuration,
     DeleteSubscription,
@@ -23,6 +24,8 @@ from .commands.sync import (
 from .queries.match import MatchSubscription
 
 SUBSCRIPTION_USE_CASES: Final[tuple[type[Interactor], ...]] = (
+    GetDeviceAddonOffer,
+    CreateDeviceAddonPayment,
     ToggleSubscriptionStatus,
     DeleteSubscription,
     UpdateTrafficLimit,

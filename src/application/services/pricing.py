@@ -138,6 +138,31 @@ class PricingService:
             self._DECIMALS.get(currency, 2),
         )
 
+    def convert_from_rub(self, plan: PlanDto, amount_rub: Decimal, currency: Currency) -> Decimal:
+        """
+        Рублёвую сумму — в валюту оплаты, по курсу самого тарифа.
+
+        Отдельно от 'device_surcharge' потому, что сумма бывает уже
+        посчитана: цена одного следующего устройства — это разность, и
+        пересчитывать её из числа устройств заново значило бы повторить
+        расчёт и однажды разойтись с ним.
+        """
+        if currency == Currency.RUB:
+            return amount_rub
+
+        anchor_duration = plan.get_duration(self._ANCHOR_DAYS)
+        if anchor_duration is None:
+            raise PriceNotFoundError(
+                f"No monthly duration in plan '{plan.name}' to convert from"
+            )
+
+        return price_in_currency(
+            amount_rub,
+            anchor_duration.get_price(Currency.RUB),
+            anchor_duration.get_price(currency),
+            self._DECIMALS.get(currency, 2),
+        )
+
     def calculate_for_duration(
         self,
         user: UserDto,
