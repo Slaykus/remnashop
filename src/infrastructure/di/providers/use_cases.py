@@ -17,6 +17,9 @@ from src.application.use_cases.remnawave import REMNAWAVE_USE_CASES
 from src.application.use_cases.settings import SETTINGS_USE_CASES
 from src.application.use_cases.statistics import STATISTICS_USE_CASES
 from src.application.use_cases.subscription import SUBSCRIPTION_USE_CASES
+from src.application.use_cases.subscription.commands.add_device import (
+    DEVICE_ADDON_USE_CASES,
+)
 from src.application.use_cases.user import USER_USE_CASES
 from src.application.use_cases.node_quota import NODE_QUOTA_USE_CASES
 from src.application.use_cases.ad_link import AD_LINK_USE_CASES
@@ -42,6 +45,7 @@ class UseCasesProvider(Provider):
         *REMNAWAVE_USE_CASES,
         *SETTINGS_USE_CASES,
         *SUBSCRIPTION_USE_CASES,
+        *DEVICE_ADDON_USE_CASES,
         *USER_USE_CASES,
         *STATISTICS_USE_CASES,
         *NODE_QUOTA_USE_CASES,

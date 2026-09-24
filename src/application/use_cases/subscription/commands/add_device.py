@@ -10,7 +10,7 @@
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Final, Optional
 
 from loguru import logger
 
@@ -321,3 +321,14 @@ class CreateDeviceAddonPayment(
             new_total=new_total,
             days_left=days_left,
         )
+
+
+# Регистрируется отдельно от SUBSCRIPTION_USE_CASES, а не в общем списке
+# пакета. Этот модуль тянет за собой выставление счёта, а оно — начисление
+# реферальных наград, которое само возвращается в пакет подписки. Пока
+# список лежал в '__init__.py', импорт пакета начинался с этой цепочки и
+# упирался в полупостроенный модуль наград: бот падал на старте.
+DEVICE_ADDON_USE_CASES: Final[tuple[type[Interactor], ...]] = (
+    GetDeviceAddonOffer,
+    CreateDeviceAddonPayment,
+)
