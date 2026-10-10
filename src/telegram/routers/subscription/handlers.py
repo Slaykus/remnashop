@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Any, Optional, TypedDict, cast
 
 from adaptix import Retort
@@ -22,6 +23,7 @@ from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
 from src.core.constants import PAYMENT_PREFIX, USER_KEY
 from src.core.enums import PaymentGatewayType, PurchaseType, TransactionStatus
+from src.core.utils.time import datetime_now
 from src.telegram.states import Subscription
 
 from .getters import renewal_extra_devices
@@ -46,10 +48,25 @@ CURRENT_DURATION_KEY = "selected_duration"
 CURRENT_METHOD_KEY = "selected_payment_method"
 
 
+# Сколько ссылка на оплату годится для повторной выдачи.
+#
+# Кэш нужен ради повторных нажатий: каждое создание платежа — это
+# настоящий платёж на стороне шлюза, и плодить их по одному на клик не
+# надо. Но ссылка живёт недолго — у ЮKassa она умирает минут через
+# десять-пятнадцать, — а запись в кэше жила столько же, сколько диалог.
+# Через час человек получал на неё мёртвую ссылку, и новый платёж не
+# создавался уже никогда: ключ в кэше есть, значит создавать нечего.
+#
+# Срок взят с запасом вниз от самой короткой известной: за пять минут
+# двойное нажатие в кэш попадает, а мёртвая ссылка оттуда — нет.
+_PAYMENT_CACHE_TTL = timedelta(minutes=5)
+
+
 class CachedPaymentData(TypedDict):
     payment_id: str
     payment_url: Optional[str]
     final_pricing: str
+    created_at: str
 
 
 def _get_cache_key(
@@ -62,6 +79,37 @@ def _load_payment_data(dialog_manager: DialogManager) -> dict[str, CachedPayment
     if PAYMENT_CACHE_KEY not in dialog_manager.dialog_data:
         dialog_manager.dialog_data[PAYMENT_CACHE_KEY] = {}
     return cast(dict[str, CachedPaymentData], dialog_manager.dialog_data[PAYMENT_CACHE_KEY])
+
+
+def _take_fresh_payment(
+    cache: dict[str, CachedPaymentData], cache_key: str
+) -> Optional[CachedPaymentData]:
+    """
+    Ссылка из кэша, если она ещё жива.
+
+    Протухшую не возвращаем, а выбрасываем: пока ключ лежит в кэше, новый
+    платёж не создаётся, и человек остаётся с нерабочей ссылкой навсегда.
+
+    Запись без отметки времени тоже считаем протухшей. Такие остались в
+    диалогах, начатых до появления срока, и выдать ссылку из них значило
+    бы повторить ту же ошибку на тех самых людях, которые в неё уже
+    попали.
+    """
+    cached = cache.get(cache_key)
+    if cached is None:
+        return None
+
+    created_raw = cached.get("created_at")
+    if created_raw:
+        try:
+            created = datetime.fromisoformat(created_raw)
+        except ValueError:
+            created = None
+        if created is not None and datetime_now() - created < _PAYMENT_CACHE_TTL:
+            return cached
+
+    cache.pop(cache_key, None)
+    return None
 
 
 def _save_payment_data(dialog_manager: DialogManager, payment_data: CachedPaymentData) -> None:
@@ -124,6 +172,7 @@ async def _create_payment_and_get_data(
             payment_id=str(result.id),
             payment_url=result.url,
             final_pricing=retort.dump(pricing),
+            created_at=datetime_now().isoformat(),
         )
 
     except Exception:
@@ -393,9 +442,10 @@ async def on_duration_select(
         cache = _load_payment_data(dialog_manager)
         cache_key = _get_cache_key(selected_duration, selected_payment_method, purchase_type)
 
-        if cache_key in cache:
+        cached = _take_fresh_payment(cache, cache_key)
+        if cached is not None:
             logger.info(f"{user.log} Re-selected same duration and single gateway")
-            _save_payment_data(dialog_manager, cache[cache_key])
+            _save_payment_data(dialog_manager, cached)
             await dialog_manager.switch_to(state=Subscription.CONFIRM)
             return
 
@@ -446,13 +496,14 @@ async def on_payment_method_select(
     cache = _load_payment_data(dialog_manager)
     cache_key = _get_cache_key(selected_duration, selected_payment_method, purchase_type)
 
-    if cache_key in cache:
+    cached = _take_fresh_payment(cache, cache_key)
+    if cached is not None:
         logger.info(f"{user.log} Re-selected same method and duration")
-        _save_payment_data(dialog_manager, cache[cache_key])
+        _save_payment_data(dialog_manager, cached)
         await dialog_manager.switch_to(state=Subscription.CONFIRM)
         return
 
-    logger.info(f"{user.log} New combination. Creating new payment")
+    logger.info(f"{user.log} No fresh payment for this combination. Creating a new one")
 
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
 
