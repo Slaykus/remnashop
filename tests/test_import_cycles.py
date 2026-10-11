@@ -8,6 +8,11 @@
 реферальные награды возвращалось в тот же пакет.
 
 Поэтому каждый модуль проверяем в отдельном процессе и первым импортом.
+
+Отмечено 'heavy' и по умолчанию выключено: каждый случай поднимает весь
+граф зависимостей заново, и прогон на боевой машине с 2 ГБ и квотой CPU
+отправляет её в своп вместе с ботом — проверено дважды, оба раза мной.
+Запускать там, где есть ресурсы: pytest -m heavy
 """
 
 import subprocess
@@ -30,6 +35,7 @@ ENTRY_POINTS = [
 ]
 
 
+@pytest.mark.heavy
 @pytest.mark.parametrize("module", ENTRY_POINTS)
 def test_module_imports_on_its_own(module: str) -> None:
     result = subprocess.run(
