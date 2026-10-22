@@ -23,7 +23,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from remnapy import RemnawaveSDK
 
-from src.application.common import BotService, Remnawave
+from src.application.common import BotService, EventPublisher, Remnawave
 from decimal import Decimal
 
 from src.core.enums import ReferralLevel
@@ -72,6 +72,7 @@ from src.core.exceptions import (
 )
 from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, TransactionStatus
 from src.core.constants import AD_LINK_CODE_PATTERN, API_V1
+from src.application.events import ErrorEvent
 
 router = APIRouter(prefix=API_V1 + "/internal", tags=["internal"])
 
@@ -89,6 +90,37 @@ async def verify_internal_key(x_internal_key: Annotated[str, Header()]) -> None:
         raise HTTPException(status_code=503, detail="Internal API is not configured (APP_WEB_API_KEY not set)")
     if not secrets.compare_digest(x_internal_key.encode(), expected.encode()):
         raise HTTPException(status_code=403, detail="Forbidden")
+
+
+async def _report_payment_failure(
+    error: Exception,
+    *,
+    what: str,
+    user: UserDto,
+    event_publisher: EventPublisher,
+    config: AppConfig,
+) -> None:
+    """
+    Записать провал создания платежа и сказать о нём владельцу.
+
+    Раньше эти ошибки уходили в ответ 502 и больше никуда: кабинет показывал
+    «не удалось», а у нас не оставалось ни строки. При этом платёж на стороне
+    шлюза к тому моменту уже создан — он создаётся внутри той же транзакции
+    БД, что и наша запись, — и если запись не сохранилась, у шлюза остаётся
+    платёж, о котором мы не знаем. Узнали мы о таком только из его же
+    вебхука об отмене час спустя.
+
+    Уведомление идёт через ErrorEvent — тот же канал, которым о себе
+    сообщают упавшие фоновые задачи. Своего сообщения не заводим: на платёжном
+    пути важно, чтобы работало, а не чтобы красиво выглядело.
+    """
+    logger.exception(f"{user.log} {what} failed")
+
+    try:
+        await event_publisher.publish(ErrorEvent(**config.build.data, exception=error))
+    except Exception as publish_error:
+        # Не смогли сказать — но в логе уже записано, и это главное.
+        logger.error(f"Failed to publish payment error event: {publish_error}")
 
 
 # ---------------------------------------------------------------------------
@@ -1125,6 +1157,8 @@ async def create_device_addon_payment(
     body: CreateDeviceAddonRequest,
     user_dao: FromDishka[UserDao],
     create_addon_payment: FromDishka[CreateDeviceAddonPayment],
+    event_publisher: FromDishka[EventPublisher],
+    config: FromDishka[AppConfig],
 ) -> CreateDeviceAddonResponse:
     """
     Счёт на одно дополнительное устройство.
@@ -1157,9 +1191,18 @@ async def create_device_addon_payment(
         )
     except DeviceAddonError as e:
         # Не ошибка запроса: спросить было можно, но докупать нечего —
-        # кончились оплаченные дни, упёрлись в потолок, безлимит.
+        # кончились оплаченные дни, упёрлись в потолок, безлимит. Владельца
+        # этим не будим: отказ ожидаемый, платёж не создавался.
+        logger.info(f"{user.log} Web device purchase refused: {e}")
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
+        await _report_payment_failure(
+            e,
+            what="Web device payment creation",
+            user=user,
+            event_publisher=event_publisher,
+            config=config,
+        )
         raise HTTPException(status_code=502, detail=f"Payment creation failed: {e}")
 
     return CreateDeviceAddonResponse(
@@ -1560,6 +1603,8 @@ async def create_web_payment(
     gateway_dao: FromDishka[PaymentGatewayDao],
     subscription_dao: FromDishka[SubscriptionDao],
     create_payment: FromDishka[CreatePayment],
+    event_publisher: FromDishka[EventPublisher],
+    config: FromDishka[AppConfig],
 ) -> CreateWebPaymentResponse:
     user = await user_dao.get_by_telegram_id(body.telegram_id)
     if not user:
@@ -1606,6 +1651,13 @@ async def create_web_payment(
     else:
         purchase_type = PurchaseType.RENEW
 
+    # Отмечаем, что покупка пришла из кабинета: в логе иначе не отличить её
+    # от покупки в боте, а доли этих двух путей нам нужны.
+    logger.info(
+        f"{user.log} Web payment requested: plan '{plan.name}', "
+        f"{body.duration_days} day(s), '{gateway_type}', gift={body.is_gift}"
+    )
+
     try:
         result = await create_payment(
             user,
@@ -1619,6 +1671,13 @@ async def create_web_payment(
             ),
         )
     except Exception as e:
+        await _report_payment_failure(
+            e,
+            what="Web payment creation",
+            user=user,
+            event_publisher=event_publisher,
+            config=config,
+        )
         raise HTTPException(status_code=502, detail=f"Payment creation failed: {e}")
 
     return CreateWebPaymentResponse(
