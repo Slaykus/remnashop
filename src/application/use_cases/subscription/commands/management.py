@@ -152,6 +152,33 @@ class UpdateTrafficLimit(Interactor[UpdateTrafficLimitDto, None]):
         )
 
 
+def extras_after_limit_change(
+    *, plan_devices: int, new_limit: int, current_extras: int
+) -> int:
+    """
+    Сколько докупленных устройств остаётся после ручной правки лимита.
+
+    Правка из админки меняла только потолок, а счётчик докупленных не
+    трогала. Опустив лимит, администратор убирал устройство, но счётчик
+    оставался — и при следующем продлении устройство возвращалось, а его
+    стоимость снова попадала в цену. Один клиент так и получил бы повторное
+    списание за устройство, которое сам попросил убрать и за которое ему
+    уже вернули деньги.
+
+    Счётчик только уменьшаем, никогда не увеличиваем. Поднятый вручную
+    лимит — это подарок, и превращать его в платную опцию втихую нельзя:
+    такие устройства ведут себя как раньше, то есть обнуляются при
+    продлении до тарифного потолка. Делать ли их платными — решение
+    владельца, а не побочный эффект правки формы.
+    """
+    if plan_devices <= 0:
+        # Безлимитный тариф: «сверх тарифа» считать не от чего, а ненулевой
+        # счётчик при продлении превратил бы безлимит в пару устройств.
+        return 0
+
+    return min(current_extras, max(0, new_limit - plan_devices))
+
+
 @dataclass(frozen=True)
 class UpdateDeviceLimitDto:
     user_id: int
@@ -183,7 +210,13 @@ class UpdateDeviceLimit(Interactor[UpdateDeviceLimitDto, None]):
             if not subscription:
                 raise ValueError(f"Subscription for '{target_user.remna_name}' not found")
 
+            extras_before = subscription.extra_devices
             subscription.device_limit = data.device_limit
+            subscription.extra_devices = extras_after_limit_change(
+                plan_devices=subscription.plan_snapshot.device_limit,
+                new_limit=data.device_limit,
+                current_extras=extras_before,
+            )
             await self.subscription_dao.update(subscription)
             await self.remnawave.update_user(
                 user=target_user,
@@ -192,8 +225,16 @@ class UpdateDeviceLimit(Interactor[UpdateDeviceLimitDto, None]):
             )
             await self.uow.commit()
 
+        # Про счётчик пишем только когда он сдвинулся: он влияет на цену
+        # продления, и такое изменение должно быть видно в логе.
+        extras_note = (
+            f", bought devices {extras_before} -> {subscription.extra_devices}"
+            if subscription.extra_devices != extras_before
+            else ""
+        )
         logger.info(
-            f"{actor.log} Changed device limit to '{data.device_limit}' for user '{data.user_id}'"
+            f"{actor.log} Changed device limit to '{data.device_limit}' "
+            f"for user '{data.user_id}'{extras_note}"
         )
 
 
