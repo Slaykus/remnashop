@@ -6,13 +6,25 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import UserDao
 from src.application.dto import UserDto
 from src.core.enums import Role, SubscriptionStatus
-from src.infrastructure.database.models import Referral, Subscription, User
+from src.core.exceptions import AccountMergeConflictError
+from src.infrastructure.database.models import (
+    AdLink,
+    Partner,
+    PartnerEarning,
+    PromocodeActivation,
+    Referral,
+    ReferralReward,
+    Subscription,
+    Transaction,
+    User,
+    UserOAuthProvider,
+)
 
 
 class UserDaoImpl(UserDao):
@@ -245,6 +257,139 @@ class UserDaoImpl(UserDao):
 
         logger.debug(f"User id='{user_id}' not found for deletion")
         return False
+
+    async def reassign_dependents(self, from_user_id: int, to_user_id: int) -> dict[str, int]:
+        """
+        Передать другому аккаунту всё, что не должно исчезнуть вместе с этим.
+
+        Вызывается при слиянии, перед удалением. Почти все ссылки на
+        пользователя стоят с каскадным удалением, и удаление аккаунта молча
+        уносило за собой платежи, а с ними — начисления партнёрам по этим
+        платежам. Так пропали три оплаты на 1360 ₽: деньги клиенты получили,
+        а подтвердить их оплату поддержка смогла только банковской справкой.
+
+        Ничего не коммитит: всё должно лечь в одну транзакцию с удалением.
+        Частичный перенос хуже отсутствия переноса — не видно, что пропало.
+
+        Решения по таблицам:
+
+        transactions — переносятся всегда. payment_id не трогаем: по нему
+            идёт сверка со шлюзом. Начисления партнёрам висят на транзакции
+            и переезжают вместе с ней.
+        partner_earnings.referred_user_id — перевешивается. При удалении
+            стоит SET NULL: начисление осталось бы, но без клиента.
+        referral_rewards, promocode_activations — переносятся. Без
+            активаций одноразовый промокод можно было бы ввести второй раз.
+        ad_links.owner_user_id — перевешивается.
+        referrals — человека приводят один раз. Если у настоящего аккаунта
+            пригласивший уже есть, остаётся он: аккаунт старше, и его
+            пригласивший пришёл первым. Связь двух аккаунтов одного человека
+            друг с другом превратилась бы в приглашение самого себя — её не
+            переносим, и она уходит вместе с удаляемым аккаунтом.
+        user_oauth_providers — переносятся способы входа, которых у
+            настоящего аккаунта ещё нет; повтор того же провайдера запрещён
+            уникальным ключом.
+        partners — переносится, если настоящий аккаунт не партнёр. Если
+            партнёры оба, слияние отменяется: см. AccountMergeConflictError.
+
+        Не переносится и уходит с аккаунтом: подписка (её судьбу решает
+        вызывающий), счётчик трафика по псевдо-id, журналы рассылок и
+        уведомлений.
+        """
+        moved: dict[str, int] = {}
+
+        async def run(label: str, stmt) -> None:  # type: ignore[no-untyped-def]
+            result = await self.session.execute(stmt)
+            moved[label] = result.rowcount or 0  # type: ignore[attr-defined]
+
+        # Сначала то, что может отменить слияние, — до любых изменений.
+        from_partner = await self.session.scalar(
+            select(Partner.id).where(Partner.user_id == from_user_id)
+        )
+        if from_partner is not None:
+            to_partner = await self.session.scalar(
+                select(Partner.id).where(Partner.user_id == to_user_id)
+            )
+            if to_partner is not None:
+                raise AccountMergeConflictError(
+                    f"Both users '{from_user_id}' and '{to_user_id}' are partners"
+                )
+            await run(
+                "partners",
+                update(Partner).where(Partner.user_id == from_user_id).values(user_id=to_user_id),
+            )
+
+        # updated_at у платежа — время последнего изменения самого платежа,
+        # и по нему видно, кто его погасил: наш таймер или шлюз. Слияние
+        # меняет владельца, а не платёж, так что отметку сохраняем.
+        await run(
+            "transactions",
+            update(Transaction)
+            .where(Transaction.user_id == from_user_id)
+            .values(user_id=to_user_id, updated_at=Transaction.updated_at),
+        )
+        await run(
+            "partner_earnings",
+            update(PartnerEarning)
+            .where(PartnerEarning.referred_user_id == from_user_id)
+            .values(referred_user_id=to_user_id),
+        )
+        await run(
+            "referral_rewards",
+            update(ReferralReward)
+            .where(ReferralReward.user_id == from_user_id)
+            .values(user_id=to_user_id),
+        )
+        await run(
+            "promocode_activations",
+            update(PromocodeActivation)
+            .where(PromocodeActivation.user_id == from_user_id)
+            .values(user_id=to_user_id),
+        )
+        await run(
+            "ad_links",
+            update(AdLink)
+            .where(AdLink.owner_user_id == from_user_id)
+            .values(owner_user_id=to_user_id),
+        )
+
+        # Кого привёл этот человек — кроме его же второго аккаунта.
+        await run(
+            "referrals_as_referrer",
+            update(Referral)
+            .where(Referral.referrer_id == from_user_id, Referral.referred_id != to_user_id)
+            .values(referrer_id=to_user_id),
+        )
+
+        # Кто привёл его — только если у настоящего аккаунта пригласившего нет.
+        to_has_referrer = await self.session.scalar(
+            select(Referral.id).where(Referral.referred_id == to_user_id)
+        )
+        if to_has_referrer is None:
+            await run(
+                "referrals_as_referred",
+                update(Referral)
+                .where(Referral.referred_id == from_user_id, Referral.referrer_id != to_user_id)
+                .values(referred_id=to_user_id),
+            )
+
+        taken_providers = select(UserOAuthProvider.provider).where(
+            UserOAuthProvider.user_id == to_user_id
+        )
+        await run(
+            "oauth_providers",
+            update(UserOAuthProvider)
+            .where(
+                and_(
+                    UserOAuthProvider.user_id == from_user_id,
+                    UserOAuthProvider.provider.not_in(taken_providers),
+                )
+            )
+            .values(user_id=to_user_id),
+        )
+
+        logger.info(f"Reassigned dependents of user '{from_user_id}' to '{to_user_id}': {moved}")
+        return moved
 
     async def exists(self, user_id: int) -> bool:
         stmt = select(select(User).where(User.id == user_id).exists())

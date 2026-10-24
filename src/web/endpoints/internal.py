@@ -64,13 +64,16 @@ from src.application.use_cases.promocode.commands.activate import ActivatePromoc
 from src.application.use_cases.user import SetUserPersonalDiscount
 from src.application.use_cases.user.commands.profile_edit import SetUserPersonalDiscountDto
 from src.core.exceptions import (
+    AccountMergeConflictError,
     PromocodeAlreadyActivatedError,
     PromocodeError,
     PromocodeExpiredError,
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
-from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, TransactionStatus
+from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, SubscriptionStatus, TransactionStatus
+from src.core.utils.time import datetime_now
+from src.application.services.account_merge import merged_expire_at, plan_source
 from src.core.constants import AD_LINK_CODE_PATTERN, API_V1
 from src.application.events import ErrorEvent
 
@@ -1375,108 +1378,173 @@ async def migrate_telegram(
     ad_link_dao: FromDishka[AdLinkDao],
     subscription_dao: FromDishka[SubscriptionDao],
     remnawave: FromDishka[Remnawave],
-    add_duration: FromDishka[AddSubscriptionDuration],
     sdk: FromDishka[RemnawaveSDK],
     uow: FromDishka[UnitOfWork],
 ) -> MigrateTelegramResponse:
+    """
+    Свести виртуальный аккаунт кабинета с настоящим при привязке Telegram.
+
+    Каждая ветка — одна транзакция с одним коммитом. Сессия на запрос одна, и
+    раньше промежуточный коммит при начислении дней уносил в базу всё, что
+    успело накопиться, — а удаление аккаунта шло следом отдельно. Упади оно,
+    дни уже начислены, и повторная привязка начислила бы их второй раз.
+
+    Удаление аккаунта больше ничего не уносит с собой: платежи и всё, что на
+    них опирается, переезжает на настоящий аккаунт до удаления — см.
+    UserDao.reassign_dependents.
+    """
     user = await user_dao.get_by_telegram_id(old_telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Привязка к рекламной ссылке лежит по telegram_id, а при переносе он
-    # меняется с псевдо-id сайта на настоящий. Без переноса строки человек
-    # для рекламы исчезает, а партнёр перестаёт получать долю с его оплат —
-    # причём именно тогда, когда клиент становится полноценным.
-    await ad_link_dao.move_user(old_telegram_id, body.new_telegram_id)
-
     conflict = await user_dao.get_by_telegram_id(body.new_telegram_id)
-    if conflict:
-        # Real Telegram account already exists in bot (user interacted with bot before).
-        # Transfer virtual user's subscription to the real account so it isn't lost.
-        virtual_sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
-        real_sub = await subscription_dao.get_current_by_telegram_id(body.new_telegram_id)
+    if not conflict:
+        return await _migrate_without_conflict(
+            user, old_telegram_id, body.new_telegram_id, user_dao, ad_link_dao,
+            subscription_dao, remnawave, uow,
+        )
 
-        # Если у телеграм-аккаунта своей подписки нет, переносим веб-подписку
-        # целиком: у неё сохраняется тот же user_remna_id, а значит и ссылка,
-        # которую человек уже добавил в приложение, продолжает работать.
-        carried_days = 0
+    virtual_sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
+    real_sub = await subscription_dao.get_current_by_telegram_id(body.new_telegram_id)
+    log_prefix = f"Merge '{old_telegram_id}' -> '{body.new_telegram_id}'"
+
+    try:
+        # Ветка А: у телеграм-аккаунта своей подписки нет. Веб-подписка
+        # переезжает целиком, с тем же user_remna_id — ссылка, которую
+        # человек уже добавил в приложение, продолжает работать.
         if virtual_sub and virtual_sub.id and not real_sub:
             async with uow:
-                # Владельца подписки меняем до удаления старой записи. У
-                # внешнего ключа каскад: если сначала удалить пользователя,
-                # подписка уйдёт вместе с ним — человек оставался без дней,
-                # а его аккаунт в панели висел ничьим.
+                # Привязка к рекламе лежит по telegram_id, а он меняется с
+                # псевдо-id сайта на настоящий. Без переноса партнёр теряет
+                # долю с оплат того, кого сам привёл.
+                await ad_link_dao.move_user(old_telegram_id, body.new_telegram_id)
+                moved = await user_dao.reassign_dependents(user.id or 0, conflict.id or 0)
                 await subscription_dao.move_to_user(virtual_sub.id, conflict.id or 0)
                 await user_dao.set_current_subscription_by_id(conflict.id or 0, virtual_sub.id)
                 await user_dao.delete(user.id or 0)
                 await uow.commit()
 
-            # Раньше здесь звали update_user без плана и подписки, а он на
-            # такой паре аргументов бросает ValueError — вызов не делал ничего
-            # и молча падал. Имя в панели так и оставалось от псевдо-id сайта.
-            # Ссылка в приложении привязана к uuid и работает под любым именем,
-            # поэтому неудачу не считаем провалом слияния, но и не прячем.
+            logger.info(f"{log_prefix}: subscription moved whole, dependents {moved}")
+
+            # Ссылка привязана к uuid и работает под любым именем, поэтому
+            # неудачу переименования не считаем провалом слияния.
             try:
                 await remnawave.rename_user(user=conflict, uuid=virtual_sub.user_remna_id)
             except Exception as e:
                 logger.warning(
-                    f"Failed to rename Remnawave user '{virtual_sub.user_remna_id}' "
-                    f"after merging '{old_telegram_id}' into '{body.new_telegram_id}': {e}"
+                    f"{log_prefix}: failed to rename Remnawave user "
+                    f"'{virtual_sub.user_remna_id}': {e}"
                 )
-
             return MigrateTelegramResponse(migrated=True, message="Merged with existing account")
 
-        # Обе стороны с подписками. Раньше веб-подписка здесь просто исчезала
-        # вместе с виртуальным аккаунтом — вместе с оплаченными днями.
-        # Переносим остаток дней на телеграм-подписку.
-        if virtual_sub and real_sub:
-            carried_days = _days_left(virtual_sub.expire_at)
-            if carried_days > 0:
-                try:
-                    await add_duration.system(
-                        AddSubscriptionDurationDto(
-                            user_id=conflict.id or 0,
-                            days=carried_days,
-                        )
-                    )
-                except Exception:
-                    # Перенос не удался — прерываем слияние, не удаляя ничего.
-                    # Лучше оставить два аккаунта, чем стереть оплаченные дни.
-                    raise HTTPException(
-                        status_code=503,
-                        detail="Не удалось перенести дни подписки. Привязка отменена, попробуйте позже.",
-                    )
-
-            # Лишний аккаунт в Remnawave надо убрать, иначе он продолжит
-            # занимать место, а его старая ссылка — работать. Если не вышло,
-            # человек сохраняет доступ по обеим ссылкам: слияние из-за этого
-            # не отменяем, но след в логах нужен, чтобы такой аккаунт нашли.
-            if virtual_sub.user_remna_id:
-                try:
-                    await sdk.users.delete_user(uuid=str(virtual_sub.user_remna_id))
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to delete leftover Remnawave user "
-                        f"'{virtual_sub.user_remna_id}' after merging "
-                        f"'{old_telegram_id}' into '{body.new_telegram_id}': {e}"
-                    )
+        # Ветка Б: подписки у обоих — или у веб-аккаунта её нет вовсе.
+        carried_days = _days_left(virtual_sub.expire_at) if (virtual_sub and real_sub) else 0
+        took_plan = False
 
         async with uow:
+            await ad_link_dao.move_user(old_telegram_id, body.new_telegram_id)
+            moved = await user_dao.reassign_dependents(user.id or 0, conflict.id or 0)
+
+            if virtual_sub and real_sub and carried_days > 0:
+                now = datetime_now()
+
+                # Раньше переносились только дни, а тариф оставался от
+                # телеграм-аккаунта: купленные в кабинете полгода Solo ложились
+                # на импортированный тариф с 5 ГБ, человек упирался в лимит и
+                # видел «подписка не активна». Тариф переносим целиком, если
+                # он не хуже — понижать нельзя.
+                if plan_source(virtual_sub, real_sub, now) == "virtual":
+                    took_plan = True
+                    real_sub.plan_snapshot = virtual_sub.plan_snapshot
+                    real_sub.traffic_limit = virtual_sub.traffic_limit
+                    real_sub.device_limit = virtual_sub.device_limit
+                    real_sub.extra_devices = virtual_sub.extra_devices
+                    real_sub.traffic_limit_strategy = virtual_sub.traffic_limit_strategy
+                    real_sub.tag = virtual_sub.tag
+                    real_sub.internal_squads = virtual_sub.internal_squads
+                    real_sub.external_squad = virtual_sub.external_squad
+                    real_sub.is_trial = virtual_sub.is_trial
+
+                real_sub.expire_at = merged_expire_at(real_sub.expire_at, carried_days, now)
+
+                # В панель — до коммита. Не дошло — откатываем всё и ничего не
+                # удаляем: лучше два аккаунта, чем оплаченное, которое не
+                # работает. Повтор безопасен: значения абсолютные и считаются
+                # заново от неизменившейся базы.
+                updated = await remnawave.update_user(
+                    user=conflict,
+                    uuid=real_sub.user_remna_id,
+                    subscription=real_sub,
+                )
+                real_sub.status = SubscriptionStatus(updated.status)
+                await subscription_dao.update(real_sub)
+
             await user_dao.delete(user.id or 0)
             await uow.commit()
 
-        message = (
-            f"Merged with existing account, carried over {carried_days} days"
-            if carried_days
-            else "Merged with existing account"
+    except AccountMergeConflictError as e:
+        logger.warning(f"{log_prefix}: refused, needs manual review: {e}")
+        raise HTTPException(
+            status_code=409,
+            detail="Аккаунты нельзя объединить автоматически. Напишите в поддержку.",
         )
-        return MigrateTelegramResponse(migrated=True, message=message)
+    except HTTPException:
+        raise
+    except Exception:
+        # База откатилась целиком. Панель могла успеть получить новый срок и
+        # тариф, если упал сам коммит, — повтор это выровняет.
+        logger.exception(f"{log_prefix}: failed, database left unchanged")
+        raise HTTPException(
+            status_code=503,
+            detail="Не удалось объединить аккаунты. Привязка отменена, попробуйте позже.",
+        )
 
-    # No conflict — simple rename: update telegram_id on the virtual account
+    logger.info(
+        f"{log_prefix}: carried {carried_days} day(s), "
+        f"plan {'taken from cabinet' if took_plan else 'kept'}, dependents {moved}"
+    )
+
+    # Лишний аккаунт в панели убираем уже после коммита: удаление в панели
+    # не откатить, и делать его до того, как база согласилась, нельзя. Не
+    # вышло — человек сохраняет доступ по обеим ссылкам, а в логе есть след.
+    if virtual_sub and real_sub and virtual_sub.user_remna_id:
+        try:
+            await sdk.users.delete_user(uuid=str(virtual_sub.user_remna_id))
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix}: failed to delete leftover Remnawave user "
+                f"'{virtual_sub.user_remna_id}': {e}"
+            )
+
+    message = (
+        f"Merged with existing account, carried over {carried_days} days"
+        if carried_days
+        else "Merged with existing account"
+    )
+    return MigrateTelegramResponse(migrated=True, message=message)
+
+
+async def _migrate_without_conflict(
+    user: UserDto,
+    old_telegram_id: int,
+    new_telegram_id: int,
+    user_dao: UserDao,
+    ad_link_dao: AdLinkDao,
+    subscription_dao: SubscriptionDao,
+    remnawave: Remnawave,
+    uow: UnitOfWork,
+) -> MigrateTelegramResponse:
+    """
+    Телеграм-аккаунта в боте ещё нет: виртуальному просто меняется telegram_id.
+
+    Аккаунт не удаляется, поэтому ничего и не теряется — платежи остаются на
+    той же записи.
+    """
     sub = await subscription_dao.get_current_by_telegram_id(old_telegram_id)
 
-    user.telegram_id = body.new_telegram_id
+    user.telegram_id = new_telegram_id
     async with uow:
+        await ad_link_dao.move_user(old_telegram_id, new_telegram_id)
         await user_dao.update(user)
         await uow.commit()
 
@@ -1489,7 +1557,7 @@ async def migrate_telegram(
         except Exception as e:
             logger.warning(
                 f"Failed to rename Remnawave user '{sub.user_remna_id}' "
-                f"while migrating '{old_telegram_id}' to '{body.new_telegram_id}': {e}"
+                f"while migrating '{old_telegram_id}' to '{new_telegram_id}': {e}"
             )
 
     return MigrateTelegramResponse(migrated=True, message="Migrated successfully")

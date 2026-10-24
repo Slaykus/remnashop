@@ -5,6 +5,16 @@ from typing import Union
 class MenuRenderError(Exception): ...
 
 
+class AccountMergeConflictError(Exception):
+    """
+    Два аккаунта нельзя свести без ручного разбора.
+
+    Пока единственный такой случай — оба аккаунта партнёры: у каждого свой
+    баланс, начисления и выплаты, и склеить их молча значило бы ошибиться в
+    деньгах партнёра. Лучше не привязать Telegram, чем потерять его выплаты.
+    """
+
+
 class PermissionDeniedError(Exception): ...
 
 
