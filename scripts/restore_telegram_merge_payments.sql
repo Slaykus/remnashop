@@ -32,7 +32,10 @@ INSERT INTO transactions (
     payment_method, is_gift
 )
 SELECT
-    v.payment_id::uuid, 'COMPLETED', false, 'NEW', 'YOOKASSA', v.pricing::jsonb, 'RUB',
+    -- Приведения к enum явные: на неявное приведение строки в INSERT ... SELECT
+    -- на денежной таблице полагаться не стоит.
+    v.payment_id::uuid, 'COMPLETED'::transaction_status, false, 'NEW'::purchase_type,
+    'YOOKASSA'::payment_gateway_type, v.pricing::jsonb, 'RUB'::currency,
     v.snapshot::jsonb, v.created_at::timestamptz, v.captured_at::timestamptz, v.user_id,
     NULL, NULL, false
 FROM (VALUES
