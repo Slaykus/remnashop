@@ -3,6 +3,7 @@ from uuid import UUID
 from dishka.integrations.taskiq import FromDishka, inject
 
 from src.application.use_cases.gateways.commands.payment import ProcessPayment, ProcessPaymentDto
+from src.application.use_cases.gateways.commands.retry import RetryFailedPurchases
 from src.application.use_cases.misc.commands.maintenance import CancelOldTransactions
 from src.application.use_cases.partner.commands.manage import MarkPartnerEarningsAvailable
 from src.core.enums import PaymentGatewayType, TransactionStatus
@@ -24,6 +25,16 @@ async def handle_payment_transaction_task(
             gateway_type=gateway_type,
         )
     )
+
+
+# Интервал — PURCHASE_RETRY_EVERY_MINUTES, его же называет владельцу сообщение
+# о сбое. Тест сверяет одно с другим.
+@broker.task(schedule=[{"cron": "*/10 * * * *"}])
+@inject(patch_module=True)
+async def retry_failed_purchases_task(
+    retry_failed_purchases: FromDishka[RetryFailedPurchases],
+) -> None:
+    await retry_failed_purchases.system()
 
 
 @broker.task(schedule=[{"cron": "*/30 * * * *"}])

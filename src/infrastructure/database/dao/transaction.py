@@ -147,6 +147,26 @@ class TransactionDaoImpl(TransactionDao):
         logger.debug(f"Found '{len(db_transactions)}' transactions with status '{status}'")
         return self._convert_to_dto_list(db_transactions)
 
+    async def get_failed_purchases_since(self, since: datetime) -> list[TransactionDto]:
+        """
+        Оплаченные покупки, у которых не прошла выдача, не старше since.
+
+        Без тестовых — их деньги возвращаются сразу. Без подарков — у них
+        своя выдача кодом, и её сбой здесь не отмечается.
+        """
+        stmt = (
+            select(Transaction)
+            .where(
+                Transaction.status == TransactionStatus.FAILED,
+                Transaction.is_test.is_(False),
+                Transaction.is_gift.is_(False),
+                Transaction.created_at >= since,
+            )
+            .order_by(Transaction.created_at)
+        )
+        result = await self.session.scalars(stmt)
+        return self._convert_to_dto_list(cast(list, result.all()))
+
     async def update_status(
         self,
         payment_id: UUID,

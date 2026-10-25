@@ -32,6 +32,8 @@ class TransactionDao(Protocol):
 
     async def get_by_status(self, status: TransactionStatus) -> list[TransactionDto]: ...
 
+    async def get_failed_purchases_since(self, since: datetime) -> list[TransactionDto]: ...
+
     async def update_status(
         self,
         payment_id: UUID,

@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Optional, Union
 from uuid import UUID
 
+import httpx
 from loguru import logger
 from packaging.version import Version
 from remnapy import RemnawaveSDK
@@ -77,6 +78,31 @@ class RemnawaveImpl(Remnawave):
         logger.info(f"Successfully connected to Remnawave panel (version: {panel_version})")
         return panel_version
 
+    # Соединение с панелью не установилось — значит, запрос до неё не дошёл,
+    # и повторить его безопасно, в том числе создание пользователя: дубля не
+    # будет. Таймаут чтения сюда не входит: там запрос мог успеть примениться.
+    #
+    # Без повтора одна такая неудача посреди оплаты оставляла деньги
+    # списанными, а подписку невыданной: 25.10 панель не ответила на продление
+    # Family, клиент увидел ошибку и пошёл в поддержку, хотя соседние запросы к
+    # панели проходили.
+    _CONNECT_RETRY_DELAYS: tuple[float, ...] = (2.0, 5.0)
+
+    async def _with_connect_retry(self, what: str, call):  # type: ignore[no-untyped-def]
+        attempts = len(self._CONNECT_RETRY_DELAYS) + 1
+        for attempt in range(1, attempts + 1):
+            try:
+                return await call()
+            except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+                if attempt == attempts:
+                    raise
+                delay = self._CONNECT_RETRY_DELAYS[attempt - 1]
+                logger.warning(
+                    f"Remnawave unreachable on {what} (attempt {attempt}/{attempts}): "
+                    f"{e!r}; retrying in {delay}s"
+                )
+                await asyncio.sleep(delay)
+
     async def create_user(
         self,
         user: UserDto,
@@ -86,7 +112,9 @@ class RemnawaveImpl(Remnawave):
         request_dto = self._build_create_request(user, plan, subscription)
 
         try:
-            remna_user = await self.sdk.users.create_user(request_dto)
+            remna_user = await self._with_connect_retry(
+                "create_user", lambda: self.sdk.users.create_user(request_dto)
+            )
             logger.info(
                 f"RemnaUser '{remna_user.username}' created successfully. "
                 f"UUID: '{remna_user.uuid}', telegram_id: '{remna_user.telegram_id}'"
@@ -110,7 +138,9 @@ class RemnawaveImpl(Remnawave):
         request_dto = self._build_update_request(user, uuid, plan, subscription)
 
         try:
-            remna_user = await self.sdk.users.update_user(request_dto)
+            remna_user = await self._with_connect_retry(
+                "update_user", lambda: self.sdk.users.update_user(request_dto)
+            )
             logger.info(
                 f"RemnaUser '{remna_user.username}' updated successfully. "
                 f"UUID: '{remna_user.uuid}', telegram_id: '{remna_user.telegram_id}'"

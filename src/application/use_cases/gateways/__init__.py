@@ -14,6 +14,7 @@ from .commands.payment import (
     CreateTestPayment,
     ProcessPayment,
 )
+from .commands.retry import RetryFailedPurchases
 from .queries.providers import GetPaymentGatewayInstance
 
 GATEWAYS_USE_CASES: Final[tuple[type[Interactor], ...]] = (
@@ -26,4 +27,5 @@ GATEWAYS_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     CreatePayment,
     CreateTestPayment,
     ProcessPayment,
+    RetryFailedPurchases,
 )

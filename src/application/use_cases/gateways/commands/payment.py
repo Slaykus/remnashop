@@ -1,8 +1,9 @@
 import hashlib
+import html
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Final, Optional
 from uuid import UUID
 
 from adaptix import Retort
@@ -145,6 +146,16 @@ class CreateDefaultPaymentGateway(Interactor[None, None]):
             if gateway.order_index != desired_index:
                 gateway.order_index = desired_index
                 await self.gateway_dao.update(gateway)
+
+
+# Сколько бот сам допроводит платёж, у которого не прошла выдача подписки,
+# и как часто пробует. Интервал совпадает с расписанием задачи
+# retry_failed_purchases_task — это проверяет тест.
+PURCHASE_RETRY_WINDOW: Final = timedelta(hours=6)
+PURCHASE_RETRY_EVERY_MINUTES: Final = 10
+
+# Поддержка и владелец живут по Москве; время бота — UTC.
+_MSK: Final = timezone(timedelta(hours=3))
 
 
 @dataclass(frozen=True)
@@ -593,6 +604,23 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 )
             )
 
+    @staticmethod
+    def _payment_alert_kwargs(user: UserDto, transaction: TransactionDto) -> dict:
+        """
+        Данные платежа для сообщений владельцу о сбое и восстановлении.
+
+        Сообщения лежат в custom.ftl, а он не видит общих фрагментов базового
+        набора, поэтому всё нужное передаётся готовыми значениями. Имя
+        экранируем: ники вроде <$--ILYA--$> ломали разбор HTML в телеграме.
+        """
+        return {
+            "payment_id": str(transaction.payment_id),
+            "final_amount": str(transaction.pricing.final_amount),
+            "currency": transaction.currency.symbol,
+            "telegram_id": user.telegram_id or 0,
+            "name": html.escape(user.name or "—"),
+        }
+
     async def _handle_success(self, user: UserDto, transaction: TransactionDto) -> None:
         if transaction.is_test:
             await self.notifier.notify_user(user, i18n_key="ntf-gateway.test-payment-confirmed")
@@ -647,34 +675,49 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
             previous_plan_duration=i18n_format_days(old_plan.duration) if old_plan else "N/A",
         )
 
+        # Прошлая попытка выдать подписку по этому платежу уже упала: это
+        # повтор от retry_failed_purchases_task. Переход FAILED -> COMPLETED
+        # атомарен, поэтому повтор не может выдать подписку дважды.
+        is_retry = transaction.status == TransactionStatus.FAILED
+
         try:
             await self.purchase_subscription.system(
                 PurchaseSubscriptionDto(user, transaction, subscription)
             )
         except Exception as e:
-            logger.exception(
-                f"Failed to process purchase for user '{user.remna_name}', "
-                f"transaction '{transaction.payment_id}'"
-            )
             async with self.uow:  # fresh UoW, no nesting
                 await self.transaction_dao.update_status(
                     transaction.payment_id, TransactionStatus.FAILED
                 )
                 await self.uow.commit()
+
+            if is_retry:
+                # Тихо: владелец о сбое уже знает и ждёт исхода, клиент уже
+                # видел экран ошибки. Повторять то и другое каждые десять
+                # минут — только шум.
+                logger.warning(
+                    f"Retry of purchase failed again for user '{user.remna_name}', "
+                    f"transaction '{transaction.payment_id}': {e!r}"
+                )
+                raise PurchaseError(e)
+
+            logger.exception(
+                f"Failed to process purchase for user '{user.remna_name}', "
+                f"transaction '{transaction.payment_id}'"
+            )
+            # Не «требуется ручная проверка», как раньше: бот сам повторит
+            # выдачу, и владельцу важно знать, до какого часа ждать, — иначе
+            # он вернёт деньги, а через десять минут подписка выдастся сама.
+            retry_until = (transaction.created_at or datetime.now(timezone.utc)) + (
+                PURCHASE_RETRY_WINDOW
+            )
             await self.notifier.notify_system(
                 MessagePayloadDto(
-                    i18n_key="event-payment.purchase-failed",
+                    i18n_key="event-payment-purchase-retrying",
                     i18n_kwargs={
-                        "payment_id": str(transaction.payment_id),
-                        "gateway_type": transaction.gateway_type,
-                        "final_amount": transaction.pricing.final_amount,
-                        "original_amount": transaction.pricing.original_amount,
-                        "discount_percent": transaction.pricing.discount_percent,
-                        "currency": transaction.currency.symbol,
-                        "telegram_id": user.telegram_id or 0,
-                        "username": user.username or 0,
-                        "name": user.name,
-                        "email": user.email,
+                        **self._payment_alert_kwargs(user, transaction),
+                        "retry_every": PURCHASE_RETRY_EVERY_MINUTES,
+                        "retry_until": retry_until.astimezone(_MSK).strftime("%d.%m %H:%M"),
                     },
                 ),
                 roles=[Role.OWNER, Role.DEV],
@@ -685,6 +728,20 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
             raise PurchaseError(e)
 
         await self.event_publisher.publish(event)
+
+        if is_retry:
+            logger.info(
+                f"Purchase recovered on retry for user '{user.remna_name}', "
+                f"transaction '{transaction.payment_id}'"
+            )
+            await self.notifier.notify_system(
+                MessagePayloadDto(
+                    i18n_key="event-payment-purchase-recovered",
+                    i18n_kwargs=self._payment_alert_kwargs(user, transaction),
+                ),
+                roles=[Role.OWNER, Role.DEV],
+                notification_type=SystemNotificationType.SYSTEM,
+            )
 
         if not transaction.pricing.is_free:
             # The purchase is already COMPLETED and committed. Referral rewards are
