@@ -128,7 +128,16 @@ class RedirectImpl(Redirect):
         )
         logger.info(f"User '{telegram_id}' redirected to success payment")
 
-    async def to_failed_payment(self, telegram_id: int) -> None:
+    async def to_failed_payment(self, telegram_id: int, paid: bool = False) -> None:
+        """
+        Экран сбоя.
+
+        paid — деньги уже списаны, а выдача упала. Тогда бот сам повторит её
+        и пришлёт экран успеха, и человеку надо сказать именно это, а не
+        «свяжется техподдержка»: с таким текстом он идёт в поддержку, хотя
+        через несколько минут всё выдастся само. Без оплаты — например, при
+        сбое бесплатного пробного периода — повтора нет, текст прежний.
+        """
         if not _has_telegram_chat(telegram_id):
             logger.debug(f"Skipping redirect for web-only user '{telegram_id}'")
             return
@@ -141,6 +150,7 @@ class RedirectImpl(Redirect):
 
         await bg_manager.start(
             state=Subscription.FAILED,
+            data={"failure": "PAID" if paid else "OTHER"},
             mode=StartMode.RESET_STACK,
             show_mode=ShowMode.DELETE_AND_SEND,
         )

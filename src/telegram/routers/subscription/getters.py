@@ -448,3 +448,16 @@ async def success_payment_getter(
         "subscription_url": subscription.url,
         "connectable": True,
     }
+
+
+async def failed_getter(dialog_manager: DialogManager, **kwargs: Any) -> dict[str, Any]:
+    """
+    Какой сбой показывать: оплаченный (PAID) или любой другой.
+
+    Ветку отдаём всегда, строкой: селектор в переводе без переменной падает
+    с FluentReferenceError, а булево в ветку не попадает. Экран, открытый без
+    данных, — это прежний общий сбой.
+    """
+    data = dialog_manager.start_data
+    failure = data.get("failure") if isinstance(data, dict) else None
+    return {"failure": failure if failure == "PAID" else "OTHER"}

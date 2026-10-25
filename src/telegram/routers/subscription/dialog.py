@@ -15,6 +15,7 @@ from src.telegram.widgets.kbd import Button, Column, Group, Row, Select, SwitchT
 from .getters import (
     confirm_getter,
     duration_getter,
+    failed_getter,
     getter_connect,
     payment_method_getter,
     plan_getter,
@@ -279,6 +280,7 @@ failed = Window(
     *back_main_menu_button,
     IgnoreUpdate(),
     state=Subscription.FAILED,
+    getter=failed_getter,
 )
 
 promocode_window = Window(

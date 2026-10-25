@@ -69,8 +69,8 @@ def _process_payment(*, panel_fails: bool, events: list) -> ProcessPayment:
     async def notify_system(payload, **kw):
         events.append(f"notify:{payload.i18n_key}:{payload.i18n_kwargs.get('retry_until', '')}")
 
-    async def redirect_failed(tid):
-        events.append("redirect:failed")
+    async def redirect_failed(tid, paid=False):
+        events.append(f"redirect:failed:paid={paid}")
 
     async def update_status(pid, status):
         events.append(f"status:{status}")
@@ -104,7 +104,8 @@ async def test_first_failure_tells_the_owner_until_when_to_wait() -> None:
         await pp._handle_success(USER, _transaction(TransactionStatus.PENDING))
 
     assert "status:FAILED" in events
-    assert "redirect:failed" in events
+    # Клиенту — экран «оплата получена, выдадим сами», а не «свяжется поддержка».
+    assert "redirect:failed:paid=True" in events
     [notice] = [e for e in events if e.startswith("notify:")]
     # Новое сообщение с крайним сроком, а не «требуется ручная проверка».
     assert notice.startswith("notify:event-payment-purchase-retrying:")
@@ -121,7 +122,7 @@ async def test_repeated_failure_is_silent() -> None:
 
     assert "status:FAILED" in events
     assert not [e for e in events if e.startswith("notify:")]
-    assert "redirect:failed" not in events
+    assert not [e for e in events if e.startswith("redirect:failed")]
 
 
 async def test_recovered_retry_says_so() -> None:
@@ -217,3 +218,22 @@ class TestPanelConnectRetry:
         with pytest.raises(httpx.ReadTimeout):
             await self._impl()._with_connect_retry("create_user", call)
         assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("start_data", "expected"),
+    [
+        ({"failure": "PAID"}, "PAID"),
+        ({"failure": "OTHER"}, "OTHER"),
+        # Сбой пробного периода открывает экран без признака оплаты — текст
+        # должен остаться прежним, «оплата получена» там была бы неправдой.
+        (None, "OTHER"),
+        ({}, "OTHER"),
+        ({"failure": "что-то другое"}, "OTHER"),
+    ],
+)
+async def test_failed_screen_says_paid_only_when_it_was(start_data, expected) -> None:
+    from src.telegram.routers.subscription.getters import failed_getter
+
+    result = await failed_getter(SimpleNamespace(start_data=start_data))
+    assert result == {"failure": expected}

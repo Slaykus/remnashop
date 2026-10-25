@@ -724,7 +724,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 notification_type=SystemNotificationType.SYSTEM,
             )
             if user.telegram_id is not None:
-                await self.redirect.to_failed_payment(user.telegram_id)
+                await self.redirect.to_failed_payment(user.telegram_id, paid=True)
             raise PurchaseError(e)
 
         await self.event_publisher.publish(event)
