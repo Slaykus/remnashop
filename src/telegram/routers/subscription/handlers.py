@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, Optional, TypedDict, cast
 
@@ -149,6 +150,10 @@ async def _create_payment_and_get_data(
     )
 
     transaction_plan = PlanSnapshotDto.from_plan(plan, duration.days)
+    if dialog_manager.dialog_data.get("renew_new_plan"):
+        # Сохраняемые устройства едут в снимке оплаты: продление выставит
+        # их счётчиком у подписки. Цена за них уже в surcharge выше.
+        transaction_plan = replace(transaction_plan, extra_devices=extra_devices)
     pricing = pricing_service.calculate_for_duration(
         user,
         duration,
@@ -179,6 +184,24 @@ async def _create_payment_and_get_data(
         logger.error(f"{user.log} Failed to create payment")
         await notifier.notify_user(user, i18n_key="ntf-subscription.payment-creation-failed")
         raise
+
+
+def _reset_renew_new_plan(dialog_manager: DialogManager) -> None:
+    for key in ("renew_new_plan", "current_devices", "keep_devices"):
+        dialog_manager.dialog_data.pop(key, None)
+
+
+async def on_renew_devices_toggle(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    """Сохранить устройства докупкой или остаться на лимите тарифа."""
+    data = dialog_manager.dialog_data
+    data["keep_devices"] = not data.get("keep_devices", True)
+    # От выбора зависит цена: платежи, созданные под прежний выбор, не годятся.
+    data.pop(PAYMENT_CACHE_KEY, None)
+    data.pop(CURRENT_METHOD_KEY, None)
 
 
 async def _resolve_renew_plan(
@@ -215,9 +238,19 @@ async def _resolve_renew_plan(
         await dialog_manager.switch_to(state=Subscription.DURATION)
         return True
 
-    logger.warning(f"{user.log} Tried to renew, but no matching plan found")
-    await notifier.notify_user(user, i18n_key="ntf-subscription.renew-plan-unavailable")
-    return True
+    # Тариф больше не продаётся. Раньше здесь было всплывающее «план
+    # устарел» и человек оставался на том же экране — продлить было нельзя
+    # вовсе, а «Изменить» отсчитывает срок заново и сжигает остаток. Теперь
+    # он выбирает тариф, и выбор проводится как продление: дни добавляются
+    # к сроку, лимиты переходят на новый тариф. Сколько у него устройств
+    # сейчас, запоминаем, чтобы не отнять их молча.
+    logger.info(
+        f"{user.log} Plan '{snapshot_id}' is no longer sold, offering renewal onto a current plan"
+    )
+    dialog_manager.dialog_data["renew_new_plan"] = True
+    dialog_manager.dialog_data["current_devices"] = current_subscription.device_limit
+    dialog_manager.dialog_data["keep_devices"] = True
+    return False
 
 
 @inject
@@ -237,6 +270,7 @@ async def on_purchase_type_select(
     dialog_manager.dialog_data["purchase_type"] = purchase_type
     dialog_manager.dialog_data.pop(CURRENT_DURATION_KEY, None)
     dialog_manager.dialog_data.pop(PAYMENT_CACHE_KEY, None)
+    _reset_renew_new_plan(dialog_manager)
 
     if not plans:
         logger.warning(f"{user.log} No available subscription plans")
@@ -295,6 +329,7 @@ async def on_subscription_plans(  # noqa: C901
 
     dialog_manager.dialog_data.pop(CURRENT_DURATION_KEY, None)
     dialog_manager.dialog_data.pop(PAYMENT_CACHE_KEY, None)
+    _reset_renew_new_plan(dialog_manager)
 
     if not plans:
         logger.warning(f"{user.log} No available subscription plans")

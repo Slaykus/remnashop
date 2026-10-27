@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from typing import Optional
 
@@ -173,10 +173,15 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                     new_expire = base_date + timedelta(days=duration)
 
                 subscription.expire_at = new_expire
+                # Продление на другой тариф — когда прежний больше не
+                # продаётся (импортированные из старой системы и любой
+                # снятый с продажи). Сколько устройств сверх нового тарифа
+                # человек решил сохранить, пришло в самой оплате; прежний
+                # счётчик относился к прежнему тарифу.
+                if plan.id != subscription.plan_snapshot.id:
+                    subscription.extra_devices = plan.extra_devices
                 # Докупленные устройства переживают продление: человек платит
                 # за них в цене продления, и отнимать их при списании нельзя.
-                # Смена тарифа сюда не попадает — там свой разбор, и что
-                # делать с надбавкой при переходе, решается отдельно.
                 subscription.device_limit = plan.device_limit + subscription.extra_devices
                 subscription.traffic_limit = plan.traffic_limit
                 subscription.traffic_limit_strategy = plan.traffic_limit_strategy
@@ -191,7 +196,8 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                     reset_traffic=True,
                 )
 
-                subscription.plan_snapshot = plan
+                # Снимок подписки описывает тариф, а не эту оплату.
+                subscription.plan_snapshot = replace(plan, extra_devices=0)
                 await self.subscription_dao.update(subscription)
                 if user.purchase_discount:
                     user.purchase_discount = 0

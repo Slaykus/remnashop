@@ -172,6 +172,22 @@ def bought_devices_price(
     return max(Decimal(0), delta).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
+def devices_to_keep(current_devices: int, plan_devices: int) -> int:
+    """
+    Сколько устройств докупить к тарифу, чтобы после перехода на него
+    ничего не отключилось.
+
+    Ноль в лимитах — безлимит. Безлимитный тариф покрывает любое число
+    устройств, а безлимит сейчас докупкой не сохранить — такой случай
+    вызывающий показывает отдельным предупреждением. Сверху ограничено
+    потолком докупки: больше MAX_ADDON_DEVICES всего не продаём.
+    """
+    if plan_devices <= 0 or current_devices <= 0:
+        return 0
+    wanted = max(0, current_devices - plan_devices)
+    return min(wanted, max(0, MAX_ADDON_DEVICES - plan_devices))
+
+
 def price_in_currency(
     amount_rub: Decimal,
     anchor_rub: Decimal,

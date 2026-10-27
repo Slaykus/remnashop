@@ -30,6 +30,12 @@ class PlanSnapshotDto:
 
     is_trial: bool = False
 
+    # Только в снимке оплаты при продлении на другой тариф: сколько
+    # устройств сверх тарифа человек решил сохранить. В снимке подписки
+    # всегда ноль — там описан сам тариф. Сравнение тарифов при продлении
+    # (MatchPlan) это поле не смотрит.
+    extra_devices: int = 0
+
     @classmethod
     def from_plan(cls, plan: "PlanDto", duration: int) -> Self:
         return cls(

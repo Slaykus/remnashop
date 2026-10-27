@@ -13,6 +13,7 @@ from src.application.dto import PaymentGatewayDto, PlanDto, PriceDetailsDto, Tel
 from src.application.services import PricingService
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
+from src.application.services.device_pricing import devices_to_keep
 from src.core.config import AppConfig
 from src.core.enums import PurchaseType
 from src.core.utils.time import datetime_now
@@ -134,17 +135,29 @@ async def plans_getter(
     **kwargs: Any,
 ) -> dict[str, Any]:
     plans = await get_available_plans.system(user)
+    data = dialog_manager.dialog_data
+    renew_new_plan = bool(data.get("renew_new_plan"))
+    current_devices = data.get("current_devices", 0)
+
+    # При продлении на другой тариф первым идёт тот, что сохраняет все
+    # устройства, и он отмечен: по умолчанию предлагаем не терять ничего.
+    recommended = _recommended_plan_id(plans, current_devices) if renew_new_plan else None
+    if recommended is not None:
+        plans = sorted(plans, key=lambda p: p.id != recommended)
 
     formatted_plans = [
         {
             "id": plan.id,
-            "name": i18n.get(plan.name),
+            "name": ("✅ " if plan.id == recommended else "") + i18n.get(plan.name),
         }
         for plan in plans
     ]
 
     return {
         "plans": formatted_plans,
+        "renew_new_plan": renew_new_plan,
+        "has_recommended": "YES" if recommended is not None else "NO",
+        "current_devices": current_devices,
     }
 
 
@@ -163,8 +176,60 @@ async def renewal_extra_devices(
     if dialog_manager.dialog_data.get("purchase_type") != PurchaseType.RENEW:
         return 0
 
+    # Продление на другой тариф: сколько докупить, чтобы ничего не
+    # отключилось, — если человек не отказался.
+    data = dialog_manager.dialog_data
+    if data.get("renew_new_plan"):
+        raw_plan = data.get(PlanDto.__name__)
+        if not raw_plan or not data.get("keep_devices", True):
+            return 0
+        return devices_to_keep(data.get("current_devices", 0), raw_plan["device_limit"])
+
     subscription = await subscription_dao.get_current(user.id)
     return subscription.extra_devices if subscription else 0
+
+
+def renew_devices_notice(dialog_manager: DialogManager) -> dict[str, Any]:
+    """
+    Что сказать про устройства при продлении на другой тариф.
+
+    Ветка строкой: селекторы в переводе сопоставляют ключи как строки.
+    NONE — сказать нечего (обычное продление или тариф покрывает все
+    устройства); KEEP — докупаем недостающие; DROP — человек отказался,
+    часть отключится; LOSE_UNLIMITED — безлимит устройств докупкой не
+    сохранить.
+    """
+    data = dialog_manager.dialog_data
+    raw_plan = data.get(PlanDto.__name__)
+    current = data.get("current_devices", 0)
+    plan_devices = raw_plan["device_limit"] if raw_plan else 0
+    notice = "NONE"
+
+    if data.get("renew_new_plan") and raw_plan and plan_devices > 0:
+        if current <= 0:
+            notice = "LOSE_UNLIMITED"
+        elif current > plan_devices:
+            notice = "KEEP" if data.get("keep_devices", True) else "DROP"
+
+    return {
+        "renew_new_plan": bool(data.get("renew_new_plan")),
+        "devices_notice": notice,
+        "devices_warning": "SHOW" if notice in ("DROP", "LOSE_UNLIMITED") else "HIDE",
+        "current_devices": current,
+        "plan_devices": plan_devices,
+        "keep_count": max(0, current - plan_devices),
+    }
+
+
+def _recommended_plan_id(plans: list[PlanDto], current_devices: int) -> int | None:
+    """Самый скромный тариф, на котором сохранятся все устройства."""
+    if current_devices <= 0:
+        covering = [p for p in plans if p.device_limit <= 0]
+    else:
+        covering = [p for p in plans if p.device_limit <= 0 or p.device_limit >= current_devices]
+    if not covering:
+        return None
+    return min(covering, key=lambda p: p.device_limit if p.device_limit > 0 else 10**6).id
 
 
 @inject
@@ -213,6 +278,7 @@ async def duration_getter(
     plan_is_modified = 1 if dialog_manager.dialog_data.get("plan_is_modified", False) else 0
 
     return {
+        **renew_devices_notice(dialog_manager),
         "plan": i18n.get(plan.name),
         "description": i18n.get(plan.description) if plan.description else False,
         "type": plan.type,
@@ -364,6 +430,7 @@ async def confirm_getter(
     days_key, days_kwargs = i18n_format_days(days_lost)
 
     return {
+        **renew_devices_notice(dialog_manager),
         "change_warning": "SHOW" if days_lost > 0 else "HIDE",
         "change_days_lost": i18n.get(days_key, **days_kwargs),
         "purchase_type": purchase_type,

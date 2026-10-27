@@ -28,6 +28,7 @@ from .handlers import (
     on_get_subscription,
     on_payment_method_select,
     on_plan_select,
+    on_renew_devices_toggle,
     on_subscription_plans,
     on_subscription_start,
 )
@@ -97,6 +98,7 @@ plan = Window(
 plans = Window(
     Banner(BannerName.SUBSCRIPTION),
     I18nFormat("msg-subscription-plans"),
+    I18nFormat("msg-subscription-renew-new-plan", F["renew_new_plan"]),
     Column(
         Select(
             text=Format("{item[name]}"),
@@ -124,6 +126,7 @@ plans = Window(
 duration = Window(
     Banner(BannerName.SUBSCRIPTION),
     I18nFormat("msg-subscription-duration"),
+    I18nFormat("msg-subscription-renew-devices", F["devices_notice"] != "NONE"),
     Group(
         Select(
             text=I18nFormat(
@@ -142,6 +145,21 @@ duration = Window(
             style=Style(ButtonStyle.PRIMARY),
         ),
         width=2,
+    ),
+    Row(
+        Button(
+            text=I18nFormat("btn-renew-devices.drop", plan_devices=F["plan_devices"]),
+            id="renew_devices_drop",
+            on_click=on_renew_devices_toggle,
+            when=F["devices_notice"] == "KEEP",
+        ),
+        Button(
+            text=I18nFormat("btn-renew-devices.keep", current_devices=F["current_devices"]),
+            id="renew_devices_keep",
+            on_click=on_renew_devices_toggle,
+            when=F["devices_notice"] == "DROP",
+            style=Style(ButtonStyle.SUCCESS),
+        ),
     ),
     Row(
         SwitchTo(
@@ -211,6 +229,8 @@ confirm = Window(
     # геттера, селектор в ftl упадёт с FluentReferenceError и утащит за
     # собой весь экран оплаты. Так он просто не отрисуется.
     I18nFormat("msg-subscription-change-warning", F["change_warning"] == "SHOW"),
+    # Последнее предупреждение перед оплатой, если часть устройств отключится.
+    I18nFormat("msg-subscription-renew-devices", F["devices_warning"] == "SHOW"),
     Row(
         Url(
             text=I18nFormat("btn-subscription.pay"),
