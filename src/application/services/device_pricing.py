@@ -188,6 +188,24 @@ def devices_to_keep(current_devices: int, plan_devices: int) -> int:
     return min(wanted, max(0, MAX_ADDON_DEVICES - plan_devices))
 
 
+def recommended_plan_id(plans, current_devices: int):  # type: ignore[no-untyped-def]
+    """
+    Самый скромный тариф, на котором сохранятся все устройства.
+
+    Нужен при продлении на другой тариф — в боте и в кабинете одинаково,
+    поэтому лежит здесь, а не в экране. Ноль в лимите — безлимит: такой
+    тариф покрывает любое число устройств, а безлимит сейчас покрывает
+    только безлимитный тариф. Подходящего нет — None.
+    """
+    if current_devices <= 0:
+        covering = [p for p in plans if p.device_limit <= 0]
+    else:
+        covering = [p for p in plans if p.device_limit <= 0 or p.device_limit >= current_devices]
+    if not covering:
+        return None
+    return min(covering, key=lambda p: p.device_limit if p.device_limit > 0 else 10**6).id
+
+
 def price_in_currency(
     amount_rub: Decimal,
     anchor_rub: Decimal,

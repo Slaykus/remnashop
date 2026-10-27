@@ -7,6 +7,7 @@ Endpoints protected by X-Internal-Key header (APP_WEB_API_KEY env var).
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 import math
 import os
 import secrets
@@ -44,6 +45,8 @@ from src.application.use_cases.partner.commands.manage import (
     SavePayoutDetailsDto,
 )
 from src.application.services.pricing import PricingService
+from src.application.services.device_pricing import devices_to_keep, recommended_plan_id
+from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.dto.plan import PlanSnapshotDto
 from src.application.dto.transaction import PriceDetailsDto
 from src.application.use_cases.gateways.commands.payment import CreatePayment, CreatePaymentDto
@@ -71,7 +74,7 @@ from src.core.exceptions import (
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
-from src.core.enums import PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, SubscriptionStatus, TransactionStatus
+from src.core.enums import Currency, PaymentGatewayType, PlanAvailability, PurchaseType, ReferralRewardType, SubscriptionStatus, TransactionStatus
 from src.core.utils.time import datetime_now
 from src.application.services.account_merge import merged_expire_at, plan_source
 from src.core.constants import AD_LINK_CODE_PATTERN, API_V1
@@ -1634,6 +1637,113 @@ class CreateWebPaymentRequest(BaseModel):
     # Подарочная покупка: оплаченная подписка уходит не плательщику, а в
     # одноразовый промокод. По умолчанию False — обычная покупка.
     is_gift: bool = False
+    # Продление на другой тариф, когда текущий больше не продаётся: сохранить
+    # ли устройства сверх нового тарифа докупкой. По умолчанию да — молча
+    # отнимать устройства нельзя. В остальных покупках не используется.
+    keep_devices: bool = True
+
+
+async def _plan_no_longer_sold(
+    subscription,  # type: ignore[no-untyped-def]
+    plans: list,
+    match_plan: MatchPlan,
+) -> bool:
+    """
+    Тариф подписки больше не продаётся — его нельзя продлить как есть.
+
+    То же решение, что принимает экран продления в боте: ни совпадающего
+    тарифа в каталоге, ни тарифа с тем же id. Так выглядят импортированные
+    из старой системы подписки (IMPORTED, id -1) и любой снятый с продажи
+    тариф. Пробный период сюда не относится — он не продлевается.
+    """
+    if subscription is None or subscription.is_trial or not subscription.plan_snapshot:
+        return False
+    matched = await match_plan.system(
+        MatchPlanDto(plan_snapshot=subscription.plan_snapshot, plans=plans)
+    )
+    if matched:
+        return False
+    return not any(p.id == subscription.plan_snapshot.id for p in plans)
+
+
+class RenewalQuoteDuration(BaseModel):
+    days: int
+    # Доплата за сохраняемые устройства до персональной скидки, в рублях.
+    surcharge_rub: str
+
+
+class RenewalQuotePlan(BaseModel):
+    plan_id: int
+    # Сколько устройств докупится к этому тарифу, чтобы ничего не отключилось.
+    keep_devices: int
+    durations: list[RenewalQuoteDuration]
+
+
+class RenewalQuoteResponse(BaseModel):
+    renew_new_plan: bool
+    current_devices: int = 0
+    recommended_plan_id: int | None = None
+    plans: list[RenewalQuotePlan] = []
+
+
+@router.get(
+    "/users/{telegram_id}/renewal-quote",
+    response_model=RenewalQuoteResponse,
+    dependencies=[Depends(verify_internal_key)],
+)
+@inject
+async def get_renewal_quote(
+    telegram_id: int,
+    user_dao: FromDishka[UserDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+    get_available_plans: FromDishka[GetAvailablePlans],
+    match_plan: FromDishka[MatchPlan],
+    pricing_service: FromDishka[PricingService],
+) -> RenewalQuoteResponse:
+    """
+    Условия продления для кабинета, если текущий тариф больше не продаётся.
+
+    Кабинет показывает цены сам, но доплату за сохраняемые устройства не
+    считает: её формула живёт здесь, и вторая копия однажды назвала бы одну
+    цену, а списала другую.
+    """
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    subscription = await subscription_dao.get_current_by_telegram_id(telegram_id)
+    plans = await get_available_plans.system(user)
+    if not await _plan_no_longer_sold(subscription, plans, match_plan):
+        return RenewalQuoteResponse(renew_new_plan=False)
+
+    current = subscription.device_limit  # type: ignore[union-attr]
+    quoted = []
+    for plan in plans:
+        keep = devices_to_keep(current, plan.device_limit)
+        quoted.append(
+            RenewalQuotePlan(
+                plan_id=plan.id or 0,
+                keep_devices=keep,
+                durations=[
+                    RenewalQuoteDuration(
+                        days=d.days,
+                        surcharge_rub=str(
+                            pricing_service.device_surcharge(plan, keep, d.days, Currency.RUB)
+                            if keep
+                            else 0
+                        ),
+                    )
+                    for d in plan.durations
+                ],
+            )
+        )
+
+    return RenewalQuoteResponse(
+        renew_new_plan=True,
+        current_devices=current,
+        recommended_plan_id=recommended_plan_id(plans, current),
+        plans=quoted,
+    )
 
 
 class CreateWebPaymentResponse(BaseModel):
@@ -1673,6 +1783,9 @@ async def create_web_payment(
     create_payment: FromDishka[CreatePayment],
     event_publisher: FromDishka[EventPublisher],
     config: FromDishka[AppConfig],
+    get_available_plans: FromDishka[GetAvailablePlans],
+    match_plan: FromDishka[MatchPlan],
+    pricing_service: FromDishka[PricingService],
 ) -> CreateWebPaymentResponse:
     user = await user_dao.get_by_telegram_id(body.telegram_id)
     if not user:
@@ -1695,7 +1808,34 @@ async def create_web_payment(
     if not gateway or not gateway.is_active:
         raise HTTPException(status_code=400, detail=f"Gateway '{body.gateway_type}' is not active")
 
-    base_price = duration.get_price(gateway.currency)
+    # Подарок не меняет подписку плательщика, поэтому и тип покупки у него
+    # всегда NEW: CHANGE/RENEW описывали бы то, чего не происходит.
+    subscription = await subscription_dao.get_current_by_telegram_id(body.telegram_id)
+    kept_devices = 0
+    if body.is_gift:
+        purchase_type = PurchaseType.NEW
+    elif subscription is None:
+        purchase_type = PurchaseType.NEW
+    elif subscription.plan_snapshot and subscription.plan_snapshot.id != plan.id:
+        purchase_type = PurchaseType.CHANGE
+        # Текущий тариф больше не продаётся — выбор нового тарифа это
+        # продление, а не смена: «смена» отсчитывает срок заново и сожгла
+        # бы остаток. Устройства сверх нового тарифа сохраняются докупкой,
+        # если человек не отказался.
+        plans = await get_available_plans.system(user)
+        if await _plan_no_longer_sold(subscription, plans, match_plan):
+            purchase_type = PurchaseType.RENEW
+            if body.keep_devices:
+                kept_devices = devices_to_keep(subscription.device_limit, plan.device_limit)
+    else:
+        purchase_type = PurchaseType.RENEW
+
+    surcharge = (
+        pricing_service.device_surcharge(plan, kept_devices, duration.days, gateway.currency)
+        if kept_devices
+        else Decimal(0)
+    )
+    base_price = duration.get_price(gateway.currency) + surcharge
     discount = getattr(user, "personal_discount", 0) or 0
     final_amount = base_price * (100 - discount) / Decimal(100)
 
@@ -1706,24 +1846,16 @@ async def create_web_payment(
     )
 
     plan_snapshot = PlanSnapshotDto.from_plan(plan, body.duration_days)
-
-    # Подарок не меняет подписку плательщика, поэтому и тип покупки у него
-    # всегда NEW: CHANGE/RENEW описывали бы то, чего не происходит.
-    subscription = await subscription_dao.get_current_by_telegram_id(body.telegram_id)
-    if body.is_gift:
-        purchase_type = PurchaseType.NEW
-    elif subscription is None:
-        purchase_type = PurchaseType.NEW
-    elif subscription.plan_snapshot and subscription.plan_snapshot.id != plan.id:
-        purchase_type = PurchaseType.CHANGE
-    else:
-        purchase_type = PurchaseType.RENEW
+    if kept_devices:
+        # Едут в снимке оплаты: продление выставит их счётчиком у подписки.
+        plan_snapshot = replace(plan_snapshot, extra_devices=kept_devices)
 
     # Отмечаем, что покупка пришла из кабинета: в логе иначе не отличить её
     # от покупки в боте, а доли этих двух путей нам нужны.
     logger.info(
         f"{user.log} Web payment requested: plan '{plan.name}', "
-        f"{body.duration_days} day(s), '{gateway_type}', gift={body.is_gift}"
+        f"{body.duration_days} day(s), '{gateway_type}', gift={body.is_gift}, "
+        f"type={purchase_type}, kept_devices={kept_devices}"
     )
 
     try:

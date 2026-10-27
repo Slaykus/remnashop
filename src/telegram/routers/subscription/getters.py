@@ -13,7 +13,7 @@ from src.application.dto import PaymentGatewayDto, PlanDto, PriceDetailsDto, Tel
 from src.application.services import PricingService
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
-from src.application.services.device_pricing import devices_to_keep
+from src.application.services.device_pricing import devices_to_keep, recommended_plan_id
 from src.core.config import AppConfig
 from src.core.enums import PurchaseType
 from src.core.utils.time import datetime_now
@@ -221,15 +221,7 @@ def renew_devices_notice(dialog_manager: DialogManager) -> dict[str, Any]:
     }
 
 
-def _recommended_plan_id(plans: list[PlanDto], current_devices: int) -> int | None:
-    """Самый скромный тариф, на котором сохранятся все устройства."""
-    if current_devices <= 0:
-        covering = [p for p in plans if p.device_limit <= 0]
-    else:
-        covering = [p for p in plans if p.device_limit <= 0 or p.device_limit >= current_devices]
-    if not covering:
-        return None
-    return min(covering, key=lambda p: p.device_limit if p.device_limit > 0 else 10**6).id
+_recommended_plan_id = recommended_plan_id
 
 
 @inject
