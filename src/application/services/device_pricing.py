@@ -172,6 +172,27 @@ def bought_devices_price(
     return max(Decimal(0), delta).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
+def gifted_devices(subscription) -> int:  # type: ignore[no-untyped-def]
+    """
+    Сколько устройств выдано подписке вручную, сверх тарифа и докупки.
+
+    Лимит поднимают руками — в панели или в админке бота, — и платить за
+    такие устройства человек не должен: это подарок. Отдельного счётчика
+    для них нет и не нужно: бот держит у себя лимит из панели, так что
+    подарок — это всё, что в лимите сверх тарифа и докупленного. Считается
+    из записанного состояния, поэтому не зависит от того, где его выдали.
+
+    Ноль, если считать не от чего: безлимитный тариф или лимит, импортированный
+    из старой системы (его устройства оплачены там, и при переходе на новый
+    тариф их сохраняют докупкой).
+    """
+    snapshot = subscription.plan_snapshot
+    plan_devices = snapshot.device_limit if snapshot else 0
+    if not snapshot or snapshot.id == -1 or plan_devices <= 0 or subscription.device_limit <= 0:
+        return 0
+    return max(0, subscription.device_limit - plan_devices - subscription.extra_devices)
+
+
 def devices_to_keep(current_devices: int, plan_devices: int) -> int:
     """
     Сколько устройств докупить к тарифу, чтобы после перехода на него

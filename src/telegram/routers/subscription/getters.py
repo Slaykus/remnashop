@@ -8,21 +8,31 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
 from src.application.common import TranslatorRunner
-from src.application.common.dao import NodeQuotaDao, PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
+from src.application.common.dao import (
+    NodeQuotaDao,
+    PaymentGatewayDao,
+    PlanDao,
+    SettingsDao,
+    SubscriptionDao,
+)
 from src.application.dto import PaymentGatewayDto, PlanDto, PriceDetailsDto, TelegramUserDto
 from src.application.services import PricingService
+from src.application.services.device_pricing import (
+    devices_to_keep,
+    gifted_devices,
+    recommended_plan_id,
+)
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
-from src.application.services.device_pricing import devices_to_keep, recommended_plan_id
 from src.core.config import AppConfig
 from src.core.enums import PurchaseType
-from src.core.utils.time import datetime_now
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
     i18n_format_device_limit,
     i18n_format_expire_time,
     i18n_format_traffic_limit,
 )
+from src.core.utils.time import datetime_now
 
 
 def _get_gateway_title(i18n: TranslatorRunner, gateway: PaymentGatewayDto) -> str:
@@ -189,6 +199,30 @@ async def renewal_extra_devices(
     return subscription.extra_devices if subscription else 0
 
 
+async def renewal_gifted_devices(
+    dialog_manager: DialogManager,
+    subscription_dao: SubscriptionDao,
+    user: TelegramUserDto,
+    plan_devices: int,
+) -> int:
+    """
+    Сколько выданных вручную устройств останется после этой оплаты.
+
+    Только для показа: в цену они не входят. Переживают и продление, и
+    смену тарифа; при продлении на другой тариф уже учтены в сохраняемых
+    устройствах, а на безлимитном тарифе считать их не от чего.
+    """
+    data = dialog_manager.dialog_data
+    if data.get("renew_new_plan") or plan_devices <= 0:
+        return 0
+    if data.get("purchase_type") not in (PurchaseType.RENEW, PurchaseType.CHANGE):
+        return 0
+    subscription = await subscription_dao.get_current(user.id)
+    if not subscription or subscription.is_trial:
+        return 0
+    return gifted_devices(subscription)
+
+
 def renew_devices_notice(dialog_manager: DialogManager) -> dict[str, Any]:
     """
     Что сказать про устройства при продлении на другой тариф.
@@ -246,6 +280,7 @@ async def duration_getter(
     only_single_plan = dialog_manager.dialog_data.get("only_single_plan", False)
     dialog_manager.dialog_data["is_free"] = False
     extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
+    gifted = await renewal_gifted_devices(dialog_manager, subscription_dao, user, plan.device_limit)
     durations = []
 
     for duration in plan.durations:
@@ -276,7 +311,7 @@ async def duration_getter(
         "type": plan.type,
         # С докупленными: у человека их может быть больше, чем даёт
         # тариф, и видеть в описании покупки тарифную цифру ему незачем.
-        "devices": i18n_format_device_limit(plan.device_limit + extra_devices),
+        "devices": i18n_format_device_limit(plan.device_limit + extra_devices + gifted),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "durations": durations,
         "period": 0,
@@ -315,6 +350,7 @@ async def payment_method_getter(
         raise ValueError(f"Duration '{selected_duration}' not found in plan '{plan.name}'")
 
     extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
+    gifted = await renewal_gifted_devices(dialog_manager, subscription_dao, user, plan.device_limit)
 
     payment_methods = []
     for gateway in gateways:
@@ -346,7 +382,7 @@ async def payment_method_getter(
         "type": plan.type,
         # С докупленными: у человека их может быть больше, чем даёт
         # тариф, и видеть в описании покупки тарифную цифру ему незачем.
-        "devices": i18n_format_device_limit(plan.device_limit + extra_devices),
+        "devices": i18n_format_device_limit(plan.device_limit + extra_devices + gifted),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "period": i18n.get(key, **kw),
         "payment_methods": payment_methods,
@@ -403,6 +439,7 @@ async def confirm_getter(
     plan_is_modified = 1 if dialog_manager.dialog_data.get("plan_is_modified", False) else 0
 
     extra_devices = await renewal_extra_devices(dialog_manager, subscription_dao, user)
+    gifted = await renewal_gifted_devices(dialog_manager, subscription_dao, user, plan.device_limit)
 
     # Смена тарифа не продлевает, а заменяет: старая подписка помечается
     # удалённой, у новой срок считается с сегодня, трафик обнуляется.
@@ -431,7 +468,7 @@ async def confirm_getter(
         "type": plan.type,
         # С докупленными: у человека их может быть больше, чем даёт
         # тариф, и видеть в описании покупки тарифную цифру ему незачем.
-        "devices": i18n_format_device_limit(plan.device_limit + extra_devices),
+        "devices": i18n_format_device_limit(plan.device_limit + extra_devices + gifted),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "period": i18n.get(key, **kw),
         "payment_method": selected_payment_method,

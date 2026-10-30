@@ -7,12 +7,13 @@ from loguru import logger
 from src.application.common import EventPublisher, Interactor, Remnawave
 from src.application.common.dao import PlanDao, SubscriptionDao, UserDao
 from src.application.common.uow import UnitOfWork
+from src.application.dto import PlanSnapshotDto, SubscriptionDto, TransactionDto, UserDto
+from src.application.events import TrialActivatedEvent
+from src.application.services.device_pricing import gifted_devices
 from src.application.use_cases.ad_link.commands.process_click import (
     ApplyPendingAdBonus,
     ApplyPendingAdBonusDto,
 )
-from src.application.dto import PlanSnapshotDto, SubscriptionDto, TransactionDto, UserDto
-from src.application.events import TrialActivatedEvent
 from src.core.enums import PurchaseType, SubscriptionStatus
 from src.core.exceptions import TrialNotAvailableError
 from src.core.types import RemnaUserDto
@@ -179,10 +180,20 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                 # человек решил сохранить, пришло в самой оплате; прежний
                 # счётчик относился к прежнему тарифу.
                 if plan.id != subscription.plan_snapshot.id:
+                    # Подаренное сверх прежнего тарифа здесь уже учтено:
+                    # всё, что выше нового тарифа, человек сохранил докупкой.
+                    gifted = 0
                     subscription.extra_devices = plan.extra_devices
+                else:
+                    gifted = gifted_devices(subscription)
                 # Докупленные устройства переживают продление: человек платит
                 # за них в цене продления, и отнимать их при списании нельзя.
-                subscription.device_limit = plan.device_limit + subscription.extra_devices
+                # Выданные вручную — тоже, но бесплатно: в цену они не входят.
+                subscription.device_limit = (
+                    plan.device_limit + subscription.extra_devices + gifted
+                    if plan.device_limit > 0
+                    else plan.device_limit
+                )
                 subscription.traffic_limit = plan.traffic_limit
                 subscription.traffic_limit_strategy = plan.traffic_limit_strategy
                 subscription.tag = plan.tag
@@ -212,6 +223,14 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                         f"No subscription found for change for user '{user.remna_name}'"
                     )
 
+                # Выданное вручную переезжает на новый тариф: подарок
+                # принадлежит человеку, а не тарифу. С пробного периода и на
+                # безлимитный тариф переносить нечего.
+                gifted = 0 if has_trial or plan.device_limit <= 0 else gifted_devices(subscription)
+                panel_plan = (
+                    replace(plan, device_limit=plan.device_limit + gifted) if gifted else plan
+                )
+
                 await self.subscription_dao.update_status(
                     subscription_id=subscription.id,
                     status=SubscriptionStatus.DELETED,
@@ -220,11 +239,12 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                 updated_user = await self.remnawave.update_user(
                     user=user,
                     uuid=subscription.user_remna_id,
-                    plan=plan,
+                    plan=panel_plan,
                     reset_traffic=True,
                 )
 
                 new_sub = self._build_subscription_dto(updated_user, plan)
+                new_sub.device_limit = panel_plan.device_limit
                 await self.subscription_dao.create(
                     subscription=new_sub,
                     user_id=user.id,
@@ -248,8 +268,11 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                 # покупки: там лежит новый общий потолок. Надбавку считаем
                 # разницей с тем, что даёт его тариф, — так она переживёт
                 # продление и попадёт в его цену.
+                # Подаренное вручную в надбавку не превращаем: иначе за него
+                # начали бы брать деньги при каждом продлении.
                 base_devices = subscription.plan_snapshot.device_limit
-                subscription.extra_devices = max(0, plan.device_limit - base_devices)
+                gifted = gifted_devices(subscription)
+                subscription.extra_devices = max(0, plan.device_limit - base_devices - gifted)
                 subscription.device_limit = plan.device_limit
 
                 # Ни срока, ни трафика не касаемся: человек купил потолок, а
