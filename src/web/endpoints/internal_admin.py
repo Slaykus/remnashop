@@ -1,5 +1,5 @@
 """
-Админка кабинета: поиск клиента и его карточка.
+Админка кабинета: таблица клиентов и карточка клиента.
 
 Только чтение. Админка ничего не пишет в базу бота и в панель напрямую:
 действия появятся отдельными ручками и пойдут теми же сценариями, что и в
@@ -12,12 +12,14 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel
 from remnapy import RemnawaveSDK
@@ -25,12 +27,18 @@ from remnapy import RemnawaveSDK
 from src.application.common import Remnawave
 from src.application.common.dao import (
     PartnerDao,
+    PlanDao,
     ReferralDao,
     SubscriptionDao,
     TransactionDao,
     UserDao,
 )
-from src.application.dto import UserDto
+from src.application.dto.admin_clients import (
+    AdminClientsQuery,
+    ClientSort,
+    ClientSource,
+    ClientStatusFilter,
+)
 from src.application.services.device_pricing import gifted_devices
 from src.application.services.pricing import PricingService
 from src.core.constants import API_V1
@@ -43,100 +51,7 @@ router = APIRouter(
     dependencies=[Depends(verify_internal_key)],
 )
 
-SEARCH_LIMIT = 20
 TRANSACTIONS_LIMIT = 50
-
-
-# ---------------------------------------------------------------------------
-# Поиск
-# ---------------------------------------------------------------------------
-
-
-class AdminSearchHit(BaseModel):
-    telegram_id: int
-    user_id: int
-    name: str
-    username: str | None
-    # По чему нашёлся: при поиске по числу это отличает tg id от id в боте.
-    matched_by: str
-    subscription_status: str | None
-    plan_name: str | None
-    expire_at: datetime | None
-
-
-def _search_term(q: str) -> str:
-    """Запрос без обвязки, с которой его обычно копируют: `rs_…`, `@…`."""
-    term = q.strip()
-    if term.lower().startswith("rs_"):
-        term = term[3:]
-    return term.lstrip("@")
-
-
-async def _find_users(
-    term: str, user_dao: UserDao, transaction_dao: TransactionDao
-) -> list[tuple[UserDto, str]]:
-    found: dict[int, tuple[UserDto, str]] = {}
-
-    def add(user: UserDto | None, how: str) -> None:
-        if user and user.id and user.id not in found:
-            found[user.id] = (user, how)
-
-    try:
-        payment_id = UUID(term)
-    except ValueError:
-        payment_id = None
-
-    if payment_id:
-        transaction = await transaction_dao.get_by_payment_id(payment_id)
-        if transaction:
-            add(await user_dao.get_by_id(transaction.user_id), "платёж")
-    elif term.lstrip("-").isdigit():
-        number = int(term)
-        add(await user_dao.get_by_telegram_id(number), "tg id")
-        if 0 < number < 2**31:
-            add(await user_dao.get_by_id(number), "id в боте")
-    elif len(term) >= 2:
-        for user in (await user_dao.get_by_partial_name(term))[:SEARCH_LIMIT]:
-            add(user, "имя")
-
-    return list(found.values())
-
-
-@router.get("/search", response_model=list[AdminSearchHit])
-@inject
-async def search_clients(
-    q: str,
-    user_dao: FromDishka[UserDao],
-    subscription_dao: FromDishka[SubscriptionDao],
-    transaction_dao: FromDishka[TransactionDao],
-) -> list[AdminSearchHit]:
-    """
-    Клиенты по tg id, `rs_…`, id в боте, id платежа, имени или нику.
-
-    Находит и тех, кто пользуется только ботом: список пользователей сайта
-    их не видит. По имени — не короче двух символов и не больше двадцати
-    результатов, чтобы случайная буква не выгружала всю базу.
-    """
-    found = await _find_users(_search_term(q), user_dao, transaction_dao)
-
-    hits = []
-    for user, how in found:
-        subscription = await subscription_dao.get_current(user.id or 0)
-        hits.append(
-            AdminSearchHit(
-                telegram_id=user.telegram_id,
-                user_id=user.id or 0,
-                name=user.name or "",
-                username=user.username,
-                matched_by=how,
-                subscription_status=(
-                    _enum_value(subscription.current_status) if subscription else None
-                ),
-                plan_name=subscription.plan_snapshot.name if subscription else None,
-                expire_at=subscription.expire_at if subscription else None,
-            )
-        )
-    return hits
 
 
 # ---------------------------------------------------------------------------
@@ -370,4 +285,101 @@ async def client_card(
         referrer=referrer,
         invited_count=await referral_dao.get_referrals_count(user.id),
         is_partner=await partner_dao.get_by_user_id(user.id) is not None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Таблица клиентов
+# ---------------------------------------------------------------------------
+
+
+class AdminClientRowResponse(BaseModel):
+    user_id: int
+    telegram_id: int
+    name: str
+    username: str | None
+    created_at: datetime | None
+    is_blocked: bool
+    is_bot_blocked: bool
+    personal_discount: int
+    subscription_status: str | None
+    is_trial: bool
+    plan_id: int | None
+    plan_name: str | None
+    expire_at: datetime | None
+    device_limit: int | None
+    paid_rub: str
+    payments: int
+
+
+class AdminPlanOption(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+
+
+class AdminClientsResponse(BaseModel):
+    rows: list[AdminClientRowResponse]
+    total: int
+    counts: dict[str, int]
+    page: int
+    per_page: int
+    plans: list[AdminPlanOption]
+
+
+@router.get("/clients", response_model=AdminClientsResponse)
+@inject
+async def clients_page(
+    user_dao: FromDishka[UserDao],
+    plan_dao: FromDishka[PlanDao],
+    status: ClientStatusFilter = "all",
+    source: ClientSource = "all",
+    plan_id: int | None = None,
+    sort: ClientSort = "created",
+    q: str = "",
+    extra_telegram_ids: Annotated[list[int] | None, Query()] = None,
+    page: int = 1,
+    per_page: int = 25,
+) -> AdminClientsResponse:
+    """
+    Все клиенты бота — и из телеграма, и с сайта — постранично, с
+    фильтрами и счётчиками вкладок. Один запрос в базу на страницу.
+
+    `extra_telegram_ids` — клиенты, найденные кабинетом по логину на
+    сайте: бот логинов не знает, а показать их нужно в той же таблице.
+    """
+    term = q.strip()
+    try:
+        payment_id = UUID(term) if term else None
+    except ValueError:
+        payment_id = None
+
+    result = await user_dao.admin_clients_page(
+        AdminClientsQuery(
+            status=status,
+            source=source,
+            plan_id=plan_id,
+            sort=sort,
+            q="" if payment_id else term,
+            payment_id=payment_id,
+            extra_telegram_ids=tuple(extra_telegram_ids or ()),
+            page=max(1, page),
+            per_page=max(1, min(per_page, 100)),
+        )
+    )
+    plans = await plan_dao.get_all()
+    return AdminClientsResponse(
+        rows=[
+            AdminClientRowResponse(**{**asdict(r), "paid_rub": str(r.paid_rub)})
+            for r in result.rows
+        ],
+        total=result.total,
+        counts=result.counts,
+        page=max(1, page),
+        per_page=max(1, min(per_page, 100)),
+        plans=[
+            AdminPlanOption(id=p.id or 0, name=p.name, is_active=p.is_active)
+            for p in plans
+            if not p.is_trial
+        ],
     )

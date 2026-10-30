@@ -3,6 +3,7 @@ from typing import Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from src.application.dto import UserDto
+from src.application.dto.admin_clients import AdminClientsPage, AdminClientsQuery
 from src.core.enums import Role
 
 
@@ -116,3 +117,5 @@ class UserDao(Protocol):
     async def count_bot_blocked(self) -> int: ...
 
     async def block_by_telegram_ids(self, telegram_ids: list[int]) -> int: ...
+
+    async def admin_clients_page(self, query: AdminClientsQuery) -> AdminClientsPage: ...

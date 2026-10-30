@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Optional, cast
 from uuid import UUID
 
@@ -6,12 +7,14 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import and_, delete, func, or_, select, text, update
+from sqlalchemy import Numeric, and_, delete, false, func, or_, select, text, update
+from sqlalchemy import cast as sql_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import UserDao
 from src.application.dto import UserDto
-from src.core.enums import Role, SubscriptionStatus
+from src.application.dto.admin_clients import AdminClientRow, AdminClientsPage, AdminClientsQuery
+from src.core.enums import Currency, Role, SubscriptionStatus, TransactionStatus
 from src.core.exceptions import AccountMergeConflictError
 from src.infrastructure.database.models import (
     AdLink,
@@ -685,3 +688,152 @@ class UserDaoImpl(UserDao):
         count = await self.session.scalar(stmt) or 0
         logger.debug(f"Total bot-blocked users count is '{count}'")
         return count
+
+    async def admin_clients_page(self, query: AdminClientsQuery) -> AdminClientsPage:
+        """
+        Страница таблицы клиентов для админки: пользователь, его текущая
+        подписка и сумма оплат — одним запросом, плюс счётчики вкладок.
+
+        «Оплачено» — завершённые не тестовые платежи в рублях. Статус
+        берётся с учётом срока: подписка с прошедшей датой — истёкшая, даже
+        если в базе ещё ACTIVE (её закрывает фоновая задача, не сразу).
+        """
+        now = datetime.now(timezone.utc)
+        amount = sql_cast(Transaction.pricing["final_amount"].astext, Numeric)
+        paid = (
+            select(
+                Transaction.user_id.label("user_id"),
+                func.sum(amount).label("paid"),
+                func.count().label("payments"),
+            )
+            .where(
+                Transaction.status == TransactionStatus.COMPLETED,
+                Transaction.is_test.is_(False),
+                Transaction.currency == Currency.RUB,
+            )
+            .group_by(Transaction.user_id)
+            .subquery()
+        )
+
+        live = Subscription.expire_at > now
+        statuses = {
+            "active": and_(Subscription.status == SubscriptionStatus.ACTIVE, live),
+            "expiring": and_(
+                Subscription.status == SubscriptionStatus.ACTIVE,
+                live,
+                Subscription.expire_at <= now + timedelta(days=7),
+            ),
+            "trial": and_(
+                Subscription.status == SubscriptionStatus.ACTIVE, live, Subscription.is_trial
+            ),
+            "expired": and_(
+                Subscription.id.is_not(None),
+                Subscription.status != SubscriptionStatus.DELETED,
+                or_(Subscription.status == SubscriptionStatus.EXPIRED, ~live),
+            ),
+            "limited": and_(Subscription.status == SubscriptionStatus.LIMITED, live),
+            "none": or_(
+                Subscription.id.is_(None), Subscription.status == SubscriptionStatus.DELETED
+            ),
+        }
+
+        filters = []
+        if query.source == "telegram":
+            filters.append(User.telegram_id > 0)
+        elif query.source == "site":
+            filters.append(User.telegram_id < 0)
+        if query.plan_id is not None:
+            filters.append(Subscription.plan_snapshot["id"].astext == str(query.plan_id))
+        if query.q or query.extra_telegram_ids or query.payment_id:
+            filters.append(self._admin_search_condition(query))
+
+        def joined(stmt):  # type: ignore[no-untyped-def]
+            return (
+                stmt.select_from(User)
+                .outerjoin(Subscription, Subscription.id == User.current_subscription_id)
+                .outerjoin(paid, paid.c.user_id == User.id)
+                .where(*filters)
+            )
+
+        count_cols = [func.count().label("all")] + [
+            func.count().filter(cond).label(name) for name, cond in statuses.items()
+        ]
+        counts_row = (await self.session.execute(joined(select(*count_cols)))).one()
+        counts = dict(counts_row._mapping)
+
+        order = {
+            "created": (User.created_at.desc(), User.id.desc()),
+            "expire": (Subscription.expire_at.asc().nulls_last(), User.id.desc()),
+            "paid": (func.coalesce(paid.c.paid, 0).desc(), User.id.desc()),
+            "name": (func.lower(User.name).asc(), User.id.asc()),
+        }[query.sort]
+
+        stmt = joined(select(User, Subscription, paid.c.paid, paid.c.payments))
+        if query.status != "all":
+            stmt = stmt.where(statuses[query.status])
+        per_page = max(1, min(query.per_page, 100))
+        stmt = stmt.order_by(*order).offset((max(1, query.page) - 1) * per_page).limit(per_page)
+
+        rows = []
+        for user, sub, paid_sum, payments in (await self.session.execute(stmt)).all():
+            has_sub = sub is not None and sub.status != SubscriptionStatus.DELETED
+            status = None
+            if has_sub:
+                status = (
+                    SubscriptionStatus.EXPIRED.value if sub.expire_at <= now else str(sub.status)
+                )
+            snapshot = sub.plan_snapshot if has_sub else {}
+            rows.append(
+                AdminClientRow(
+                    user_id=user.id,
+                    telegram_id=user.telegram_id,
+                    name=user.name or "",
+                    username=user.username,
+                    created_at=user.created_at,
+                    is_blocked=user.is_blocked,
+                    is_bot_blocked=user.is_bot_blocked,
+                    personal_discount=user.personal_discount or 0,
+                    subscription_status=status,
+                    is_trial=bool(has_sub and sub.is_trial),
+                    plan_id=snapshot.get("id"),
+                    plan_name=snapshot.get("name"),
+                    expire_at=sub.expire_at if has_sub else None,
+                    device_limit=sub.device_limit if has_sub else None,
+                    paid_rub=Decimal(paid_sum or 0),
+                    payments=payments or 0,
+                )
+            )
+
+        total = counts["all"] if query.status == "all" else counts[query.status]
+        return AdminClientsPage(rows=rows, total=total, counts=counts)
+
+    @staticmethod
+    def _admin_search_condition(query: AdminClientsQuery):  # type: ignore[no-untyped-def]
+        """
+        Кого ищут: по id платежа, по числу (tg id или id в боте), по имени
+        или нику. Плюс найденные кабинетом по логину на сайте.
+        """
+        term = query.q.strip()
+        if term.lower().startswith("rs_"):
+            term = term[3:]
+        term = term.lstrip("@")
+
+        conds = []
+        if query.payment_id:
+            conds.append(
+                User.id.in_(
+                    select(Transaction.user_id).where(Transaction.payment_id == query.payment_id)
+                )
+            )
+        elif term.lstrip("-").isdigit():
+            number = int(term)
+            conds.append(User.telegram_id == number)
+            if 0 < number < 2**31:
+                conds.append(User.id == number)
+        elif len(term) >= 2:
+            pattern = f"%{term}%"
+            conds += [User.name.ilike(pattern), User.username.ilike(pattern)]
+        if query.extra_telegram_ids:
+            conds.append(User.telegram_id.in_(query.extra_telegram_ids))
+        # Запрос в одну букву ничего не находит, а не выгружает всех.
+        return or_(*conds) if conds else false()
