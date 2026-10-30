@@ -106,6 +106,9 @@ def _deps(panel_ok=True):
     async def partner(uid):
         return None
 
+    async def plans():
+        return [SimpleNamespace(id=5, name="Team", is_active=True, is_trial=False)]
+
     async def devices(uuid):
         if not panel_ok:
             raise RuntimeError("panel down")
@@ -134,6 +137,7 @@ def _deps(panel_ok=True):
         transaction_dao=SimpleNamespace(get_by_payment_id=by_payment, get_by_user=by_user),
         referral_dao=SimpleNamespace(get_by_referred_id=referral, get_referrals_count=count),
         partner_dao=SimpleNamespace(get_by_user_id=partner),
+        plan_dao=SimpleNamespace(get_all=plans),
         remnawave=SimpleNamespace(get_devices=devices),
         sdk=SimpleNamespace(users=SimpleNamespace(get_user_by_uuid=panel_user)),
     )

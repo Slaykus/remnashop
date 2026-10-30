@@ -183,6 +183,10 @@ def extras_after_limit_change(
 class UpdateDeviceLimitDto:
     user_id: int
     device_limit: int
+    # Сделать всё сверх тарифа платным: такие устройства входят в цену
+    # продления. По умолчанию нет — поднятый вручную лимит остаётся
+    # подарком (см. extras_after_limit_change).
+    paid: bool = False
 
 
 class UpdateDeviceLimit(Interactor[UpdateDeviceLimitDto, None]):
@@ -212,11 +216,15 @@ class UpdateDeviceLimit(Interactor[UpdateDeviceLimitDto, None]):
 
             extras_before = subscription.extra_devices
             subscription.device_limit = data.device_limit
-            subscription.extra_devices = extras_after_limit_change(
-                plan_devices=subscription.plan_snapshot.device_limit,
-                new_limit=data.device_limit,
-                current_extras=extras_before,
-            )
+            plan_devices = subscription.plan_snapshot.device_limit
+            if data.paid and plan_devices > 0 and data.device_limit > 0:
+                subscription.extra_devices = max(0, data.device_limit - plan_devices)
+            else:
+                subscription.extra_devices = extras_after_limit_change(
+                    plan_devices=plan_devices,
+                    new_limit=data.device_limit,
+                    current_extras=extras_before,
+                )
             await self.subscription_dao.update(subscription)
             await self.remnawave.update_user(
                 user=target_user,

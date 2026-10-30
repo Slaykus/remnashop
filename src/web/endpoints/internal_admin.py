@@ -41,6 +41,18 @@ from src.application.dto.admin_clients import (
 )
 from src.application.services.device_pricing import gifted_devices
 from src.application.services.pricing import PricingService
+from src.application.use_cases.remnawave.commands.management import (
+    AdminDeleteDevices,
+    AdminDeleteDevicesDto,
+)
+from src.application.use_cases.subscription.commands.management import (
+    UpdateDeviceLimit,
+    UpdateDeviceLimitDto,
+)
+from src.application.use_cases.subscription.commands.set_plan import (
+    SetUserSubscription,
+    SetUserSubscriptionDto,
+)
 from src.core.constants import API_V1
 
 from .internal import _days_left, _enum_value, verify_internal_key
@@ -134,6 +146,12 @@ class AdminCardPerson(BaseModel):
     username: str | None
 
 
+class AdminPlanOption(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+
+
 class AdminCardResponse(BaseModel):
     user: AdminCardUser
     subscription: AdminCardSubscription | None
@@ -145,6 +163,16 @@ class AdminCardResponse(BaseModel):
     referrer: AdminCardPerson | None
     invited_count: int
     is_partner: bool
+    # Для смены тарифа в карточке; пробные не предлагаем.
+    plans: list[AdminPlanOption]
+
+
+def _plan_options(plans) -> list[AdminPlanOption]:  # type: ignore[no-untyped-def]
+    return [
+        AdminPlanOption(id=p.id or 0, name=p.name, is_active=p.is_active)
+        for p in plans
+        if not p.is_trial
+    ]
 
 
 def _short_error(e: Exception) -> str:
@@ -160,6 +188,7 @@ async def client_card(
     transaction_dao: FromDishka[TransactionDao],
     referral_dao: FromDishka[ReferralDao],
     partner_dao: FromDishka[PartnerDao],
+    plan_dao: FromDishka[PlanDao],
     remnawave: FromDishka[Remnawave],
     sdk: FromDishka[RemnawaveSDK],
 ) -> AdminCardResponse:
@@ -285,6 +314,7 @@ async def client_card(
         referrer=referrer,
         invited_count=await referral_dao.get_referrals_count(user.id),
         is_partner=await partner_dao.get_by_user_id(user.id) is not None,
+        plans=_plan_options(await plan_dao.get_all()),
     )
 
 
@@ -310,12 +340,6 @@ class AdminClientRowResponse(BaseModel):
     device_limit: int | None
     paid_rub: str
     payments: int
-
-
-class AdminPlanOption(BaseModel):
-    id: int
-    name: str
-    is_active: bool
 
 
 class AdminClientsResponse(BaseModel):
@@ -377,9 +401,158 @@ async def clients_page(
         counts=result.counts,
         page=max(1, page),
         per_page=max(1, min(per_page, 100)),
-        plans=[
-            AdminPlanOption(id=p.id or 0, name=p.name, is_active=p.is_active)
-            for p in plans
-            if not p.is_trial
-        ],
+        plans=_plan_options(plans),
     )
+
+
+# ---------------------------------------------------------------------------
+# Действия
+# ---------------------------------------------------------------------------
+#
+# Каждое действие проводится тем же сценарием, что и в админке бота (с
+# синхронизацией панели), и возвращает состояние подписки до и после:
+# кабинет пишет его в журнал действий, чтобы было видно, что поменялось.
+
+
+class AdminSubscriptionState(BaseModel):
+    plan_name: str | None
+    device_limit: int | None
+    extra_devices: int
+    gifted_devices: int
+    expire_at: datetime | None
+    devices_connected: int | None = None
+
+
+class AdminActionResult(BaseModel):
+    before: AdminSubscriptionState
+    after: AdminSubscriptionState
+
+
+class AdminDeviceLimitRequest(BaseModel):
+    device_limit: int
+    # true — всё сверх тарифа платное (входит в цену продления);
+    # false — сверх тарифа подарок, бесплатно и переживает продление.
+    paid: bool = False
+
+
+class AdminSetPlanRequest(BaseModel):
+    plan_id: int
+    # Сколько дней с сегодняшнего дня. Не указано — оставить текущий срок.
+    days: int | None = None
+
+
+class AdminDeleteDevicesRequest(BaseModel):
+    # Не указано — удалить все.
+    hwid: str | None = None
+
+
+async def _client(user_dao: UserDao, telegram_id: int):  # type: ignore[no-untyped-def]
+    user = await user_dao.get_by_telegram_id(telegram_id)
+    if not user or not user.id:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    return user
+
+
+async def _state(
+    subscription_dao: SubscriptionDao, user_id: int, devices: int | None = None
+) -> AdminSubscriptionState:
+    sub = await subscription_dao.get_current(user_id)
+    if not sub:
+        return AdminSubscriptionState(
+            plan_name=None, device_limit=None, extra_devices=0, gifted_devices=0, expire_at=None
+        )
+    return AdminSubscriptionState(
+        plan_name=sub.plan_snapshot.name if sub.plan_snapshot else None,
+        device_limit=sub.device_limit,
+        extra_devices=sub.extra_devices,
+        gifted_devices=gifted_devices(sub),
+        expire_at=sub.expire_at,
+        devices_connected=devices,
+    )
+
+
+def _refuse(e: Exception) -> HTTPException:
+    logger.warning(f"Admin action refused: {e}")
+    return HTTPException(status_code=400, detail=str(e)[:300])
+
+
+@router.post("/users/{telegram_id}/device-limit", response_model=AdminActionResult)
+@inject
+async def set_device_limit(
+    telegram_id: int,
+    body: AdminDeviceLimitRequest,
+    user_dao: FromDishka[UserDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+    update_device_limit: FromDishka[UpdateDeviceLimit],
+) -> AdminActionResult:
+    if not (1 <= body.device_limit <= 100):
+        raise HTTPException(status_code=400, detail="Лимит устройств — от 1 до 100")
+    user = await _client(user_dao, telegram_id)
+    before = await _state(subscription_dao, user.id)
+    if before.device_limit is None:
+        raise HTTPException(status_code=400, detail="У клиента нет подписки")
+    try:
+        await update_device_limit.system(
+            UpdateDeviceLimitDto(user_id=user.id, device_limit=body.device_limit, paid=body.paid)
+        )
+    except ValueError as e:
+        raise _refuse(e)
+    return AdminActionResult(before=before, after=await _state(subscription_dao, user.id))
+
+
+@router.post("/users/{telegram_id}/plan", response_model=AdminActionResult)
+@inject
+async def set_plan(
+    telegram_id: int,
+    body: AdminSetPlanRequest,
+    user_dao: FromDishka[UserDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+    set_subscription: FromDishka[SetUserSubscription],
+) -> AdminActionResult:
+    """
+    Тариф без оплаты. Подписка пересоздаётся под тариф: докупленные и
+    подаренные устройства сбрасываются до его лимита — кабинет говорит об
+    этом до подтверждения. Срок — указанный или текущий.
+    """
+    user = await _client(user_dao, telegram_id)
+    before = await _state(subscription_dao, user.id)
+    if body.days is not None:
+        days = body.days
+    elif before.expire_at:
+        days = _days_left(before.expire_at)
+    else:
+        days = 0
+    if not (1 <= days <= 3650):
+        raise HTTPException(status_code=400, detail="Срок — от 1 до 3650 дней")
+    try:
+        await set_subscription.system(
+            SetUserSubscriptionDto(user_id=user.id, plan_id=body.plan_id, duration=days)
+        )
+    except ValueError as e:
+        raise _refuse(e)
+    return AdminActionResult(before=before, after=await _state(subscription_dao, user.id))
+
+
+@router.post("/users/{telegram_id}/devices/delete", response_model=AdminActionResult)
+@inject
+async def delete_devices(
+    telegram_id: int,
+    body: AdminDeleteDevicesRequest,
+    user_dao: FromDishka[UserDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+    remnawave: FromDishka[Remnawave],
+    admin_delete_devices: FromDishka[AdminDeleteDevices],
+) -> AdminActionResult:
+    user = await _client(user_dao, telegram_id)
+    sub = await subscription_dao.get_current(user.id)
+    if not sub:
+        raise HTTPException(status_code=400, detail="У клиента нет подписки")
+    connected = len(await remnawave.get_devices(sub.user_remna_id))
+    before = await _state(subscription_dao, user.id, connected)
+    try:
+        await admin_delete_devices.system(AdminDeleteDevicesDto(user_id=user.id, hwid=body.hwid))
+    except ValueError as e:
+        raise _refuse(e)
+    connected = len(await remnawave.get_devices(sub.user_remna_id))
+    after = await _state(subscription_dao, user.id, connected)
+    return AdminActionResult(before=before, after=after)

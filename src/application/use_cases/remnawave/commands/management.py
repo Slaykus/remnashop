@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Optional
 
 from loguru import logger
 
@@ -72,6 +73,45 @@ class DeleteUserDevice(Interactor[DeleteUserDeviceDto, bool]):
 
         logger.info(f"{actor.log} Deleted device '{data.hwid}' for user_id '{data.user_id}'")
         return bool(remaining_devices)
+
+
+@dataclass(frozen=True)
+class AdminDeleteDevicesDto:
+    user_id: int
+    # Одно устройство; None — все.
+    hwid: Optional[str] = None
+
+
+class AdminDeleteDevices(Interactor[AdminDeleteDevicesDto, None]):
+    """
+    Удаление устройств клиента администратором.
+
+    Не то же, что сброс самим клиентом: тот ограничен частотой и ставит
+    отметку о сбросе. Админ, разбирая обращение, не должен ни упираться в
+    это ограничение, ни сжигать клиенту его собственный сброс.
+    """
+
+    required_permission = Permission.USER_EDITOR
+
+    def __init__(self, subscription_dao: SubscriptionDao, remnawave: Remnawave) -> None:
+        self.subscription_dao = subscription_dao
+        self.remnawave = remnawave
+
+    async def _execute(self, actor: UserDto, data: AdminDeleteDevicesDto) -> None:
+        subscription = await self.subscription_dao.get_current(data.user_id)
+        if not subscription:
+            raise ValueError(f"Subscription for user_id '{data.user_id}' not found")
+
+        if data.hwid:
+            await self.remnawave.delete_device(subscription.user_remna_id, data.hwid)
+        else:
+            await self.remnawave.delete_all_devices(subscription.user_remna_id)
+        await self.remnawave.drop_connections(subscription.user_remna_id)
+
+        logger.info(
+            f"{actor.log} Deleted {'device ' + repr(data.hwid) if data.hwid else 'all devices'} "
+            f"for user_id '{data.user_id}'"
+        )
 
 
 class DeleteUserAllDevices(Interactor[None, None]):

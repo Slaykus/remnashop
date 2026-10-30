@@ -3,6 +3,7 @@ from typing import Final
 from src.application.common import Interactor
 
 from .commands.management import (
+    AdminDeleteDevices,
     DeleteUserAllDevices,
     DeleteUserDevice,
     ReissueSubscription,
@@ -18,6 +19,7 @@ REMNAWAVE_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     SyncRemnaUser,
     DeleteUserDevice,
     DeleteUserAllDevices,
+    AdminDeleteDevices,
     ResetUserTraffic,
     ReissueSubscription,
     ReissueUserSubscription,
