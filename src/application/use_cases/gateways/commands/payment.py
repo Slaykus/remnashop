@@ -166,6 +166,8 @@ class CreatePaymentDto:
     gateway_type: PaymentGatewayType
     return_url: Optional[str] = None
     is_gift: bool = False
+    # Где начата оплата: 'bot' или 'web' — для разбивки в админке.
+    source: Optional[str] = None
 
 
 class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
@@ -222,6 +224,7 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
                     currency=gateway_instance.data.currency,
                     plan_snapshot=data.plan_snapshot,
                     is_gift=data.is_gift,
+                    source=data.source,
                 )
                 await self.transaction_dao.create(transaction)
                 await self.uow.commit()
@@ -246,6 +249,7 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
             currency=gateway_instance.data.currency,
             plan_snapshot=data.plan_snapshot,
             is_gift=data.is_gift,
+            source=data.source,
         )
 
         async with self.uow:

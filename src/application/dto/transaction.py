@@ -43,6 +43,8 @@ class TransactionDto(BaseDto, TrackableMixin, TimestampMixin):
     gateway_type: PaymentGatewayType
     gateway_display_name: Optional[str] = None
     payment_method: Optional[str] = None
+    # Где начата оплата: 'bot' или 'web'; у старых платежей None.
+    source: Optional[str] = None
 
     pricing: "PriceDetailsDto"
     currency: Currency

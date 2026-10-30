@@ -17,7 +17,7 @@ from sqlalchemy.dialects import postgresql
 
 from src.core.enums import PaymentGatewayType, TransactionStatus
 from src.infrastructure.database.dao.transaction import TransactionDaoImpl
-from src.web.endpoints.internal_admin import _reconcile, retry_payment
+from src.web.endpoints.internal_admin import _reconcile, metrics, retry_payment
 
 retry = retry_payment.__dishka_orig_func__
 NOW = datetime.now(timezone.utc)
@@ -141,3 +141,20 @@ def test_payment_search_by_client() -> None:
     assert _cond("rs_431720831") == "users.telegram_id = 431720831"
     assert "ilike" in _cond("@client").lower()
     assert _cond("x") == "false"
+
+
+
+# --- цифры -------------------------------------------------------------------
+
+
+async def test_metrics_period_is_clamped() -> None:
+    seen = []
+
+    async def admin_metrics(days):
+        seen.append(days)
+        return {"days": days}
+
+    dao = SimpleNamespace(admin_metrics=admin_metrics)
+    for asked in (0, 30, 10_000):
+        await metrics.__dishka_orig_func__(transaction_dao=dao, days=asked)
+    assert seen == [1, 30, 365]

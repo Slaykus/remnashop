@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Iterable, Optional, cast
+from typing import Any, Iterable, Optional, cast
 from uuid import UUID
 
 from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import Numeric, and_, case, false, func, or_, select, update
+from sqlalchemy import Numeric, and_, case, false, func, or_, select, text, update
 from sqlalchemy import cast as sql_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -582,6 +582,147 @@ class TransactionDaoImpl(TransactionDao):
         result = await self.session.scalars(stmt)
         return self._convert_to_dto_list(cast(list, result.all()))
 
+    async def admin_metrics(self, days: int) -> dict[str, Any]:
+        """
+        Цифры для админки: выручка, новые и продления, отток, истекающие,
+        конверсия пробного периода, источник оплат. Только агрегаты.
+
+        «Деньги» — завершённые не тестовые платежи в рублях с ненулевой
+        суммой: бесплатные активации выручкой не считаем. Дни и месяцы — по
+        Москве: по ней живёт бизнес, и сутки по UTC резали бы вечер.
+        """
+        now = datetime_now()
+        since = now - timedelta(days=days)
+        params = {"since": since, "now": now}
+
+        async def rows(sql: str, **extra: Any) -> list[Any]:
+            result = await self.session.execute(text(_PAID_CTE + sql), {**params, **extra})
+            return list(result.all())
+
+        daily = await rows(
+            """
+            SELECT (created_at AT TIME ZONE 'Europe/Moscow')::date AS day, purchase_type,
+                   sum(amount) AS amount, count(*) AS payments
+            FROM paid WHERE created_at >= :since
+            GROUP BY 1, 2 ORDER BY 1
+            """
+        )
+        monthly = await rows(
+            """
+            SELECT to_char(
+                       date_trunc('month', created_at AT TIME ZONE 'Europe/Moscow'), 'YYYY-MM'
+                   ) AS month,
+                   sum(amount) AS amount, count(*) AS payments,
+                   count(DISTINCT user_id) AS clients
+            FROM paid WHERE created_at >= :now - interval '12 months'
+            GROUP BY 1 ORDER BY 1
+            """
+        )
+        totals = (await rows(
+            """
+            SELECT count(*) AS payments, coalesce(sum(amount), 0) AS amount,
+                   count(DISTINCT user_id) AS clients,
+                   count(*) FILTER (WHERE purchase_type = 'RENEW') AS renewals,
+                   (SELECT count(*) FROM (
+                        SELECT user_id, min(created_at) AS first FROM paid GROUP BY user_id
+                    ) f WHERE f.first >= :since) AS new_clients
+            FROM paid WHERE created_at >= :since
+            """
+        ))[0]
+        sources = await rows(
+            """
+            SELECT CASE WHEN p.source IS NOT NULL THEN p.source
+                        WHEN u.telegram_id < 0 THEN 'web'
+                        ELSE 'unknown' END AS source,
+                   count(*) AS payments, sum(p.amount) AS amount
+            FROM paid p JOIN users u ON u.id = p.user_id
+            WHERE p.created_at >= :since
+            GROUP BY 1
+            """
+        )
+        subs = (await self.session.execute(text(
+            """
+            SELECT
+              count(*) FILTER (
+                  WHERE s.status = 'ACTIVE' AND NOT s.is_trial
+                    AND s.expire_at > :now AND s.expire_at <= :now + interval '3 days'
+              ) AS expiring_3,
+              count(*) FILTER (
+                  WHERE s.status = 'ACTIVE' AND NOT s.is_trial
+                    AND s.expire_at > :now AND s.expire_at <= :now + interval '7 days'
+              ) AS expiring_7,
+              count(*) FILTER (
+                  WHERE s.status = 'ACTIVE' AND NOT s.is_trial AND s.expire_at > :now
+              ) AS active_paid,
+              count(*) FILTER (
+                  WHERE s.status = 'ACTIVE' AND s.is_trial AND s.expire_at > :now
+              ) AS active_trial,
+              count(*) FILTER (WHERE NOT s.is_trial AND s.status <> 'DELETED'
+                               AND s.expire_at >= :since AND s.expire_at < :now) AS lapsed
+            FROM users u JOIN subscriptions s ON s.id = u.current_subscription_id
+            """
+        ), params)).one()
+        trials = await rows(
+            """
+            , trials AS (
+                SELECT user_id, min(created_at) AS started FROM subscriptions
+                WHERE is_trial GROUP BY user_id
+            )
+            SELECT to_char(
+                       date_trunc('month', t.started AT TIME ZONE 'Europe/Moscow'), 'YYYY-MM'
+                   ) AS month,
+                   count(*) AS trials,
+                   count(*) FILTER (WHERE EXISTS (
+                       SELECT 1 FROM paid p WHERE p.user_id = t.user_id AND p.created_at > t.started
+                   )) AS converted
+            FROM trials t WHERE t.started >= :now - interval '6 months'
+            GROUP BY 1 ORDER BY 1
+            """
+        )
+
+        by_day: dict[str, dict[str, Any]] = {}
+        for day, kind, amount, count in daily:
+            entry = by_day.setdefault(
+                str(day), {"day": str(day), "amount": Decimal(0), "payments": 0, "by_type": {}}
+            )
+            entry["amount"] += amount
+            entry["payments"] += count
+            entry["by_type"][str(kind)] = str(amount)
+
+        return {
+            "days": days,
+            "since": since,
+            "daily": [{**d, "amount": str(d["amount"])} for d in by_day.values()],
+            "monthly": [
+                {"month": m, "amount": str(a), "payments": p, "clients": c}
+                for m, a, p, c in monthly
+            ],
+            "totals": {
+                "payments": totals.payments,
+                "amount": str(totals.amount),
+                "clients": totals.clients,
+                "renewals": totals.renewals,
+                "new_clients": totals.new_clients,
+            },
+            "sources": {s: {"payments": p, "amount": str(a)} for s, p, a in sources},
+            "subscriptions": dict(subs._mapping),
+            "trials": [{"month": m, "trials": t, "converted": c} for m, t, c in trials],
+        }
+
 
 def _text(value) -> Optional[str]:  # type: ignore[no-untyped-def]
     return None if value is None else str(value)
+
+
+# Платежи, которые считаются деньгами. Источник берём из колонки, а у
+# старых платежей без неё — по клиенту: у кого нет телеграма, тот платил
+# на сайте.
+_PAID_CTE = """
+WITH paid AS (
+    SELECT t.user_id, t.created_at, t.purchase_type, t.source,
+           (t.pricing ->> 'final_amount')::numeric AS amount
+    FROM transactions t
+    WHERE t.status = 'COMPLETED' AND NOT t.is_test AND t.currency = 'RUB'
+      AND (t.pricing ->> 'final_amount')::numeric > 0
+)
+"""

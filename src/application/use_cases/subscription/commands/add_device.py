@@ -100,6 +100,8 @@ class GetDeviceAddonOfferDto:
 class CreateDeviceAddonPaymentDto:
     gateway_type: PaymentGatewayType
     return_url: Optional[str] = None
+    # Где начата оплата: 'bot' или 'web'.
+    source: Optional[str] = None
 
 
 class DeviceAddonError(Exception):
@@ -306,6 +308,7 @@ class CreateDeviceAddonPayment(
                 purchase_type=PurchaseType.DEVICES,
                 gateway_type=data.gateway_type,
                 return_url=data.return_url,
+                source=data.source,
             ),
         )
 

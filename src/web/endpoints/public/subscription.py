@@ -360,6 +360,7 @@ async def purchase_trial_web(
             pricing=pricing,
             purchase_type=PurchaseType.NEW,
             gateway_type=body.gateway_type,
+            source="web",
         ),
     )
 
@@ -431,6 +432,7 @@ async def purchase_subscription(
             pricing=pricing,
             purchase_type=purchase_type,
             gateway_type=body.gateway_type,
+            source="web",
         ),
     )
 
@@ -510,6 +512,7 @@ async def extend_subscription(
             pricing=pricing,
             purchase_type=PurchaseType.RENEW,
             gateway_type=body.gateway_type,
+            source="web",
         ),
     )
 

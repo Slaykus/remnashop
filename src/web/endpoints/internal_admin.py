@@ -810,3 +810,21 @@ async def _reconcile(
         not_completed=not_completed,
         amount_mismatch=mismatch,
     )
+
+
+# ---------------------------------------------------------------------------
+# Цифры
+# ---------------------------------------------------------------------------
+
+
+@router.get("/metrics")
+@inject
+async def metrics(
+    transaction_dao: FromDishka[TransactionDao],
+    days: int = 30,
+) -> dict:
+    """
+    Выручка, новые и продления, отток, истекающие, конверсия пробного
+    периода, источник оплат — за последние `days` дней. Только агрегаты.
+    """
+    return await transaction_dao.admin_metrics(max(1, min(days, 365)))

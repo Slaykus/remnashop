@@ -38,7 +38,7 @@ async def on_gateway_select(
 
     try:
         result = await create_addon_payment(
-            user, CreateDeviceAddonPaymentDto(gateway_type=gateway_type)
+            user, CreateDeviceAddonPaymentDto(gateway_type=gateway_type, source="bot")
         )
     except DeviceAddonError as error:
         logger.warning(f"{user.log} Device purchase refused: {error}")

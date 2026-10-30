@@ -1193,6 +1193,7 @@ async def create_device_addon_payment(
             CreateDeviceAddonPaymentDto(
                 gateway_type=gateway_type,
                 return_url=body.return_url,
+                source="web",
             ),
         )
     except DeviceAddonError as e:
@@ -1868,6 +1869,7 @@ async def create_web_payment(
                 gateway_type=gateway_type,
                 return_url=body.return_url,
                 is_gift=body.is_gift,
+                source="web",
             ),
         )
     except Exception as e:
