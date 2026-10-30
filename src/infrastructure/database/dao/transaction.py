@@ -593,6 +593,9 @@ class TransactionDaoImpl(TransactionDao):
         """
         now = datetime_now()
         since = now - timedelta(days=days)
+        # Параметры времени в запросах приведены к timestamptz явно: в
+        # выражении «:now - interval '…'» Postgres иначе выводит тип
+        # параметра как interval, и сравнение с датой падает.
         params = {"since": since, "now": now}
 
         async def rows(sql: str, **extra: Any) -> list[Any]:
@@ -603,7 +606,7 @@ class TransactionDaoImpl(TransactionDao):
             """
             SELECT (created_at AT TIME ZONE 'Europe/Moscow')::date AS day, purchase_type,
                    sum(amount) AS amount, count(*) AS payments
-            FROM paid WHERE created_at >= :since
+            FROM paid WHERE created_at >= CAST(:since AS timestamptz)
             GROUP BY 1, 2 ORDER BY 1
             """
         )
@@ -614,7 +617,7 @@ class TransactionDaoImpl(TransactionDao):
                    ) AS month,
                    sum(amount) AS amount, count(*) AS payments,
                    count(DISTINCT user_id) AS clients
-            FROM paid WHERE created_at >= :now - interval '12 months'
+            FROM paid WHERE created_at >= CAST(:now AS timestamptz) - interval '12 months'
             GROUP BY 1 ORDER BY 1
             """
         )
@@ -625,8 +628,8 @@ class TransactionDaoImpl(TransactionDao):
                    count(*) FILTER (WHERE purchase_type = 'RENEW') AS renewals,
                    (SELECT count(*) FROM (
                         SELECT user_id, min(created_at) AS first FROM paid GROUP BY user_id
-                    ) f WHERE f.first >= :since) AS new_clients
-            FROM paid WHERE created_at >= :since
+                    ) f WHERE f.first >= CAST(:since AS timestamptz)) AS new_clients
+            FROM paid WHERE created_at >= CAST(:since AS timestamptz)
             """
         ))[0]
         sources = await rows(
@@ -636,30 +639,35 @@ class TransactionDaoImpl(TransactionDao):
                         ELSE 'unknown' END AS source,
                    count(*) AS payments, sum(p.amount) AS amount
             FROM paid p JOIN users u ON u.id = p.user_id
-            WHERE p.created_at >= :since
+            WHERE p.created_at >= CAST(:since AS timestamptz)
             GROUP BY 1
             """
         )
         subs = (await self.session.execute(text(
             """
+            WITH t AS (
+                SELECT CAST(:now AS timestamptz) AS now, CAST(:since AS timestamptz) AS since
+            )
             SELECT
               count(*) FILTER (
                   WHERE s.status = 'ACTIVE' AND NOT s.is_trial
-                    AND s.expire_at > :now AND s.expire_at <= :now + interval '3 days'
+                    AND s.expire_at > t.now AND s.expire_at <= t.now + interval '3 days'
               ) AS expiring_3,
               count(*) FILTER (
                   WHERE s.status = 'ACTIVE' AND NOT s.is_trial
-                    AND s.expire_at > :now AND s.expire_at <= :now + interval '7 days'
+                    AND s.expire_at > t.now AND s.expire_at <= t.now + interval '7 days'
               ) AS expiring_7,
               count(*) FILTER (
-                  WHERE s.status = 'ACTIVE' AND NOT s.is_trial AND s.expire_at > :now
+                  WHERE s.status = 'ACTIVE' AND NOT s.is_trial AND s.expire_at > t.now
               ) AS active_paid,
               count(*) FILTER (
-                  WHERE s.status = 'ACTIVE' AND s.is_trial AND s.expire_at > :now
+                  WHERE s.status = 'ACTIVE' AND s.is_trial AND s.expire_at > t.now
               ) AS active_trial,
-              count(*) FILTER (WHERE NOT s.is_trial AND s.status <> 'DELETED'
-                               AND s.expire_at >= :since AND s.expire_at < :now) AS lapsed
-            FROM users u JOIN subscriptions s ON s.id = u.current_subscription_id
+              count(*) FILTER (
+                  WHERE NOT s.is_trial AND s.status <> 'DELETED'
+                    AND s.expire_at >= t.since AND s.expire_at < t.now
+              ) AS lapsed
+            FROM users u JOIN subscriptions s ON s.id = u.current_subscription_id CROSS JOIN t
             """
         ), params)).one()
         trials = await rows(
@@ -675,7 +683,7 @@ class TransactionDaoImpl(TransactionDao):
                    count(*) FILTER (WHERE EXISTS (
                        SELECT 1 FROM paid p WHERE p.user_id = t.user_id AND p.created_at > t.started
                    )) AS converted
-            FROM trials t WHERE t.started >= :now - interval '6 months'
+            FROM trials t WHERE t.started >= CAST(:now AS timestamptz) - interval '6 months'
             GROUP BY 1 ORDER BY 1
             """
         )
