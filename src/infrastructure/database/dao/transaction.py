@@ -7,14 +7,20 @@ from adaptix import Retort
 from adaptix.conversion import ConversionRetort
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy import and_, case, func, select, update
+from sqlalchemy import Numeric, and_, case, false, func, or_, select, update
+from sqlalchemy import cast as sql_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.dao import TransactionDao
 from src.application.dto import GatewayStatsDto, PlanIncomeDto, TransactionDto, UserPaymentStatsDto
-from src.core.enums import PaymentGatewayType, TransactionStatus
+from src.application.dto.admin_payments import (
+    AdminPaymentRow,
+    AdminPaymentsPage,
+    AdminPaymentsQuery,
+)
+from src.core.enums import Currency, PaymentGatewayType, TransactionStatus
 from src.core.utils.time import datetime_now
-from src.infrastructure.database.models import Transaction
+from src.infrastructure.database.models import Transaction, User
 
 
 class TransactionDaoImpl(TransactionDao):
@@ -459,3 +465,123 @@ class TransactionDaoImpl(TransactionDao):
             )
             for row in amounts_rows
         ]
+
+    async def admin_payments_page(self, query: AdminPaymentsQuery) -> AdminPaymentsPage:
+        """
+        Страница платежей для админки: платёж и его владелец одним запросом,
+        счётчики вкладок по статусам и сумма оплаченного в рублях.
+        """
+        amount = sql_cast(Transaction.pricing["final_amount"].astext, Numeric)
+        statuses = {
+            "completed": Transaction.status == TransactionStatus.COMPLETED,
+            "failed": Transaction.status == TransactionStatus.FAILED,
+            "pending": Transaction.status == TransactionStatus.PENDING,
+            "canceled": Transaction.status == TransactionStatus.CANCELED,
+            "refunded": Transaction.status == TransactionStatus.REFUNDED,
+        }
+
+        filters = self._admin_payment_filters(query)
+
+        def joined(stmt):  # type: ignore[no-untyped-def]
+            return (
+                stmt.select_from(Transaction)
+                .join(User, User.id == Transaction.user_id)
+                .where(*filters)
+            )
+
+        paid = func.coalesce(
+            func.sum(amount).filter(
+                Transaction.status == TransactionStatus.COMPLETED,
+                Transaction.currency == Currency.RUB,
+            ),
+            0,
+        )
+        cols = [func.count().label("all"), paid.label("paid_rub")] + [
+            func.count().filter(cond).label(name) for name, cond in statuses.items()
+        ]
+        counts = dict((await self.session.execute(joined(select(*cols)))).one()._mapping)
+        paid_rub = Decimal(counts.pop("paid_rub") or 0)
+
+        stmt = joined(select(Transaction, User.telegram_id, User.name, User.username))
+        if query.status != "all":
+            stmt = stmt.where(statuses[query.status])
+        per_page = max(1, min(query.per_page, 100))
+        stmt = (
+            stmt.order_by(Transaction.created_at.desc(), Transaction.id.desc())
+            .offset((max(1, query.page) - 1) * per_page)
+            .limit(per_page)
+        )
+
+        rows = []
+        for t, telegram_id, name, username in (await self.session.execute(stmt)).all():
+            pricing = t.pricing or {}
+            snapshot = t.plan_snapshot or {}
+            rows.append(
+                AdminPaymentRow(
+                    payment_id=t.payment_id,
+                    status=str(t.status),
+                    purchase_type=str(t.purchase_type),
+                    gateway_type=str(t.gateway_type),
+                    currency=str(t.currency),
+                    original_amount=_text(pricing.get("original_amount")),
+                    discount_percent=pricing.get("discount_percent"),
+                    final_amount=_text(pricing.get("final_amount")),
+                    plan_name=snapshot.get("name"),
+                    duration_days=snapshot.get("duration"),
+                    extra_devices=snapshot.get("extra_devices") or 0,
+                    is_test=t.is_test,
+                    is_gift=t.is_gift,
+                    created_at=t.created_at,
+                    updated_at=t.updated_at,
+                    telegram_id=telegram_id,
+                    user_name=name or "",
+                    username=username,
+                )
+            )
+
+        total = counts["all"] if query.status == "all" else counts[query.status]
+        return AdminPaymentsPage(rows=rows, total=total, counts=counts, paid_rub=paid_rub)
+
+    @classmethod
+    def _admin_payment_filters(cls, query: AdminPaymentsQuery) -> list:  # type: ignore[type-arg]
+        filters = []
+        if not query.include_test:
+            filters.append(Transaction.is_test.is_(False))
+        if query.gateway:
+            filters.append(Transaction.gateway_type == query.gateway)
+        if query.purchase_type:
+            filters.append(Transaction.purchase_type == query.purchase_type)
+        if query.date_from:
+            filters.append(Transaction.created_at >= query.date_from)
+        if query.date_to:
+            filters.append(Transaction.created_at < query.date_to)
+        if query.payment_id:
+            filters.append(Transaction.payment_id == query.payment_id)
+        elif query.q.strip():
+            filters.append(cls._admin_client_condition(query.q))
+        return filters
+
+    @staticmethod
+    def _admin_client_condition(q: str):  # type: ignore[no-untyped-def]
+        """Чьи платежи: tg id (в том числе `rs_…`) или имя/ник."""
+        term = q.strip()
+        if term.lower().startswith("rs_"):
+            term = term[3:]
+        term = term.lstrip("@")
+        if term.lstrip("-").isdigit():
+            return User.telegram_id == int(term)
+        if len(term) >= 2:
+            pattern = f"%{term}%"
+            return or_(User.name.ilike(pattern), User.username.ilike(pattern))
+        return false()
+
+    async def get_by_payment_ids(self, payment_ids: list[UUID]) -> list[TransactionDto]:
+        if not payment_ids:
+            return []
+        stmt = select(Transaction).where(Transaction.payment_id.in_(payment_ids))
+        result = await self.session.scalars(stmt)
+        return self._convert_to_dto_list(cast(list, result.all()))
+
+
+def _text(value) -> Optional[str]:  # type: ignore[no-untyped-def]
+    return None if value is None else str(value)

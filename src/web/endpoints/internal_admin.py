@@ -13,7 +13,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -39,8 +40,11 @@ from src.application.dto.admin_clients import (
     ClientSource,
     ClientStatusFilter,
 )
+from src.application.dto.admin_payments import AdminPaymentsQuery, PaymentStatusTab
 from src.application.services.device_pricing import gifted_devices
 from src.application.services.pricing import PricingService
+from src.application.use_cases.gateways.commands.payment import ProcessPayment, ProcessPaymentDto
+from src.application.use_cases.gateways.queries.providers import GetPaymentGatewayInstance
 from src.application.use_cases.remnawave.commands.management import (
     AdminDeleteDevices,
     AdminDeleteDevicesDto,
@@ -54,6 +58,8 @@ from src.application.use_cases.subscription.commands.set_plan import (
     SetUserSubscriptionDto,
 )
 from src.core.constants import API_V1
+from src.core.enums import PaymentGatewayType, TransactionStatus
+from src.infrastructure.payment_gateways.yookassa import YookassaGateway
 
 from .internal import _days_left, _enum_value, verify_internal_key
 
@@ -556,3 +562,251 @@ async def delete_devices(
     connected = len(await remnawave.get_devices(sub.user_remna_id))
     after = await _state(subscription_dao, user.id, connected)
     return AdminActionResult(before=before, after=after)
+
+
+# ---------------------------------------------------------------------------
+# Платежи
+# ---------------------------------------------------------------------------
+
+
+class AdminPaymentRowResponse(BaseModel):
+    payment_id: str
+    status: str
+    purchase_type: str
+    gateway_type: str
+    currency: str
+    original_amount: str | None
+    discount_percent: int | None
+    final_amount: str | None
+    plan_name: str | None
+    duration_days: int | None
+    extra_devices: int
+    is_test: bool
+    is_gift: bool
+    created_at: datetime | None
+    updated_at: datetime | None
+    telegram_id: int | None
+    user_name: str
+    username: str | None
+
+
+class AdminPaymentsResponse(BaseModel):
+    rows: list[AdminPaymentRowResponse]
+    total: int
+    counts: dict[str, int]
+    paid_rub: str
+    page: int
+    per_page: int
+
+
+@router.get("/payments", response_model=AdminPaymentsResponse)
+@inject
+async def payments_page(
+    transaction_dao: FromDishka[TransactionDao],
+    status: PaymentStatusTab = "all",
+    gateway: str | None = None,
+    purchase_type: str | None = None,
+    q: str = "",
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    include_test: bool = False,
+    page: int = 1,
+    per_page: int = 50,
+) -> AdminPaymentsResponse:
+    """Платежи с владельцами, фильтрами, счётчиками вкладок и суммой."""
+    term = q.strip()
+    try:
+        payment_id = UUID(term) if term else None
+    except ValueError:
+        payment_id = None
+    page, per_page = max(1, page), max(1, min(per_page, 100))
+    result = await transaction_dao.admin_payments_page(
+        AdminPaymentsQuery(
+            status=status,
+            gateway=gateway or None,
+            purchase_type=purchase_type or None,
+            q="" if payment_id else term,
+            payment_id=payment_id,
+            date_from=date_from,
+            date_to=date_to,
+            include_test=include_test,
+            page=page,
+            per_page=per_page,
+        )
+    )
+    return AdminPaymentsResponse(
+        rows=[
+            AdminPaymentRowResponse(**{**asdict(r), "payment_id": str(r.payment_id)})
+            for r in result.rows
+        ],
+        total=result.total,
+        counts=result.counts,
+        paid_rub=str(result.paid_rub),
+        page=page,
+        per_page=per_page,
+    )
+
+
+class AdminRetryResponse(BaseModel):
+    payment_id: str
+    telegram_id: int | None
+    status_before: str
+    status_after: str
+
+
+@router.post("/payments/{payment_id}/retry", response_model=AdminRetryResponse)
+@inject
+async def retry_payment(
+    payment_id: UUID,
+    transaction_dao: FromDishka[TransactionDao],
+    user_dao: FromDishka[UserDao],
+    process_payment: FromDishka[ProcessPayment],
+) -> AdminRetryResponse:
+    """
+    Повторить выдачу оплаченного, но не выданного платежа.
+
+    То же проведение, что запускают вебхук ЮKassa и автоповтор, и безопасно
+    по той же причине: переход FAILED -> COMPLETED атомарен, партнёрская
+    доля защищена уникальным ключом. Нужно, когда автоповтор уже отступился
+    (его окно — несколько часов) или ждать нельзя.
+    """
+    transaction = await transaction_dao.get_by_payment_id(payment_id)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Платёж не найден")
+    if (
+        transaction.status != TransactionStatus.FAILED
+        or transaction.is_test
+        or transaction.is_gift
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Повторить можно только оплаченный, но не выданный платёж",
+        )
+    user = await user_dao.get_by_id(transaction.user_id)
+    try:
+        await process_payment.system(
+            ProcessPaymentDto(
+                payment_id=payment_id,
+                new_transaction_status=TransactionStatus.COMPLETED,
+                gateway_type=transaction.gateway_type,
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Admin retry of payment {payment_id} failed: {e!r}")
+        raise HTTPException(status_code=400, detail=f"Выдать снова не удалось: {str(e)[:200]}")
+    after = await transaction_dao.get_by_payment_id(payment_id)
+    return AdminRetryResponse(
+        payment_id=str(payment_id),
+        telegram_id=user.telegram_id if user else None,
+        status_before=_enum_value(transaction.status),
+        status_after=_enum_value(after.status) if after else "",
+    )
+
+
+class ReconcileItem(BaseModel):
+    payment_id: str
+    created_at: str | None
+    amount: str | None
+    description: str
+    # Что у нас: статус и сумма; у «нет записи» пусто.
+    our_status: str | None = None
+    our_amount: str | None = None
+    telegram_id: int | None = None
+
+
+class ReconcileResponse(BaseModel):
+    since: datetime
+    yookassa_succeeded: int
+    test_skipped: int
+    # Деньги пришли, а записи у нас нет.
+    missing: list[ReconcileItem]
+    # Деньги пришли, а у нас платёж не оплачен (ожидает, отменён, не выдан).
+    not_completed: list[ReconcileItem]
+    # Оплачен у обоих, но суммы разные.
+    amount_mismatch: list[ReconcileItem]
+
+
+@router.get("/payments/reconcile", response_model=ReconcileResponse)
+@inject
+async def reconcile_yookassa(
+    transaction_dao: FromDishka[TransactionDao],
+    user_dao: FromDishka[UserDao],
+    get_gateway: FromDishka[GetPaymentGatewayInstance],
+    days: int = 30,
+) -> ReconcileResponse:
+    """
+    Сверка успешных платежей ЮKassa с базой бота — то, что раньше делал
+    скрипт reconcile_yookassa.py. Только читает: и ЮKassa, и базу.
+    """
+    days = max(1, min(days, 180))
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    try:
+        gateway = await get_gateway.system(PaymentGatewayType.YOOKASSA)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"ЮKassa не настроена: {e}")
+    if not isinstance(gateway, YookassaGateway):
+        raise HTTPException(status_code=400, detail="ЮKassa не настроена")
+    try:
+        payments = await gateway.list_succeeded_since(since)
+    except Exception as e:
+        logger.warning(f"YooKassa reconcile failed: {e!r}")
+        raise HTTPException(status_code=502, detail="ЮKassa не ответила")
+
+    return await _reconcile(payments, since, transaction_dao, user_dao)
+
+
+async def _reconcile(
+    payments: list[dict],
+    since: datetime,
+    transaction_dao: TransactionDao,
+    user_dao: UserDao,
+) -> ReconcileResponse:
+    real = [p for p in payments if not p["test"]]
+    ids = []
+    for p in real:
+        try:
+            ids.append(UUID(p["id"]))
+        except ValueError:
+            continue
+    ours = {str(t.payment_id): t for t in await transaction_dao.get_by_payment_ids(ids)}
+
+    owners: dict[int, int | None] = {}
+
+    async def owner(user_id: int) -> int | None:
+        if user_id not in owners:
+            u = await user_dao.get_by_id(user_id)
+            owners[user_id] = u.telegram_id if u else None
+        return owners[user_id]
+
+    missing, not_completed, mismatch = [], [], []
+    for p in sorted(real, key=lambda x: x.get("created_at") or ""):
+        item = ReconcileItem(
+            payment_id=p["id"],
+            created_at=p.get("created_at"),
+            amount=p.get("amount"),
+            description=p.get("description") or "",
+        )
+        t = ours.get(p["id"])
+        if t is None:
+            missing.append(item)
+            continue
+        item.our_status = _enum_value(t.status)
+        item.our_amount = str(t.pricing.final_amount) if t.pricing else None
+        item.telegram_id = await owner(t.user_id)
+        if t.status not in (TransactionStatus.COMPLETED, TransactionStatus.REFUNDED):
+            not_completed.append(item)
+        elif (
+            t.pricing
+            and p.get("amount") is not None
+            and Decimal(str(p["amount"])) != Decimal(str(t.pricing.final_amount))
+        ):
+            mismatch.append(item)
+
+    return ReconcileResponse(
+        since=since,
+        yookassa_succeeded=len(real),
+        test_skipped=len(payments) - len(real),
+        missing=missing,
+        not_completed=not_completed,
+        amount_mismatch=mismatch,
+    )

@@ -5,6 +5,7 @@ from typing import Iterable, Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from src.application.dto import GatewayStatsDto, PlanIncomeDto, TransactionDto, UserPaymentStatsDto
+from src.application.dto.admin_payments import AdminPaymentsPage, AdminPaymentsQuery
 from src.core.enums import PaymentGatewayType, TransactionStatus
 
 
@@ -29,6 +30,10 @@ class TransactionDao(Protocol):
     ) -> list[TransactionDto]: ...
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[TransactionDto]: ...
+
+    async def admin_payments_page(self, query: AdminPaymentsQuery) -> AdminPaymentsPage: ...
+
+    async def get_by_payment_ids(self, payment_ids: list[UUID]) -> list[TransactionDto]: ...
 
     async def get_by_status(self, status: TransactionStatus) -> list[TransactionDto]: ...
 

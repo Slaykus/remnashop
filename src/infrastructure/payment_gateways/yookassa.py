@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Final, Optional
 from uuid import UUID
@@ -103,6 +104,41 @@ class YookassaGateway(BasePaymentGateway):
             f"Last error: {last_connect_error}"
         )
         raise last_connect_error  # type: ignore[misc]
+
+    async def list_succeeded_since(self, since: datetime) -> list[dict[str, Any]]:
+        """
+        Успешные платежи с указанной даты — для сверки с базой в админке.
+
+        Только то, что нужно для сверки: объект платежа целиком несёт
+        маскированную карту, банк и код авторизации, хранить и показывать
+        их незачем.
+        """
+        params: dict[str, Any] = {
+            "status": "succeeded",
+            "created_at.gte": since.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+            "limit": 100,
+        }
+        found: list[dict[str, Any]] = []
+        while True:
+            response = await self._client.get("v3/payments", params=params)
+            response.raise_for_status()
+            body = response.json()
+            for item in body.get("items", []):
+                amount = item.get("amount") or {}
+                found.append(
+                    {
+                        "id": item["id"],
+                        "created_at": item.get("created_at"),
+                        "amount": amount.get("value"),
+                        "currency": amount.get("currency"),
+                        "test": bool(item.get("test", False)),
+                        "description": item.get("description", ""),
+                    }
+                )
+            cursor = body.get("next_cursor")
+            if not cursor:
+                return found
+            params = {**params, "cursor": cursor}
 
     async def handle_webhook(self, request: Request) -> tuple[UUID, TransactionStatus]:
         logger.debug("Received YooKassa webhook request")
